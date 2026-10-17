@@ -2,9 +2,11 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { DatabaseModule } from './infrastructure/database/database.module';
 
-/** Регистрирует каркас; бизнес-модули и инфраструктура пока не подключены. */
+/** Регистрирует HTTP-каркас и PostgreSQL; складские бизнес-модули ещё не подключены. */
 @Module({
+  imports: [DatabaseModule],
   controllers: [AppController],
   providers: [AppService],
 })

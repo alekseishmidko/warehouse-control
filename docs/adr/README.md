@@ -12,7 +12,6 @@ ADR фиксирует причину решения и его последст�
 | [0004](0004-contracts.md) | OpenAPI и версионированные события | Accepted |
 | [0005](0005-platform.md) | Docker, Kubernetes, Nginx | Accepted |
 | [0006](0006-delivery-observability.md) | Наблюдаемость и GitOps по этапам | Accepted |
-
 | [0007](0007-documentation-and-shared.md) | Документация всех файлов и модулей, shared/DRY | Accepted |
 
 Шаблон нового ADR: [template.md](template.md). Нумерация последовательная.

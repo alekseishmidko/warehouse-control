@@ -14,15 +14,15 @@
 |---|---|---|
 | Workspace | pnpm + TypeScript | Реализован |
 | Backend | NestJS | Каркас реализован |
-| Данные | PostgreSQL + Drizzle + SQL | Принято, предстоит внедрить |
+| Данные | PostgreSQL + Drizzle + SQL | WMS-101: подключение и технический baseline |
 | Надёжные события | PostgreSQL transactional outbox | Первый этап |
 | Event transport | Kafka, затем Schema Registry | Последующий этап |
 | UI | React, Vite, TanStack Query, Tailwind, shadcn/ui | Целевой стек |
-| Контейнеры | Docker, Compose | Обязательно |
+| Контейнеры | Docker, Compose | PostgreSQL Compose готов; образ backend предстоит |
 | Оркестрация | kind, Kubernetes, Helm | Обязательно |
 | Внешний HTTP | NGINX Gateway Fabric + Gateway API | Принято |
 | Телеметрия | Pino, OpenTelemetry, Prometheus, Grafana, Loki, Tempo | По этапам |
-| Проверки | Jest, Supertest, Testcontainers, k6 | По этапам |
+| Проверки | Jest, Supertest, Testcontainers, k6 | WMS-102: первые три готовы, k6 запланирован |
 | Поставка | GitHub Actions, GHCR, Argo CD | После проверки репозитория и окружения |
 
 ## Модули

@@ -5,19 +5,38 @@
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",
-    "typecheck": "tsc --noEmit",
-    "start": "node dist/main.js"
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "start": "node dist/main.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "pnpm build && node dist/infrastructure/database/migrate.js",
+    "db:check": "node dist/infrastructure/database/check.js",
+    "test:config": "pnpm test:unit",
+    "test:db-baseline": "node --test test/database-baseline.test.cjs",
+    "test:prepare": "pnpm build && node -e \"require('node:fs').rmSync('.test-dist', { recursive: true, force: true })\" && tsc -p tsconfig.test.json",
+    "test": "pnpm test:prepare && jest",
+    "test:unit": "pnpm test:prepare && jest --selectProjects unit",
+    "test:integration": "pnpm test:prepare && jest --selectProjects integration"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/platform-express": "^11.1.6",
+    "drizzle-orm": "0.45.4",
+    "pg": "8.23.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.10",
+    "@nestjs/testing": "11.2.7",
+    "@testcontainers/postgresql": "12.2.1",
+    "@types/jest": "30.0.0",
     "@types/node": "^22.18.0",
+    "@types/pg": "8.23.1",
+    "@types/supertest": "7.2.1",
+    "drizzle-kit": "0.31.11",
+    "jest": "30.5.2",
+    "supertest": "7.3.1",
     "typescript": "^5.9.2"
   }
 }

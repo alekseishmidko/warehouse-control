@@ -11,7 +11,17 @@
     "dev": "pnpm --filter @warehouse/backend dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "start": "pnpm --filter @warehouse/backend start"
+    "start": "pnpm --filter @warehouse/backend start",
+    "db:up": "docker compose --env-file .env -f infra/compose/compose.yaml up -d --wait",
+    "db:down": "docker compose --env-file .env -f infra/compose/compose.yaml down",
+    "db:generate": "pnpm --filter @warehouse/backend db:generate",
+    "db:migrate": "pnpm --filter @warehouse/backend db:migrate",
+    "db:check": "pnpm --filter @warehouse/backend db:check",
+    "test:config": "pnpm test:unit",
+    "test:db-baseline": "pnpm build && pnpm --filter @warehouse/backend test:db-baseline",
+    "test": "pnpm --filter @warehouse/backend test",
+    "test:unit": "pnpm --filter @warehouse/backend test:unit",
+    "test:integration": "pnpm --filter @warehouse/backend test:integration"
   },
   "private": true
 }
