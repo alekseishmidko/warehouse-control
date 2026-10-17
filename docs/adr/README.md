@@ -1,0 +1,20 @@
+# Architectural Decision Records
+
+ADR фиксирует причину решения и его последствия. Accepted означает утверждённое
+направление, не факт внедрения. Исторические решения не переписываются под новый выбор:
+добавляется следующий ADR, прежний получает ссылку `Superseded by`.
+
+| ADR | Решение | Статус |
+|---|---|---|
+| [0001](0001-modular-monolith.md) | Модульный монолит и pnpm | Accepted |
+| [0002](0002-postgresql-inventory.md) | PostgreSQL, Drizzle и синхронный учёт | Accepted |
+| [0003](0003-outbox-before-kafka.md) | Outbox перед Kafka | Accepted |
+| [0004](0004-contracts.md) | OpenAPI и версионированные события | Accepted |
+| [0005](0005-platform.md) | Docker, Kubernetes, Nginx | Accepted |
+| [0006](0006-delivery-observability.md) | Наблюдаемость и GitOps по этапам | Accepted |
+
+| [0007](0007-documentation-and-shared.md) | Документация всех файлов и модулей, shared/DRY | Accepted |
+
+Шаблон нового ADR: [template.md](template.md). Нумерация последовательная.
+Рутинный implementation detail не требует ADR; изменение границ, гарантий,
+транспорта, источника истины или платформы — требует.
