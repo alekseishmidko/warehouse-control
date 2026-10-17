@@ -1,0 +1,17 @@
+{
+  "name": "warehouse_controller",
+  "version": "1.0.0",
+  "description": "Warehouse controller monorepo",
+  "packageManager": "pnpm@10.18.3",
+  "engines": {
+    "node": ">=22.12.0",
+    "pnpm": ">=10 <11"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @warehouse/backend dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "start": "pnpm --filter @warehouse/backend start"
+  },
+  "private": true
+}

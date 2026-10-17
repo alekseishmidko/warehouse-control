@@ -5,6 +5,8 @@
 
 ## Проектная документация
 
+- [Описание продукта для менеджеров](docs/product.md)
+- [Стандарт документации](docs/documentation-standard.md) и [shared/DRY](docs/shared.md)
 - [Карта документации и фактический статус](docs/README.md)
 - [Архитектура и стек](docs/architecture.md)
 - [Домен и инварианты](docs/domain.md)
@@ -12,6 +14,7 @@
 - [Transactional outbox и переход на Kafka](docs/outbox.md)
 - [Принятые решения ADR](docs/adr/README.md)
 - [Этапы реализации](docs/roadmap.md)
+- [Подробный план разработки](docs/development-plan.md)
 - [Контекст для агента](AGENTS.md)
 
 Сейчас реализован только каркас backend. Документация описывает целевую WMS;
