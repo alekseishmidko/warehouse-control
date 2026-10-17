@@ -1,6 +1,10 @@
 # Эксплуатация и поставка
 
-Всё ниже — требования к будущему стенду; manifests и pipelines пока отсутствуют.
+PostgreSQL Compose и проверки WMS-101 реализованы: [инструкция](../infra/compose/README.md),
+[отчёт](reports/wms-101.md). Backend Dockerfile, manifests и pipelines пока отсутствуют.
+WMS-102 добавляет изолированные Jest/Supertest/Testcontainers проверки:
+[инструкция](../apps/backend/test/README.md).
+Остальные разделы описывают целевые требования.
 
 ## Локальный запуск
 

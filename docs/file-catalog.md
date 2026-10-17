@@ -15,9 +15,9 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [apps/backend/nest-cli.json](../apps/backend/nest-cli.json) | Nest CLI: sourceRoot src и deleteOutDir перед сборкой. |
 | [apps/backend/package.json](../apps/backend/package.json) | Зависимости и команды backend; подробнее в apps/backend/README.md. |
 | [apps/backend/src/app.controller.ts](../apps/backend/src/app.controller.ts) | Технические GET / и GET /health; проверка процесса без проверки БД. |
-| [apps/backend/src/app.module.ts](../apps/backend/src/app.module.ts) | Корневой Nest module: связывает контроллер и сервис. |
+| [apps/backend/src/app.module.ts](../apps/backend/src/app.module.ts) | Корневой Nest module: контроллер/сервис и DatabaseModule. |
 | [apps/backend/src/app.service.ts](../apps/backend/src/app.service.ts) | Статическое приветствие API без I/O. |
-| [apps/backend/src/main.ts](../apps/backend/src/main.ts) | HTTP bootstrap, PORT, shutdown hooks и ошибка запуска. |
+| [apps/backend/src/main.ts](../apps/backend/src/main.ts) | HTTP bootstrap, validated config, shutdown hooks и безопасная ошибка запуска. |
 | [apps/backend/tsconfig.build.json](../apps/backend/tsconfig.build.json) | Build-настройки: исключение тестов, зависимостей и dist. |
 | [apps/backend/tsconfig.json](../apps/backend/tsconfig.json) | Наследование общего TS, decorators/metadata, rootDir src и outDir dist. |
 | [docs/README.md](../docs/README.md) | Документация Warehouse Controller. |
@@ -35,7 +35,7 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [docs/contracts/events/receiving.receipt-posted.v1.schema.json](../docs/contracts/events/receiving.receipt-posted.v1.schema.json) | JSON Schema 2020-12 события приёмки v1; источник контракта, не generated output. |
 | [docs/contracts/examples/receiving.receipt-posted.v1.json](../docs/contracts/examples/receiving.receipt-posted.v1.json) | Пример валидного события приёмки для документации и будущих contract tests. |
 | [docs/documentation-standard.md](../docs/documentation-standard.md) | Стандарт документации. |
-| [docs/development-plan.md](../docs/development-plan.md) | Пошаговый backlog разработки: зависимости, критерии приёмки, проверки и демонстрации. |
+| [docs/development-plan.md](../docs/development-plan.md) | План шести этапов: 38 задач и 217 шагов, зависимости, критерии приёмки и проверки. |
 | [docs/domain.md](../docs/domain.md) | Домен и инварианты. |
 | [docs/file-catalog.md](../docs/file-catalog.md) | Этот каталог: покрытие и назначение собственных файлов репозитория. |
 | [docs/operations.md](../docs/operations.md) | Эксплуатация и поставка. |
@@ -49,3 +49,34 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [pnpm-lock.yaml](../pnpm-lock.yaml) | Автоматический lockfile pnpm 10: регенерация pnpm install, проверка pnpm install --frozen-lockfile; вручную не редактировать. |
 | [pnpm-workspace.yaml](../pnpm-workspace.yaml) | Границы apps/* и packages/*, разрешённый build hook NestJS. |
 | [tsconfig.base.json](../tsconfig.base.json) | Общие strict TypeScript-настройки, ES2022, CommonJS и source maps. |
+| [.env.example](../.env.example) | Публичные локальные env-настройки PostgreSQL/API; копируются в ignored .env. |
+| [apps/backend/drizzle/0000_huge_robin_chapel.sql](../apps/backend/drizzle/0000_huge_robin_chapel.sql) | Generated baseline migration: application_metadata; generator pnpm db:generate, не менять после применения. |
+| [apps/backend/drizzle/README.md](../apps/backend/drizzle/README.md) | Миграции WMS-101. |
+| [apps/backend/drizzle/meta/0000_snapshot.json](../apps/backend/drizzle/meta/0000_snapshot.json) | Generated Drizzle snapshot первой схемы; регенерация db:generate, ручное редактирование запрещено. |
+| [apps/backend/drizzle/meta/_journal.json](../apps/backend/drizzle/meta/_journal.json) | Generated journal migration tags/timestamps; обновляется db:generate. |
+| [apps/backend/drizzle.config.ts](../apps/backend/drizzle.config.ts) | Drizzle Kit: dialect, schema/output пути, validated connection config. |
+| [apps/backend/src/infrastructure/README.md](../apps/backend/src/infrastructure/README.md) | Инфраструктура backend. |
+| [apps/backend/src/infrastructure/config/README.md](../apps/backend/src/infrastructure/config/README.md) | Конфигурация процесса. |
+| [apps/backend/src/infrastructure/config/environment.ts](../apps/backend/src/infrastructure/config/environment.ts) | Optional root .env, strict NODE_ENV/PORT/DATABASE_URL validation без утечки credentials. |
+| [apps/backend/src/infrastructure/database/README.md](../apps/backend/src/infrastructure/database/README.md) | PostgreSQL и Drizzle. |
+| [apps/backend/src/infrastructure/database/check.ts](../apps/backend/src/infrastructure/database/check.ts) | Read-only CLI server_version/baseline table с закрытием pool. |
+| [apps/backend/src/infrastructure/database/connection.ts](../apps/backend/src/infrastructure/database/connection.ts) | Общая pg Pool/Drizzle фабрика Nest и CLI; bounded pool, безопасные idle errors. |
+| [apps/backend/src/infrastructure/database/database.module.ts](../apps/backend/src/infrastructure/database/database.module.ts) | Nest DatabaseModule/Service: startup check, typed handle, shutdown pool. |
+| [apps/backend/src/infrastructure/database/migrate.ts](../apps/backend/src/infrastructure/database/migrate.ts) | Compiled CLI SQL migrations, journal, finally pool.end и безопасная ошибка. |
+| [apps/backend/src/infrastructure/database/schema.ts](../apps/backend/src/infrastructure/database/schema.ts) | Техническая source schema application_metadata, без складских таблиц. |
+| [apps/backend/test/README.md](../apps/backend/test/README.md) | Jest suites, Testcontainers, Docker prerequisites, cleanup и отдельный Compose smoke. |
+| [apps/backend/test/database-baseline.test.cjs](../apps/backend/test/database-baseline.test.cjs) | Dev-only real PostgreSQL smoke: migrate twice, restart persistence и CLI termination. |
+| [docs/reports/wms-101.md](../docs/reports/wms-101.md) | WMS-101: окружение и первая миграция. |
+| [infra/compose/README.md](../infra/compose/README.md) | Локальный PostgreSQL. |
+| [infra/compose/compose.yaml](../infra/compose/compose.yaml) | Закреплённый PostgreSQL 17.9, localhost port 15432, volume и healthcheck. |
+| [apps/backend/jest.config.cjs](../apps/backend/jest.config.cjs) | Jest unit/integration projects, mapper на production dist, Node environment и maxWorkers=2. |
+| [apps/backend/test/integration/database.spec.ts](../apps/backend/test/integration/database.spec.ts) | Реальная PostgreSQL: migrations, commit/rollback и очистка без удаления journal. |
+| [apps/backend/test/integration/http.spec.ts](../apps/backend/test/integration/http.spec.ts) | Supertest настоящего Nest AppModule с отдельной БД; HTTP и закрытие app pool. |
+| [apps/backend/test/integration/lifecycle.spec.ts](../apps/backend/test/integration/lifecycle.spec.ts) | Проверка cleanup после assertion failure и изоляция двух одновременно живых harnesses. |
+| [apps/backend/test/integration.setup.cjs](../apps/backend/test/integration.setup.cjs) | Устанавливает 120 секунд на integration tests/hooks. |
+| [apps/backend/test/support/README.md](../apps/backend/test/support/README.md) | Test support. |
+| [apps/backend/test/support/database-harness.ts](../apps/backend/test/support/database-harness.ts) | Общий lifecycle Testcontainers PostgreSQL, migrations, Nest config override и cleanup ресурсов. |
+| [apps/backend/test/support/metadata.fixture.ts](../apps/backend/test/support/metadata.fixture.ts) | Fixture технических metadata с уникальными значениями; без бизнес-логики. |
+| [apps/backend/test/unit/environment.spec.ts](../apps/backend/test/unit/environment.spec.ts) | Jest unit: конфигурация, defaults, redaction и безопасный startup failure без Docker. |
+| [apps/backend/tsconfig.test.json](../apps/backend/tsconfig.test.json) | TS types/aliases для tests, строгая компиляция в ignored .test-dist. |
+| [docs/reports/wms-102.md](../docs/reports/wms-102.md) | WMS-102: тестовая инфраструктура. |

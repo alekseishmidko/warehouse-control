@@ -17,9 +17,11 @@ Warehouse Controller — учебная WMS: приёмка, размещени�
 
 ## Текущее состояние
 
-Реализован только каркас NestJS в `apps/backend`: `GET /`, `GET /health`.
-Есть pnpm workspace, build и typecheck. БД, frontend, outbox, Kafka,
-контейнеризация и Kubernetes пока описаны как целевая архитектура.
+Реализованы каркас NestJS (`GET /`, `GET /health`) и WMS-101: Compose PostgreSQL,
+Drizzle/pg, baseline migration, runtime config и управление pool.
+Есть pnpm workspace, build/typecheck и WMS-102: Jest unit/integration,
+Supertest, изолированный PostgreSQL Testcontainers и cleanup fixtures/resources.
+Бизнес-модули, frontend, outbox, Kafka, образ backend и Kubernetes ещё не реализованы.
 Не считать наличие документации доказательством реализации.
 
 ## Обязательные ограничения
@@ -54,7 +56,16 @@ Warehouse Controller — учебная WMS: приёмка, размещени�
 
 Существующие команды: `pnpm typecheck`, `pnpm build`.
 `pnpm dev` запускает backend, `pnpm start` — собранный backend.
-Тестовый runner и контрактные проверки ещё не настроены.
+Jest: `pnpm test:unit` без Docker, `pnpm test:integration` с Testcontainers,
+`pnpm test` — оба проекта; перед запуском production build и компиляция tests.
+`pnpm test:config` — alias unit. Отдельный native `pnpm test:db-baseline`
+перезапускает dev Compose postgres и не входит в Jest.
+При недоступном Docker integration падает с ненулевым кодом, skip/fallback запрещены.
+Test support — `apps/backend/test/support/`; отдельный контейнер на suite,
+реальные migrations, config override через DI без изменения process.env.
+Не запускать два test:prepare одновременно в одном checkout; suites одного Jest
+прогона работают параллельно и имеют независимые БД.
+Контрактные проверки ещё не настроены. Следующая задача — WMS-103.
 При добавлении функциональности нужны проверки её бизнес-инвариантов.
 Для outbox обязательны реальные PostgreSQL integration tests: rollback,
 повторная доставка, конкуренция workers, восстановление после сбоя.

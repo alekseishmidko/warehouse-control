@@ -17,8 +17,8 @@
 - [Подробный план разработки](docs/development-plan.md)
 - [Контекст для агента](AGENTS.md)
 
-Сейчас реализован только каркас backend. Документация описывает целевую WMS;
-БД, бизнес-модули, Docker и Kubernetes будут добавляться по этапам.
+Реализованы каркас backend и WMS-101: PostgreSQL Compose, Drizzle, первая миграция
+и runtime config, Jest/Supertest/Testcontainers harness. Бизнес-модули, backend Docker image и Kubernetes ещё запланированы.
 
 ## Запуск
 
@@ -28,6 +28,9 @@
 ```sh
 corepack enable
 pnpm install
+cp .env.example .env # только если .env отсутствует
+pnpm db:up
+pnpm db:migrate
 pnpm dev
 ```
 
@@ -52,3 +55,40 @@ pnpm start      # Запуск собранного backend (после pnpm bui
 Команды конкретного приложения: `pnpm --filter @warehouse/backend <команда>`.
 
 Документация: [pnpm workspaces](https://pnpm.io/workspaces), [NestJS](https://docs.nestjs.com/first-steps).
+
+## PostgreSQL и конфигурация WMS-101
+
+PORT, NODE_ENV и обязательный DATABASE_URL проверяются до старта.
+Backend проверяет подключение к БД при запуске и закрывает pool при SIGTERM.
+`/health` по-прежнему проверяет только ответ HTTP-процесса, а не readiness БД.
+
+```sh
+pnpm db:up       # Compose PostgreSQL с ожиданием healthcheck
+pnpm db:generate # schema -> SQL + meta, без применения
+pnpm db:migrate  # build + CLI миграций
+pnpm db:check    # read-only проверка, после build/migrate
+pnpm db:down     # остановка с сохранением volume
+pnpm test:config # alias Jest unit tests без Docker
+pnpm test:db-baseline # dev-only migrate twice + restart PostgreSQL
+```
+
+Подробности, диагностика и **удаление dev volume** — в [Compose README](infra/compose/README.md).
+Проверенные версии и ограничения — в [отчёте WMS-101](docs/reports/wms-101.md).
+Корневой package.json задаёт scripts/engines/pnpm; pnpm-workspace.yaml — границы
+apps/packages и разрешённый Nest build hook. tsconfig.base.json — strict ES2022/CommonJS.
+.gitignore исключает зависимости, dist, IDE и .env. .env.example — публичные dev-настройки.
+pnpm-lock.yaml генерируется pnpm install, вручную не редактируется; проверка установки
+использует pnpm install --frozen-lockfile.
+
+## Тесты WMS-102
+
+```sh
+pnpm test:unit        # конфигурация, без Docker
+pnpm test:integration # PostgreSQL Testcontainers + migrations + HTTP
+pnpm test            # оба проекта
+```
+
+Compose не нужен для integration: временные containers с динамическими портами
+и отдельной БД на suite создаются и удаляются автоматически. Недоступный Docker
+вызывает ошибку, а не skip. Инструкции и диагностика — [test README](apps/backend/test/README.md),
+результаты — [отчёт WMS-102](docs/reports/wms-102.md).

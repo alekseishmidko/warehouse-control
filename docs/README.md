@@ -17,7 +17,9 @@
 | [Outbox](outbox.md) | Транзакции, доставка, идемпотентность и Kafka |
 | [Эксплуатация](operations.md) | Docker, Kubernetes, наблюдаемость, CI/CD |
 | [План](roadmap.md) | Этапы и критерии готовности |
-| [План разработки](development-plan.md) | Backlog с ID, зависимостями, проверками и демонстрациями |
+| [Отчёт WMS-102](reports/wms-102.md) | Jest, Supertest, изоляция БД и проверки cleanup |
+| [Отчёт WMS-101](reports/wms-101.md) | Проверенное окружение, миграции и результаты проверок |
+| [План разработки](development-plan.md) | 38 задач и 217 подробных шагов с зависимостями, проверками и демонстрациями |
 | [ADR](adr/README.md) | Принятые решения и шаблон новых решений |
 | [Восстановление обработки](runbooks/event-recovery.md) | Зависшие, ошибочные и повторные события |
 | [Контекст агента](../AGENTS.md) | Ограничения и правила работы с проектом |
@@ -26,8 +28,12 @@
 
 - Готово: pnpm workspace, NestJS backend, TypeScript, build/typecheck,
   `GET /` и `GET /health`.
-- Описано, но не реализовано: весь домен WMS, БД и миграции, outbox,
-  обработчики, авторизация, frontend, Docker, Kubernetes и CI/CD.
+- Готово WMS-101: Compose PostgreSQL, Drizzle/pg, baseline migration, runtime config,
+  startup/shutdown pool и baseline smoke.
+- Готово WMS-102: Jest unit/integration, Supertest, PostgreSQL Testcontainers,
+  реальные migrations и cleanup при ошибке; config tests перенесены в Jest.
+- Описано, но не реализовано: весь домен WMS и outbox,
+  обработчики, авторизация, frontend, Docker image backend, Kubernetes и CI/CD.
 - Пример контракта `ReceivingPosted` — проектный образец, не опубликованный API.
 - CI-проверка JSON Schema, OpenAPI и совместимости пока не настроена.
 
