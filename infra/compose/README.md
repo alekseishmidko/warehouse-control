@@ -58,7 +58,7 @@ pnpm test:db-baseline
 **postgres этого проекта**, проверяет сохранность и удаляет запись.
 Не выполнять одновременно с работающим API/другой проверкой этого стенда:
 restart прервёт их соединения. Проверка предназначена для baseline WMS-101
-с одной миграцией; после следующих миграций её ожидания нужно обновить.
+с текущим журналом migrations; число applied migrations сверяется с generated journal.
 Изолированный harness WMS-102 реализован: `pnpm test:integration` не требует этого
 Compose-стенда и не перезапускает его; см. [tests README](../../apps/backend/test/README.md).
 
@@ -68,3 +68,8 @@ Compose-стенда и не перезапускает его; см. [tests REA
 
 Источники: [PostgreSQL official image](https://hub.docker.com/_/postgres),
 [Drizzle PostgreSQL](https://orm.drizzle.team/docs/get-started-postgresql).
+
+WMS-103 добавляет audit migrations и NOLOGIN permission group warehouse_app.
+Dev admin URL остаётся прежним. Миграции требуют CREATEROLE либо заранее
+подготовленной безопасной группы. Production login и его credentials provisioned
+отдельно; не использовать этот Compose account во внешнем окружении.

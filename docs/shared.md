@@ -8,7 +8,7 @@
 | Общая техническая логика backend | `apps/backend/src/shared/<capability>/` |
 | Подключения БД/Kafka/OTel и адаптеры I/O | `apps/backend/src/infrastructure/` |
 | Общий код нескольких приложений | `packages/<capability>/` при реальных потребителях |
-| Правила остатков и резервов | inventory, вызов через application interface |
+| Правила остатков и резервов | inventory, вызов через экспортируемый сервис |
 | Типы API и событий | Генерация из контрактов |
 
 Примеры shared: Clock/IdGenerator ports, формат технических ошибок, pagination,
@@ -32,5 +32,6 @@ Frontend не импортирует backend shared напрямую.
 Не создавать общие свалки utils/helpers, universal base service, generic repository
 для сокрытия разных транзакций или абстракции с настройкой на каждый частный случай.
 Одинаковые числа не обязательно означают одну общую константу.
-Shared создаётся при появлении реального кода; сейчас выносить из каркаса нечего.
+Shared создаётся при появлении реального кода. WMS-103 добавляет первую capability:
+transactions — opaque context и runner port без ORM/транспорта.
 Каждая capability имеет README, file-level docs и проверки существенного поведения.

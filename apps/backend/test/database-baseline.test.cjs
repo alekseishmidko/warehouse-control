@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const { resolve } = require('node:path');
 const { randomUUID } = require('node:crypto');
+const { readFileSync } = require('node:fs');
 const { Pool } = require('pg');
 const { loadEnvironment } = require('../dist/infrastructure/config/environment');
 
@@ -25,7 +26,8 @@ test('local baseline migrates repeatedly and survives postgres restart', { timeo
     // Timeout и выход CLI подтверждают, что migrator не оставляет открытый pool.
     execFileSync(process.execPath, [migrate], { timeout: 15000, stdio: 'pipe' });
     const first = await pool.query('select count(*)::int as count from drizzle.__drizzle_migrations');
-    assert.equal(first.rows[0].count, 1);
+    const journal = JSON.parse(readFileSync(resolve(__dirname, '../drizzle/meta/_journal.json'), 'utf8'));
+    assert.equal(first.rows[0].count, journal.entries.length);
     execFileSync(process.execPath, [migrate], { timeout: 15000, stdio: 'pipe' });
     const repeated = await pool.query('select count(*)::int as count from drizzle.__drizzle_migrations');
     assert.equal(repeated.rows[0].count, first.rows[0].count);

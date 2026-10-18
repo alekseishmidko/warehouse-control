@@ -92,3 +92,13 @@ Compose не нужен для integration: временные containers с д�
 и отдельной БД на suite создаются и удаляются автоматически. Недоступный Docker
 вызывает ошибку, а не skip. Инструкции и диагностика — [test README](apps/backend/test/README.md),
 результаты — [отчёт WMS-102](docs/reports/wms-102.md).
+
+## Транзакции и аудит WMS-103
+
+Реализованы общий transaction port/context, PostgreSQL runner и AuditService/AuditRepository.
+Изменения и audit используют одну транзакцию; ошибку audit нельзя игнорировать.
+Новые migrations добавляют таблицу, runtime permission group и append-only trigger.
+Dev Compose остаётся admin-стендом, runtime login внешнего окружения ещё не provisioned.
+Применение к локальной БД — отдельная команда pnpm db:migrate.
+Правила и ограничения: [transactions](docs/transactions.md),
+результаты: [отчёт WMS-103](docs/reports/wms-103.md).

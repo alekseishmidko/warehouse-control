@@ -1,5 +1,6 @@
-/** @file Техническая Drizzle-схема WMS-101. Складских таблиц и автоматического seed нет. */
+/** @file Агрегатор Drizzle-схем metadata и audit для migrations; складских таблиц и seed нет. */
 import { pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+export { auditEntries } from '../../modules/audit/audit.schema';
 
 /** Метаданные инсталляции; не источник stock или версия состояния бизнес-агрегатов. */
 export const applicationMetadata = pgTable('application_metadata', {

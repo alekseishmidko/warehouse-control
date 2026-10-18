@@ -14,7 +14,8 @@
 - [database](database/README.md): pool, Drizzle, Nest adapter, migrate/check CLI.
 
 I/O и ORM остаются здесь. Shared не импортирует infrastructure; domain не зависит
-от этих адаптеров. Общий transaction context для бизнес-модулей появится в WMS-103.
+от этих адаптеров. WMS-103 добавляет scoped PostgreSQL transaction runner, реализующий shared port.
+Правила: [transactions](../../../../docs/transactions.md).
 Публичный технический интерфейс сейчас — DatabaseModule/DatabaseService и CLI;
 событий и пользовательских бизнес-команд здесь нет.
 Запуск и проверки описаны в дочерних README и [Compose](../../../../infra/compose/README.md).

@@ -29,6 +29,9 @@ Jest читает compiled tests; @backend/* отображается в нас�
 | ../jest.config.cjs | Два projects с отдельными testMatch, maxWorkers=2, Node environment |
 | ../tsconfig.test.json | TS aliases/types и compiled output .test-dist; source/tests typecheck |
 | integration.setup.cjs | 120 секунд для integration tests/hooks |
+| unit/audit-entry.spec.ts | Audit validation и redaction без БД |
+| integration/transactions-audit.spec.ts | Общий context, audit atomicity, rollback, scopes и права PostgreSQL |
+| support/audit.fixture.ts | Синтетические audit IDs/коды |
 | unit/environment.spec.ts | Строгая конфигурация и redaction, без БД |
 | integration/database.spec.ts | Реальные SQL migrations, commit/rollback и очистка |
 | integration/http.spec.ts | Настоящий AppModule и Supertest, закрытие app pool |
@@ -52,7 +55,9 @@ infra/compose/compose.yaml, поэтому major/patch/digest совпадают
 
 Отдельный container и случайное имя БД на suite. Порты динамические, credentials
 случайные. Миграции применяются Drizzle migrator из backend/drizzle, ORM auto-sync нет.
-После каждого теста очищается только application_metadata, journal не трогается.
+После каждого теста очищаются application_metadata и audit_entries, journal не трогается.
+Для audit reset администратор disposable container временно отключает append-only
+trigger внутри транзакции и включает его обратно; runtime-группе это запрещено.
 При добавлении таблиц обновлять reset с учётом FK; не запускать test.concurrent
 на одном harness. Для concurrent сценария создавать собственные harnesses.
 Данные другого suite или dev Compose не очищаются.
@@ -70,7 +75,7 @@ afterAll — 60 секундами. Сначала закрываются HTTP/N
 Общий test-only код находится в support, не в production shared.
 Fixture создаёт уникальные технические значения; не повторяет доменные правила.
 Для обычной suite вызвать useDatabaseSuite на верхнем уровне, получить harness
-в тесте, использовать production db/application interfaces. Для проверки отказов
+в тесте, использовать экспортируемые сервисы и repositories своего модуля. Для проверки отказов
 использовать withDatabaseHarness: finally освобождает ресурсы после callback throw.
 Config Nest заменяется через DATABASE_CONFIG provider, process.env не изменяется.
 Регистрацию app cleanup выполняем до app.init, чтобы ошибка init также убиралась.
@@ -92,3 +97,8 @@ Integration setup бросает явную ошибку; Jest выходит с
 pnpm test:db-baseline требует **dev Compose**, перезапускает postgres проекта,
 не входит в pnpm test и не предназначена для параллельного запуска с API.
 См. [Compose](../../../infra/compose/README.md). Не путать её с изолированными integration suites.
+
+WMS-103 проверяет роль warehouse_app через SET LOCAL ROLE и обычный SQL владельца.
+Это не provisioning production login. Правила атомарности, masking и retry —
+[transactions](../../../docs/transactions.md). Контекст передаётся явно; новые
+application tests используют PostgresTransactionRunner, не второй framework.

@@ -65,3 +65,10 @@ actorId/type, action, entityType/id, timestamp, correlationId, reason и без�
 rollback без движения и события; перемещение без изменения общего количества;
 сборка с переносом allocation; отгрузка без отрицательных остатков;
 неавторизованная корректировка; повтор доставки без повторного эффекта.
+
+## Реализация аудита WMS-103
+
+Write interface и append-only таблица реализованы; user/system actorId и entityId — UUID,
+основание — reasonCode, время — transaction timestamp PostgreSQL. Допустимые changes
+и политика redaction/ролей: [transactions](transactions.md). Произвольные комментарии
+вместо кода основания не сохраняются. Складские сценарии пока не реализованы.

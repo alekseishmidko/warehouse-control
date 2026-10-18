@@ -1,6 +1,6 @@
 # Backend Warehouse Controller
 
-Документация корневого NestJS-модуля и конфигурации backend после WMS-101/102.
+Документация корневого NestJS-модуля и конфигурации backend после WMS-101–103.
 
 ## Для менеджера
 
@@ -11,8 +11,9 @@ API отвечает на технические маршруты и подкл�
 
 ## Для разработчика
 
-AppModule связывает AppController/AppService и импортирует DatabaseModule.
-Бизнес-транзакций, авторизации, событий и consumers ещё нет.
+AppModule связывает AppController/AppService, DatabaseModule и AuditModule.
+Transaction runner и AuditService/AuditRepository реализованы; складских бизнес-сценариев,
+авторизации, событий и consumers ещё нет.
 Стартовые маршруты открыты; это не политика будущих бизнес-endpoints.
 
 | Маршрут | Ответ | Ограничение |
@@ -25,10 +26,12 @@ AppModule связывает AppController/AppService и импортирует 
 | Файл / каталог | Назначение |
 |---|---|
 | src/main.ts | Config validation, Nest HTTP, shutdown и безопасная ошибка старта |
-| src/app.module.ts | Composition root с DatabaseModule |
+| src/app.module.ts | Composition root с DatabaseModule и AuditModule |
 | src/app.controller.ts | Два технических HTTP routes |
 | src/app.service.ts | Статическое приветствие |
-| src/infrastructure/ | Config, pg pool/Drizzle, migrate/check CLI; дочерние README |
+| src/infrastructure/ | Config, pg pool/Drizzle, scoped transactions, migrate/check CLI |
+| src/shared/ | ORM/transport-independent transaction contracts |
+| src/modules/audit/ | AuditService, AuditRepository, redaction и schema; README |
 | drizzle.config.ts | PostgreSQL dialect, schema/output пути, validated URL для Kit |
 | drizzle/ | Generated SQL, snapshot, journal и README |
 | test/ | Jest unit/integration, Testcontainers support, отдельный native dev baseline smoke |
@@ -56,3 +59,7 @@ Dev baseline test перезапускает postgres
 Документы: [infrastructure](src/infrastructure/README.md),
 [Compose](../../infra/compose/README.md), [ADR](../../docs/adr/README.md),
 [план](../../docs/development-plan.md), [отчёт](../../docs/reports/wms-101.md).
+
+WMS-103: [транзакции и аудит](../../docs/transactions.md),
+[audit module](src/modules/audit/README.md), [shared](src/shared/README.md).
+Внешних audit endpoints нет. Dev Compose credentials не являются production runtime role.

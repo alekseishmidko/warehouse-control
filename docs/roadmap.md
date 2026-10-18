@@ -1,7 +1,7 @@
 # Этапы реализации
 
 Не начинать следующий инфраструктурный этап до рабочего вертикального сценария.
-Этап 1 начат: WMS-101 и WMS-102 выполнены; остальные задачи пока не реализованы.
+Этап 1 начат: WMS-101–WMS-103 выполнены; остальные задачи пока не реализованы.
 
 Подробный backlog с ID задач, зависимостями, демонстрациями и критериями перехода:
 [план разработки](development-plan.md): 38 задач, разбитых на 217 шагов с чекбоксами.
@@ -13,10 +13,12 @@
 Каркас NestJS и pnpm существует. Архитектура, контракты, ADR и контекст агента описаны.
 PostgreSQL/Drizzle, первая миграция и Compose реализованы в WMS-101.
 WMS-102 завершена: Jest/Supertest и PostgreSQL Testcontainers harness.
-Следующая задача: WMS-103, transaction context и audit.
+WMS-103 завершена: transaction context/runner, audit и append-only права.
+Следующая задача: WMS-104, минимальные складские данные.
 
 Отчёты: [окружение WMS-101](reports/wms-101.md),
-[тестовая инфраструктура WMS-102](reports/wms-102.md).
+[тестовая инфраструктура WMS-102](reports/wms-102.md),
+[транзакции и аудит WMS-103](reports/wms-103.md).
 
 ## 1. Приёмка + outbox + Docker
 
@@ -63,6 +65,12 @@ Strimzi, publisher, consumer groups, AsyncAPI/Registry compatibility spike,
 GitHub Actions/GHCR при подтверждённом хостинге, Argo CD,
 автоматические gates, image scan, секреты и rollback drill.
 Готово, когда выпуск воспроизводим и восстановление проверено.
+
+## Стиль реализации
+
+По умолчанию controller → service → repository по [ADR-0009](adr/0009-nest-service-repository-default.md).
+Сервисы, repositories и DTO размещаются в отдельных одноимённых каталогах.
+WMS-103 audit приведён к этому стилю; складские задачи не начинаем в рамках рефакторинга.
 
 ## Формат задачи
 

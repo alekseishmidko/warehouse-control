@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { sql } from 'drizzle-orm';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '@backend/app.module';
@@ -99,7 +100,12 @@ export async function createDatabaseHarness(): Promise<DatabaseHarness> {
         return app;
       },
       async reset() {
-        await database.pool.query('truncate table application_metadata');
+        // Только администратор disposable test container может обходить append-only для cleanup.
+        await database.db.transaction(async tx => {
+          await tx.execute(sql`alter table audit_entries disable trigger audit_entries_append_only`);
+          await tx.execute(sql`truncate table application_metadata, audit_entries`);
+          await tx.execute(sql`alter table audit_entries enable trigger audit_entries_append_only`);
+        });
       },
       dispose,
     };

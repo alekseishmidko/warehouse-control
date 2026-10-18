@@ -5,7 +5,7 @@
 
 ## Для менеджера
 
-Сохраняет только технические метаданные, не остатки или заказы.
+Сохраняет технические метаданные и поддерживает запись аудита; остатков и заказов пока нет.
 Повторная миграция не дублирует структуру; рестарт PostgreSQL сохраняет данные
 в volume. Простой `/health` пока проверяет HTTP-процесс, а не текущую готовность БД.
 
@@ -13,9 +13,10 @@
 
 | Файл | Контракт |
 |---|---|
-| schema.ts | Таблица application_metadata: key PK, value, created_at UTC; warehouse-домена нет |
+| schema.ts | Metadata и агрегация audit schema; складских таблиц пока нет |
 | connection.ts | Создаёт Pool и typed Drizzle; владелец обязан вызвать pool.end() |
 | database.module.ts | DatabaseModule экспортирует DatabaseService, подключает БД при Nest init и закрывает при destroy |
+| postgres-transaction-runner.ts | Реализация shared port, context binding и nested/scope guards |
 | migrate.ts | CLI применяет generated SQL, использует finally для закрытия pool, exit 1 при ошибке |
 | check.ts | Read-only CLI читает server_version и baseline table, закрывает pool |
 
@@ -31,7 +32,7 @@ Compose health/logs и результаты проверки конфигура�
 `DATABASE_URL` берётся из [config](../config/README.md). Nest startup выполняет
 SELECT 1 до открытия HTTP. При ошибке подключение закрывается. При bind failure
 main закрывает приложение; SIGTERM запускает shutdown hooks и закрывает pool.
-Startup не применяет миграции автоматически. Прикладные транзакции — следующая задача WMS-103.
+Startup не применяет миграции автоматически. WMS-103 добавляет TRANSACTION_RUNNER provider с scoped context.
 
 ## Миграции и команды из корня
 
@@ -58,8 +59,9 @@ Runtime CLI ищет migration assets рядом с backend; будущий Dock
 
 `pnpm test:db-baseline` — opt-in dev-проверка с реальным PostgreSQL и restart;
 описание ограничений и удаления volume — в [Compose README](../../../../../infra/compose/README.md).
-Это не Testcontainers suite. Права runtime и migration role пока не разделены:
-Compose использует локальную dev-роль; внешний стенд с ней не разворачивается.
+Это не Testcontainers suite. WMS-103 добавляет NOLOGIN runtime permission group
+warehouse_app и audit trigger. Compose всё ещё использует dev-admin login;
+provisioning отдельного runtime login внешнего стенда ещё не реализован.
 Событий и consumers на этом этапе нет.
 
 Источники: [Drizzle migrations](https://orm.drizzle.team/docs/migrations),
@@ -71,3 +73,13 @@ Jest/PostgreSQL Testcontainers применяет реальные migrations к
 Supertest поднимает настоящий AppModule с override DATABASE_CONFIG. Dev .env и volume
 не используются. Проверены commit/rollback, pool cleanup и ошибка теста.
 Команды и ограничения — [tests README](../../../test/README.md).
+
+## Transaction runner WMS-103
+
+postgres-transaction-runner.ts реализует run на существующем Drizzle handle,
+с WeakMap capabilities и AsyncLocalStorage scope. Нет savepoints/nested run,
+auto retry и внешнего I/O; завершённый context отзывается. transactionClient
+предназначен для repositories и технических DB-адаптеров. Сервисы используют общий
+transaction port; repositories получают scoped client через transactionClient. Правила и grants: [transactions](../../../../../docs/transactions.md).
+Новые migrations требуют migration owner с CREATEROLE либо предварительно
+подготовленную безопасную warehouse_app группу. Старые migrations не менялись.
