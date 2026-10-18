@@ -2,6 +2,8 @@
 import { Inject, Injectable, Module, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { loadEnvironment, RuntimeConfig } from '../config/environment';
 import { createDatabaseConnection } from './connection';
+import { PostgresTransactionRunner } from './postgres-transaction-runner';
+import { TRANSACTION_RUNNER } from '../../shared/transactions/transaction.port';
 
 /** DI token проверенной конфигурации: тесты заменяют его без изменения process.env. */
 export const DATABASE_CONFIG = Symbol('DATABASE_CONFIG');
@@ -40,7 +42,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   providers: [
     { provide: DATABASE_CONFIG, useFactory: loadEnvironment },
     DatabaseService,
+    {
+      provide: TRANSACTION_RUNNER,
+      useFactory: (database: DatabaseService) => new PostgresTransactionRunner(database.db),
+      inject: [DatabaseService],
+    },
   ],
-  exports: [DatabaseService],
+  exports: [DatabaseService, TRANSACTION_RUNNER],
 })
 export class DatabaseModule {}

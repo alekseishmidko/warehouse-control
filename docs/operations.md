@@ -71,3 +71,10 @@ k6: конкуренция за один остаток и throughput при р�
 Убийство worker до/после commit, потеря broker ack, недоступность Kafka,
 ошибочная схема, рестарт pod и rollout при старых событиях.
 Для локального стенда отдельные профили уменьшают потребление памяти.
+
+## WMS-103: полномочия БД
+
+Audit migrations создают NOLOGIN permission group warehouse_app и append-only trigger.
+Для внешнего стенда нужны отдельные migration owner и непривилегированный runtime login;
+credential provisioning не включён в schema migration. Текущий dev Compose admin URL
+не становится runtime login автоматически. Правила: [transactions](transactions.md).

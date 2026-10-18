@@ -21,7 +21,9 @@ Warehouse Controller — учебная WMS: приёмка, размещени�
 Drizzle/pg, baseline migration, runtime config и управление pool.
 Есть pnpm workspace, build/typecheck и WMS-102: Jest unit/integration,
 Supertest, изолированный PostgreSQL Testcontainers и cleanup fixtures/resources.
-Бизнес-модули, frontend, outbox, Kafka, образ backend и Kubernetes ещё не реализованы.
+WMS-103 реализована: shared transaction port/context, PostgreSQL runner и audit module
+с redaction и append-only migrations. Складские модули, frontend, outbox, Kafka,
+образ backend и Kubernetes ещё не реализованы.
 Не считать наличие документации доказательством реализации.
 
 ## Обязательные ограничения
@@ -49,8 +51,15 @@ Supertest, изолированный PostgreSQL Testcontainers и cleanup fixtu
 
 При изменении API/событий обновлять схему, примеры и проверку совместимости.
 При изменении поведения обновлять документацию вместе с кодом.
-Домен не должен зависеть от HTTP, Kafka или NestJS-декораторов транспорта.
-Между модулями использовать прикладные интерфейсы; прямые записи в чужие таблицы запрещены.
+По умолчанию controller → service → repository, см. ADR-0009.
+Controller отвечает за HTTP, service за сценарии/правила, repository за SQL/ORM.
+Внутри модуля сервисы лежат в services/, репозитории в repositories/, DTO в dto/,
+даже если файл пока один. Каталоги создаются с первым соответствующим файлом.
+Модули экспортируют сервисы, repository остаётся внутренним provider;
+прямые записи в чужие таблицы запрещены.
+Не создавать обязательные domain/application/infrastructure/presentation слои
+и отдельные interfaces/tokens для каждого класса. При необходимости выделять
+сценарии, domain или ports локально с объяснением в README; значимые изменения — через ADR.
 
 ## Проверки
 
@@ -65,7 +74,7 @@ Test support — `apps/backend/test/support/`; отдельный контейн
 реальные migrations, config override через DI без изменения process.env.
 Не запускать два test:prepare одновременно в одном checkout; suites одного Jest
 прогона работают параллельно и имеют независимые БД.
-Контрактные проверки ещё не настроены. Следующая задача — WMS-103.
+Контрактные проверки ещё не настроены. Следующая задача — WMS-104.
 При добавлении функциональности нужны проверки её бизнес-инвариантов.
 Для outbox обязательны реальные PostgreSQL integration tests: rollback,
 повторная доставка, конкуренция workers, восстановление после сбоя.
@@ -81,6 +90,10 @@ Test support — `apps/backend/test/support/`; отдельный контейн
 Читать `docs/documentation-standard.md` и `docs/shared.md` перед изменениями.
 Каждый backend-модуль, включая будущие shared/infrastructure, имеет README
 по `docs/templates/module.md`: бизнес-раздел для менеджера и технический для разработчика.
+README каждого модуля содержит схему взаимодействия и пошаговое движение данных:
+вход/DTO, проверки и преобразования, вызовы сервисов/repositories, SQL/события,
+результат, границы commit/rollback и ошибки. Добавлять синтетический пример
+входа/выхода и ссылки на подтверждающие тесты; будущее отделять от реализованного.
 Каждый исходный файл имеет file-level TSDoc/JSDoc; публичные символы — контракт,
 ошибки и эффекты. Файлы без поддержки комментариев описывать в ближайшем README
 и `docs/file-catalog.md`. Каждый новый собственный файл добавлять в каталог.
@@ -94,3 +107,14 @@ Generated artifacts описывать через генератор, не ре�
 Shared не импортирует модули или infrastructure. Адаптеры I/O — в infrastructure.
 Не создавать utils-свалки, universal base service или абстракции только ради
 похожего синтаксиса. При выделении общей логики проверять всех потребителей.
+
+## Транзакции и аудит WMS-103
+
+Сервис-владелец сценария вызывает TRANSACTION_RUNNER.run; вызываемые сервисы
+получают тот же opaque TransactionContext. Infrastructure использует transactionClient.
+Nested run, stale/cross-scope context запрещены. Все DB операции callback awaited;
+fire-and-forget и внешнее I/O запрещены. Auto retry отсутствует, правила — docs/transactions.md.
+Audit писать только через AuditService, с кодом основания и безопасными changes;
+ошибка записи должна откатить сценарий. Runtime group warehouse_app имеет только
+SELECT/INSERT audit; dev Compose по-прежнему admin, не production login.
+Test cleanup вправе обходить trigger только внутри disposable harness БД.

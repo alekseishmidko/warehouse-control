@@ -13,6 +13,8 @@ ADR фиксирует причину решения и его последст�
 | [0005](0005-platform.md) | Docker, Kubernetes, Nginx | Accepted |
 | [0006](0006-delivery-observability.md) | Наблюдаемость и GitOps по этапам | Accepted |
 | [0007](0007-documentation-and-shared.md) | Документация всех файлов и модулей, shared/DRY | Accepted |
+| [0008](0008-transactions-and-audit.md) | Явные транзакции, masking и append-only audit | Частично заменён 0009 |
+| [0009](0009-nest-service-repository-default.md) | Controller → service → repository по умолчанию | Accepted |
 
 Шаблон нового ADR: [template.md](template.md). Нумерация последовательная.
 Рутинный implementation detail не требует ADR; изменение границ, гарантий,

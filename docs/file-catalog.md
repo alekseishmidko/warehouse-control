@@ -15,7 +15,7 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [apps/backend/nest-cli.json](../apps/backend/nest-cli.json) | Nest CLI: sourceRoot src и deleteOutDir перед сборкой. |
 | [apps/backend/package.json](../apps/backend/package.json) | Зависимости и команды backend; подробнее в apps/backend/README.md. |
 | [apps/backend/src/app.controller.ts](../apps/backend/src/app.controller.ts) | Технические GET / и GET /health; проверка процесса без проверки БД. |
-| [apps/backend/src/app.module.ts](../apps/backend/src/app.module.ts) | Корневой Nest module: контроллер/сервис и DatabaseModule. |
+| [apps/backend/src/app.module.ts](../apps/backend/src/app.module.ts) | Корневой Nest module: контроллер/сервис, DatabaseModule и AuditModule. |
 | [apps/backend/src/app.service.ts](../apps/backend/src/app.service.ts) | Статическое приветствие API без I/O. |
 | [apps/backend/src/main.ts](../apps/backend/src/main.ts) | HTTP bootstrap, validated config, shutdown hooks и безопасная ошибка запуска. |
 | [apps/backend/tsconfig.build.json](../apps/backend/tsconfig.build.json) | Build-настройки: исключение тестов, зависимостей и dist. |
@@ -61,9 +61,9 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [apps/backend/src/infrastructure/database/README.md](../apps/backend/src/infrastructure/database/README.md) | PostgreSQL и Drizzle. |
 | [apps/backend/src/infrastructure/database/check.ts](../apps/backend/src/infrastructure/database/check.ts) | Read-only CLI server_version/baseline table с закрытием pool. |
 | [apps/backend/src/infrastructure/database/connection.ts](../apps/backend/src/infrastructure/database/connection.ts) | Общая pg Pool/Drizzle фабрика Nest и CLI; bounded pool, безопасные idle errors. |
-| [apps/backend/src/infrastructure/database/database.module.ts](../apps/backend/src/infrastructure/database/database.module.ts) | Nest DatabaseModule/Service: startup check, typed handle, shutdown pool. |
+| [apps/backend/src/infrastructure/database/database.module.ts](../apps/backend/src/infrastructure/database/database.module.ts) | Nest DatabaseModule/Service: config, startup/shutdown pool и TRANSACTION_RUNNER provider. |
 | [apps/backend/src/infrastructure/database/migrate.ts](../apps/backend/src/infrastructure/database/migrate.ts) | Compiled CLI SQL migrations, journal, finally pool.end и безопасная ошибка. |
-| [apps/backend/src/infrastructure/database/schema.ts](../apps/backend/src/infrastructure/database/schema.ts) | Техническая source schema application_metadata, без складских таблиц. |
+| [apps/backend/src/infrastructure/database/schema.ts](../apps/backend/src/infrastructure/database/schema.ts) | Агрегатор source schemas metadata/audit, без складских таблиц. |
 | [apps/backend/test/README.md](../apps/backend/test/README.md) | Jest suites, Testcontainers, Docker prerequisites, cleanup и отдельный Compose smoke. |
 | [apps/backend/test/database-baseline.test.cjs](../apps/backend/test/database-baseline.test.cjs) | Dev-only real PostgreSQL smoke: migrate twice, restart persistence и CLI termination. |
 | [docs/reports/wms-101.md](../docs/reports/wms-101.md) | WMS-101: окружение и первая миграция. |
@@ -80,3 +80,26 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [apps/backend/test/unit/environment.spec.ts](../apps/backend/test/unit/environment.spec.ts) | Jest unit: конфигурация, defaults, redaction и безопасный startup failure без Docker. |
 | [apps/backend/tsconfig.test.json](../apps/backend/tsconfig.test.json) | TS types/aliases для tests, строгая компиляция в ignored .test-dist. |
 | [docs/reports/wms-102.md](../docs/reports/wms-102.md) | WMS-102: тестовая инфраструктура. |
+| [apps/backend/drizzle/0001_marvelous_ogun.sql](../apps/backend/drizzle/0001_marvelous_ogun.sql) | Generated audit schema migration: таблица/constraints/indexes; pnpm db:generate. |
+| [apps/backend/drizzle/0002_audit-append-only.sql](../apps/backend/drizzle/0002_audit-append-only.sql) | Авторская custom migration: NOLOGIN runtime group, grants и append-only function/trigger. |
+| [apps/backend/drizzle/meta/0001_snapshot.json](../apps/backend/drizzle/meta/0001_snapshot.json) | Generated Drizzle audit snapshot, ручное изменение запрещено. |
+| [apps/backend/drizzle/meta/0002_snapshot.json](../apps/backend/drizzle/meta/0002_snapshot.json) | Generated snapshot custom migration scaffold; function/grants задаются авторским SQL. |
+| [apps/backend/src/infrastructure/database/postgres-transaction-runner.ts](../apps/backend/src/infrastructure/database/postgres-transaction-runner.ts) | Drizzle runner, scoped WeakMap binding, nested-run guard и отзыв context без auto retry. |
+| [apps/backend/src/modules/audit/README.md](../apps/backend/src/modules/audit/README.md) | Audit module. |
+| [apps/backend/src/modules/audit/audit.module.ts](../apps/backend/src/modules/audit/audit.module.ts) | Nest AuditModule: private AuditRepository, экспорт AuditService. |
+| [apps/backend/src/shared/README.md](../apps/backend/src/shared/README.md) | Shared backend. |
+| [apps/backend/src/shared/transactions/README.md](../apps/backend/src/shared/transactions/README.md) | Transaction contracts. |
+| [apps/backend/src/shared/transactions/transaction.port.ts](../apps/backend/src/shared/transactions/transaction.port.ts) | Opaque TransactionContext, TransactionRunner и DI token без транспорта/ORM. |
+| [apps/backend/test/integration/transactions-audit.spec.ts](../apps/backend/test/integration/transactions-audit.spec.ts) | Реальная атомарность audit, rollback, context lifecycle/scope, permissions и trigger. |
+| [apps/backend/test/support/audit.fixture.ts](../apps/backend/test/support/audit.fixture.ts) | Синтетический audit fixture UUID/кодов, не содержит пользовательских данных. |
+| [apps/backend/test/unit/audit-entry.spec.ts](../apps/backend/test/unit/audit-entry.spec.ts) | Unit validation/redaction и отказ от unsafe audit payload. |
+| [docs/adr/0008-transactions-and-audit.md](../docs/adr/0008-transactions-and-audit.md) | 0008. Явный transaction context и append-only audit. |
+| [docs/reports/wms-103.md](../docs/reports/wms-103.md) | WMS-103: транзакции и аудит. |
+| [docs/transactions.md](../docs/transactions.md) | Транзакции и аудит WMS-103. |
+| [apps/backend/src/modules/audit/audit-entry.ts](../apps/backend/src/modules/audit/audit-entry.ts) | Чистые helpers audit validation/allowlist/redaction; типы находятся в dto/. |
+| [apps/backend/src/modules/audit/audit.schema.ts](../apps/backend/src/modules/audit/audit.schema.ts) | Drizzle audit_entries schema, constraints и индексы рядом с модулем. |
+| [apps/backend/test/unit/audit.service.spec.ts](../apps/backend/test/unit/audit.service.spec.ts) | Service delegation: тот же context, только безопасные данные, проброс ошибок и отказ до SQL. |
+| [docs/adr/0009-nest-service-repository-default.md](../docs/adr/0009-nest-service-repository-default.md) | 0009. Controller → service → repository по умолчанию. |
+| [apps/backend/src/modules/audit/dto/audit-entry.dto.ts](../apps/backend/src/modules/audit/dto/audit-entry.dto.ts) | Внутренние AuditEntryInput, PreparedAuditEntry и SafeAuditChange без HTTP decorators. |
+| [apps/backend/src/modules/audit/repositories/audit.repository.ts](../apps/backend/src/modules/audit/repositories/audit.repository.ts) | AuditRepository: SQL INSERT через обязательный transaction context, возврат UUID. |
+| [apps/backend/src/modules/audit/services/audit.service.ts](../apps/backend/src/modules/audit/services/audit.service.ts) | Публичный AuditService: validation/redaction, передача подготовленного DTO в repository. |

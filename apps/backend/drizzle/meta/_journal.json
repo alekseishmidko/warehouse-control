@@ -8,6 +8,20 @@
       "when": 1792251182941,
       "tag": "0000_huge_robin_chapel",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792346185103,
+      "tag": "0001_marvelous_ogun",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792346185487,
+      "tag": "0002_audit-append-only",
+      "breakpoints": true
     }
   ]
 }

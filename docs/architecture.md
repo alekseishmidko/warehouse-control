@@ -35,10 +35,10 @@
 | receiving | Документы и строки приёмки, проведение |
 | inventory | Остатки, движения, резервы, размещение и перемещение |
 | fulfillment | Заказы на отгрузку, задания сборки, отгрузки |
-| audit | Журнал бизнес-действий |
+| audit | Журнал бизнес-действий: WMS-103 write interface реализован, read API ещё нет |
 
 Инфраструктура предоставляет транзакции, outbox, логи и транспорт.
-Модули общаются через прикладные интерфейсы; никто не пишет напрямую
+Модули общаются через экспортируемые сервисы; никто не пишет напрямую
 в таблицы другого модуля. Межмодульный сценарий передаёт общий transaction
 context, если изменения обязаны фиксироваться атомарно.
 
@@ -73,10 +73,15 @@ Nest EventEmitter не является гарантией доставки.
 ```text
 apps/backend/src/
   modules/<module>/
-    domain/
-    application/
-    infrastructure/
-    presentation/
+    <module>.module.ts
+    <module>.controller.ts   # если нужен HTTP
+    services/
+      <module>.service.ts
+    repositories/            # если нужна БД
+      <module>.repository.ts
+    <module>.schema.ts
+    dto/
+      <operation>.dto.ts     # HTTP или внутренний DTO, назначение описывается явно
   infrastructure/
   main.ts
   worker.ts
@@ -89,9 +94,23 @@ infra/helm/
 infra/gitops/
 ```
 
-Создавать директории по мере реализации. Domain не зависит от NestJS,
-HTTP, ORM или Kafka. Контроллеры валидируют ввод, application организует
-транзакцию, domain проверяет бизнес-правила, infrastructure выполняет I/O.
+По умолчанию используем обычный NestJS: controller → service → repository.
+Controller обрабатывает HTTP, service организует сценарий/правила и транзакцию,
+repository выполняет SQL/ORM. Межмодульные вызовы проходят через экспортируемые
+сервисы, repository остаётся внутренним provider. Schema и локальные helpers
+лежат рядом с модулем; повторяемую техническую логику выносим в shared.
+
+Services, repositories и DTO всегда группируются в собственных services/,
+repositories/ и dto/, включая единственный файл. Отсутствующий вид компонента
+не требует пустой папки. В audit DTO внутренние, а HTTP-контроллера пока нет.
+README каждого модуля показывает взаимодействие компонентов, движение/преобразование
+данных, ошибки и транзакционные границы с конкретным примером.
+
+Не создаём пустые слои или interface для каждого класса. В AuditModule сейчас
+только AuditService/AuditRepository, потому что внешнего HTTP пока нет.
+Отдельные сценарии, domain-модель или ports/adapters допустимы при конкретной
+необходимости. Причина описывается в README, существенное изменение границ — в ADR.
+Подход по умолчанию: [ADR-0009](adr/0009-nest-service-repository-default.md).
 
 ## Принципы
 
@@ -106,3 +125,10 @@ HTTP, ORM или Kafka. Контроллеры валидируют ввод, ap
 Общие технические capabilities размещаются в `apps/backend/src/shared/`,
 адаптеры I/O — в infrastructure. Shared не импортирует бизнес-модули.
 См. [правила shared](shared.md) и [обязательный стандарт документации](documentation-standard.md).
+
+WMS-103 реализует [явный transaction context и audit](transactions.md).
+Shared contracts не зависят от ORM; PostgreSQL adapter связывает context с одной
+транзакцией. Никаких внешних I/O или скрытых retry в callback; nested run запрещён.
+AuditService → AuditRepository используют транзакцию вызывающего сервиса.
+Этот общий transaction port сохранён ради атомарности и scope guards; он не
+навязывает ports/adapters каждому модулю. Внешние endpoints и события не добавлены.
