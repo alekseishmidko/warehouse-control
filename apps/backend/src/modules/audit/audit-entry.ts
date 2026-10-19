@@ -1,7 +1,8 @@
 /** @file Чистый контракт аудита: идентификаторы/коды вместо free-form текста, allowlist безопасных изменений. */
 import type { AuditEntryInput, PreparedAuditEntry, SafeAuditChange } from './dto/audit-entry.dto';
 
-const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { isUuid } from '../../shared/validation/identifiers';
+import { isStockQuantity } from '../../shared/quantities/quantity';
 const code = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
 const statuses = new Set(['draft', 'posted', 'active', 'consumed', 'released']);
 const quantityFields = new Set(['quantity', 'onHand', 'reserved']);
@@ -17,15 +18,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function safeValue(field: string, value: unknown): value is string | number | null {
   if (value === null) return true;
   if (field === 'status') return typeof value === 'string' && statuses.has(value);
-  if (quantityFields.has(field)) return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
-  return identifierFields.has(field) && typeof value === 'string' && uuid.test(value);
+  if (quantityFields.has(field)) return isStockQuantity(value);
+  return identifierFields.has(field) && isUuid(value);
 }
 
 /** Fail closed: неверные обязательные поля отклоняются, небезопасные changes удаляются с redaction flag. */
 export function prepareAuditEntry(input: AuditEntryInput): PreparedAuditEntry {
   if (!input || !['user', 'system'].includes(input.actorType)) throw new Error('Invalid audit actorType');
   for (const field of ['actorId', 'entityId', 'correlationId'] as const) {
-    if (typeof input[field] !== 'string' || !uuid.test(input[field])) throw new Error(`Invalid audit ${field}`);
+    if (!isUuid(input[field])) throw new Error(`Invalid audit ${field}`);
   }
   for (const field of ['action', 'entityType', 'reasonCode'] as const) {
     if (typeof input[field] !== 'string' || input[field].length > 96 || !code.test(input[field])) {

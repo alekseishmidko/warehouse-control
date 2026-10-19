@@ -26,3 +26,12 @@ Custom migration scaffold создан Drizzle Kit, затем заполнен 
 DB ролями/trigger автоматически. WMS-103 миграции требуют CREATEROLE либо заранее
 подготовленной безопасной группы. Ограничения и login provisioning —
 [transactions](../../../docs/transactions.md).
+
+## WMS-104
+
+0003_charming_satana.sql — generated tables products/warehouses/locations,
+stock_balances/stock_movements с FK/unique/CHECK. 0004_inventory-permissions.sql —
+авторская custom migration grants и movement append-only function/trigger.
+meta/0003_snapshot.json и meta/0004_snapshot.json generated Kit; не редактировать.
+Прежние SQL migrations не менялись. Миграции проверены на чистой Testcontainers БД;
+dev Compose нужно мигрировать явно. Подробности — [stock baseline](../../../docs/stock-baseline.md).

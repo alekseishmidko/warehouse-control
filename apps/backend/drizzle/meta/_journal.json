@@ -22,6 +22,20 @@
       "when": 1792346185487,
       "tag": "0002_audit-append-only",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792412734855,
+      "tag": "0003_charming_satana",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792412735261,
+      "tag": "0004_inventory-permissions",
+      "breakpoints": true
     }
   ]
 }

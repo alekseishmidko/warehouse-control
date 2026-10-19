@@ -20,6 +20,6 @@ Config содержит случайный тестовый пароль и не
 жизненного цикла описаны в [общем README](../README.md), проверки — integration/*.spec.ts.
 Изменения support проверять на всех всех integration suites.
 
-WMS-103: reset audit выполняется владельцем disposable БД с временным отключением
-trigger в одной транзакции. Runtime не имеет этой возможности; production cleanup
+WMS-103: reset audit/movements выполняется владельцем disposable БД с временным отключением
+обоих triggers в одной транзакции. Runtime не имеет этой возможности; production cleanup
 журнала не реализован. Очистка после неуспешного test не ослабляет persisted DB grants.

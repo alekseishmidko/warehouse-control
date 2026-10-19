@@ -21,7 +21,8 @@
     "test:db-baseline": "pnpm build && pnpm --filter @warehouse/backend test:db-baseline",
     "test": "pnpm --filter @warehouse/backend test",
     "test:unit": "pnpm --filter @warehouse/backend test:unit",
-    "test:integration": "pnpm --filter @warehouse/backend test:integration"
+    "test:integration": "pnpm --filter @warehouse/backend test:integration",
+    "db:seed": "pnpm --filter @warehouse/backend db:seed"
   },
   "private": true
 }

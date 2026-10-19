@@ -15,7 +15,8 @@
     "test:prepare": "pnpm build && node -e \"require('node:fs').rmSync('.test-dist', { recursive: true, force: true })\" && tsc -p tsconfig.test.json",
     "test": "pnpm test:prepare && jest",
     "test:unit": "pnpm test:prepare && jest --selectProjects unit",
-    "test:integration": "pnpm test:prepare && jest --selectProjects integration"
+    "test:integration": "pnpm test:prepare && jest --selectProjects integration",
+    "db:seed": "pnpm build && node dist/infrastructure/database/seed-dev.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",

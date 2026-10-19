@@ -1,14 +1,11 @@
 /** @file Внутренние DTO аудита: вход сервиса и безопасные данные repository, без HTTP-декораторов. */
+import type { OperationMetadata } from '../../../shared/operations/dto/operation-metadata.dto';
+
 /** Внутренний write input, не HTTP DTO. actor берётся из доверенного application context. */
-export interface AuditEntryInput {
-  readonly actorType: 'user' | 'system';
-  readonly actorId: string;
+export interface AuditEntryInput extends OperationMetadata {
   readonly action: string;
   readonly entityType: string;
   readonly entityId: string;
-  readonly correlationId: string;
-  /** Зарегистрированный код основания, не пользовательский комментарий и не произвольный payload. */
-  readonly reasonCode: string;
   readonly changes?: Readonly<Record<string, unknown>>;
 }
 

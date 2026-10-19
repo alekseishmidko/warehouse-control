@@ -13,7 +13,7 @@
 
 | Файл | Контракт |
 |---|---|
-| schema.ts | Metadata и агрегация audit schema; складских таблиц пока нет |
+| schema.ts | Metadata и агрегация audit schema; минимальные catalog/warehouses/inventory tables WMS-104 |
 | connection.ts | Создаёт Pool и typed Drizzle; владелец обязан вызвать pool.end() |
 | database.module.ts | DatabaseModule экспортирует DatabaseService, подключает БД при Nest init и закрывает при destroy |
 | postgres-transaction-runner.ts | Реализация shared port, context binding и nested/scope guards |
@@ -62,7 +62,7 @@ Runtime CLI ищет migration assets рядом с backend; будущий Dock
 Это не Testcontainers suite. WMS-103 добавляет NOLOGIN runtime permission group
 warehouse_app и audit trigger. Compose всё ещё использует dev-admin login;
 provisioning отдельного runtime login внешнего стенда ещё не реализован.
-Событий и consumers на этом этапе нет.
+Событий и consumers на этом этапе нет; базовые складские сервисы WMS-104 реализованы.
 
 Источники: [Drizzle migrations](https://orm.drizzle.team/docs/migrations),
 [node-postgres pooling](https://node-postgres.com/features/pooling).
@@ -83,3 +83,13 @@ auto retry и внешнего I/O; завершённый context отзыва�
 transaction port; repositories получают scoped client через transactionClient. Правила и grants: [transactions](../../../../../docs/transactions.md).
 Новые migrations требуют migration owner с CREATEROLE либо предварительно
 подготовленную безопасную warehouse_app группу. Старые migrations не менялись.
+
+## WMS-104 dev fixtures
+
+dev-fixtures.ts — общий builder товара/склада/трёх ячеек через сервисы и audit;
+seed-dev.ts — development-only CLI с транзакцией и finally app.close.
+Команда pnpm db:seed сначала собирает backend, выдаёт только IDs, каждый раз
+создаёт новый demo set, stock не начисляет. Guard срабатывает до подключения
+при NODE_ENV=test/production. Нужны текущие migrations.
+Schema.ts агрегирует 7 таблиц; owner-specific models описаны в
+[stock baseline](../../../../../docs/stock-baseline.md).

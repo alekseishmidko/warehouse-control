@@ -73,3 +73,7 @@ WMS-103 добавляет audit migrations и NOLOGIN permission group warehous
 Dev admin URL остаётся прежним. Миграции требуют CREATEROLE либо заранее
 подготовленной безопасной группы. Production login и его credentials provisioned
 отдельно; не использовать этот Compose account во внешнем окружении.
+
+WMS-104: после pnpm db:migrate можно выполнить pnpm db:seed — новый demo товар,
+склад и три ячейки без начисления. Команда разрешена только development и каждый раз
+создаёт новый набор; подробности — [stock baseline](../../docs/stock-baseline.md).

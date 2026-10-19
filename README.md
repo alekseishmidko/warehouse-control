@@ -102,3 +102,16 @@ Dev Compose остаётся admin-стендом, runtime login внешнег�
 Применение к локальной БД — отдельная команда pnpm db:migrate.
 Правила и ограничения: [transactions](docs/transactions.md),
 результаты: [отчёт WMS-103](docs/reports/wms-103.md).
+
+## Минимальные складские данные WMS-104
+
+Внутренние catalog/warehouses/inventory сервисы, quantity int4, атомарный приход
+с audit/immutable movement. Публичного складского CRUD и документа приёмки пока нет.
+
+```sh
+pnpm db:migrate # новые migrations, локально выполняется явно
+pnpm db:seed    # только development, создаёт новый товар/склад/3 ячейки без stock
+```
+
+Повтор db:seed создаёт новый demo set, не обновляет существующие записи.
+[Модели и сценарий](docs/stock-baseline.md), [проверки WMS-104](docs/reports/wms-104.md).

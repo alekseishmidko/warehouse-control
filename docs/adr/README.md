@@ -15,6 +15,7 @@ ADR фиксирует причину решения и его последст�
 | [0007](0007-documentation-and-shared.md) | Документация всех файлов и модулей, shared/DRY | Accepted |
 | [0008](0008-transactions-and-audit.md) | Явные транзакции, masking и append-only audit | Частично заменён 0009 |
 | [0009](0009-nest-service-repository-default.md) | Controller → service → repository по умолчанию | Accepted |
+| [0010](0010-minimal-stock.md) | Int4 quantity и минимальные stock модели/начисление | Accepted |
 
 Шаблон нового ADR: [template.md](template.md). Нумерация последовательная.
 Рутинный implementation detail не требует ADR; изменение границ, гарантий,
