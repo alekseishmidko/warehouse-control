@@ -1,7 +1,7 @@
 # Этапы реализации
 
 Не начинать следующий инфраструктурный этап до рабочего вертикального сценария.
-Этап 1 начат: WMS-101–WMS-103 выполнены; остальные задачи пока не реализованы.
+Этап 1 начат: WMS-101–WMS-104 выполнены; остальные задачи пока не реализованы.
 
 Подробный backlog с ID задач, зависимостями, демонстрациями и критериями перехода:
 [план разработки](development-plan.md): 38 задач, разбитых на 217 шагов с чекбоксами.
@@ -14,11 +14,13 @@
 PostgreSQL/Drizzle, первая миграция и Compose реализованы в WMS-101.
 WMS-102 завершена: Jest/Supertest и PostgreSQL Testcontainers harness.
 WMS-103 завершена: transaction context/runner, audit и append-only права.
-Следующая задача: WMS-104, минимальные складские данные.
+WMS-104 завершена: catalog/warehouses/inventory baseline, quantity/movements и fixtures.
+Следующая задача: WMS-105, инструменты контрактов.
 
 Отчёты: [окружение WMS-101](reports/wms-101.md),
 [тестовая инфраструктура WMS-102](reports/wms-102.md),
-[транзакции и аудит WMS-103](reports/wms-103.md).
+[транзакции и аудит WMS-103](reports/wms-103.md),
+[складской baseline WMS-104](reports/wms-104.md).
 
 ## 1. Приёмка + outbox + Docker
 

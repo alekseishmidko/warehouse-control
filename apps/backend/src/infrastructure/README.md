@@ -20,3 +20,7 @@ I/O и ORM остаются здесь. Shared не импортирует infra
 событий и пользовательских бизнес-команд здесь нет.
 Запуск и проверки описаны в дочерних README и [Compose](../../../../infra/compose/README.md).
 Логи безопасны по отношению к credentials, полноценная телеметрия ещё не подключена.
+
+WMS-104 добавляет dev fixture builder/CLI и агрегацию module-owned stock schemas.
+Builder вызывает экспортируемые сервисы, не пишет в чужие таблицы напрямую.
+Справочники/stock модели: [baseline](../../../../docs/stock-baseline.md).

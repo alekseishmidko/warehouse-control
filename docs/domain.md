@@ -2,8 +2,9 @@
 
 ## Модель первого релиза
 
-Количество — неотрицательное целое в штуках в безопасном диапазоне JavaScript;
-конкретный SQL-тип и верхнюю границу фиксируем миграцией и схемой API.
+WMS-104: количество — SQL integer и JavaScript number в целых штуках,
+остаток 0..2147483647, приход 1..2147483647. Диапазон зафиксирован в shared, SQL
+и draft event schema; опубликованного stock API пока нет.
 SKU уникален в организации. Ячейка принадлежит ровно одному складу.
 Системные зоны: приёмка, хранение, отгрузка. Только разрешённые для резервирования
 остатки хранения участвуют в автоматическом выборе под заказ.
@@ -72,3 +73,12 @@ Write interface и append-only таблица реализованы; user/syste
 основание — reasonCode, время — transaction timestamp PostgreSQL. Допустимые changes
 и политика redaction/ролей: [transactions](transactions.md). Произвольные комментарии
 вместо кода основания не сохраняются. Складские сценарии пока не реализованы.
+
+## Реализованный складской baseline WMS-104
+
+Catalog/Warehouses владеют внутренними справочниками; InventoryService.receive
+атомарно увеличивает balance, пишет audit и immutable movement. Отсутствующий
+balance создаётся guarded upsert с unique stock key. Location ownership защищён
+composite FK. Повтор operationId отклоняется с rollback, не считается успехом.
+Размещение, резервирование и отгрузка в правилах выше остаются целевыми сценариями.
+Детали/DTO/ограничения: [stock-baseline](stock-baseline.md).

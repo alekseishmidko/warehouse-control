@@ -95,3 +95,13 @@ JSON Schema подключим к Registry после проверки подд�
 5. Интеграционные проверки подтверждают бизнес-эффект и дедупликацию.
 
 До настройки этих gates нельзя утверждать, что совместимость проверяется автоматически.
+
+## Уточнение quantity WMS-104
+
+Неопубликованная receiving.receipt-posted v1 schema теперь задаёт quantity
+как integer 1..2147483647, согласованно с SQL int4 и service/audit validation.
+Старый MAX_SAFE_INTEGER снят только с quantity, не aggregateVersion.
+События/consumer contracts ещё не публиковались; после публикации аналогичное
+сужение станет breaking change и потребует новой major-версии.
+Unit stock-quantity.spec.ts проверяет границы и пример; это не полноценный
+runtime JSON Schema validator, который остаётся задачей WMS-105.

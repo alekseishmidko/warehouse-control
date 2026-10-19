@@ -22,8 +22,9 @@ Drizzle/pg, baseline migration, runtime config и управление pool.
 Есть pnpm workspace, build/typecheck и WMS-102: Jest unit/integration,
 Supertest, изолированный PostgreSQL Testcontainers и cleanup fixtures/resources.
 WMS-103 реализована: shared transaction port/context, PostgreSQL runner и audit module
-с redaction и append-only migrations. Складские модули, frontend, outbox, Kafka,
-образ backend и Kubernetes ещё не реализованы.
+с redaction и append-only migrations. WMS-104: минимальные catalog/warehouses/inventory,
+int4 quantity, guarded receipt, immutable movement и dev fixtures CLI.
+Документы приёмки, frontend, outbox, Kafka, образ backend и Kubernetes ещё не реализованы.
 Не считать наличие документации доказательством реализации.
 
 ## Обязательные ограничения
@@ -74,7 +75,7 @@ Test support — `apps/backend/test/support/`; отдельный контейн
 реальные migrations, config override через DI без изменения process.env.
 Не запускать два test:prepare одновременно в одном checkout; suites одного Jest
 прогона работают параллельно и имеют независимые БД.
-Контрактные проверки ещё не настроены. Следующая задача — WMS-104.
+Контрактные проверки ещё не настроены. Следующая задача — WMS-105.
 При добавлении функциональности нужны проверки её бизнес-инвариантов.
 Для outbox обязательны реальные PostgreSQL integration tests: rollback,
 повторная доставка, конкуренция workers, восстановление после сбоя.
@@ -118,3 +119,16 @@ Audit писать только через AuditService, с кодом осно�
 ошибка записи должна откатить сценарий. Runtime group warehouse_app имеет только
 SELECT/INSERT audit; dev Compose по-прежнему admin, не production login.
 Test cleanup вправе обходить trigger только внутри disposable harness БД.
+
+## Складской baseline WMS-104
+
+Количество: int4, MAX_STOCK_QUANTITY=2147483647. Приход 1..MAX, баланс 0..MAX,
+0 <= reserved <= onHand. Проверки/schema/audit используют общий контракт.
+Только InventoryService.receive изменяет stock, только в receiving location.
+Guarded upsert, audit и immutable movement обязаны использовать один context.
+OperationId уникален на одно движение: повтор отклоняется, HTTP dedup ещё нет.
+Справочники вызываются через CatalogService/WarehousesService, не чужие repositories.
+Dev fixtures: pnpm db:seed только development, новый набор без stock на каждый запуск.
+Stock SQL/direct writes в tests допустимы только для проверки constraints;
+cleanup отключает audit/movement triggers только в disposable container.
+Draft event quantity уточнён до int4 до публикации. Runtime JSON Schema validation — WMS-105.

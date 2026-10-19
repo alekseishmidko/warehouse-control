@@ -151,7 +151,8 @@ test.each(['update', 'delete', 'truncate', 'disable-trigger'])('runtime role can
 test.each(['update', 'delete', 'truncate'])('trigger rejects ordinary %s even for table owner', async operation => {
   const { pool, db } = database().connection;
   await new PostgresTransactionRunner(db).run(context => audit.write(context, auditFixture()));
-  const statements = { update: "update audit_entries set reason_code='changed'", delete: 'delete from audit_entries', truncate: 'truncate audit_entries' };
+  // После WMS-104 audit referenced by movements: включаем обе таблицы, чтобы проверить trigger, а не FK precheck.
+  const statements = { update: "update audit_entries set reason_code='changed'", delete: 'delete from audit_entries', truncate: 'truncate audit_entries, stock_movements' };
   await expect(pool.query(statements[operation as keyof typeof statements])).rejects.toMatchObject({ code: '42501' });
   expect(await db.select().from(auditEntries)).toHaveLength(1);
 });

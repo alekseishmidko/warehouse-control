@@ -55,9 +55,10 @@ infra/compose/compose.yaml, поэтому major/patch/digest совпадают
 
 Отдельный container и случайное имя БД на suite. Порты динамические, credentials
 случайные. Миграции применяются Drizzle migrator из backend/drizzle, ORM auto-sync нет.
-После каждого теста очищаются application_metadata и audit_entries, journal не трогается.
-Для audit reset администратор disposable container временно отключает append-only
-trigger внутри транзакции и включает его обратно; runtime-группе это запрещено.
+После каждого теста очищаются metadata/audit и все WMS-104 stock/reference tables,
+journal не трогается.
+Для reset администратор disposable container временно отключает audit/movement
+append-only triggers внутри транзакции и включает их обратно; runtime-группе это запрещено.
 При добавлении таблиц обновлять reset с учётом FK; не запускать test.concurrent
 на одном harness. Для concurrent сценария создавать собственные harnesses.
 Данные другого suite или dev Compose не очищаются.
@@ -102,3 +103,13 @@ WMS-103 проверяет роль warehouse_app через SET LOCAL ROLE и �
 Это не provisioning production login. Правила атомарности, masking и retry —
 [transactions](../../../docs/transactions.md). Контекст передаётся явно; новые
 application tests используют PostgresTransactionRunner, не второй framework.
+
+## WMS-104
+
+unit/stock-quantity.spec.ts сверяет SQL/service/audit/draft schema quantity boundary,
+нормализацию и запрет dev CLI вне development. integration/stock.spec.ts проверяет
+реальные модели, grants, FK/unique/CHECK, guarded credit/movement/audit, concurrent
+absent key с barrier, overflow и dev CLI на disposable DB.
+Fixture builder переиспользуется из production infrastructure, не дублируется тестами.
+Reset включает products/warehouses/locations/balances/movements; owner отключает
+оба append-only triggers только в рамках admin cleanup transaction.

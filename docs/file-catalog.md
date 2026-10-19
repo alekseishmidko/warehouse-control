@@ -15,7 +15,7 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [apps/backend/nest-cli.json](../apps/backend/nest-cli.json) | Nest CLI: sourceRoot src и deleteOutDir перед сборкой. |
 | [apps/backend/package.json](../apps/backend/package.json) | Зависимости и команды backend; подробнее в apps/backend/README.md. |
 | [apps/backend/src/app.controller.ts](../apps/backend/src/app.controller.ts) | Технические GET / и GET /health; проверка процесса без проверки БД. |
-| [apps/backend/src/app.module.ts](../apps/backend/src/app.module.ts) | Корневой Nest module: контроллер/сервис, DatabaseModule и AuditModule. |
+| [apps/backend/src/app.module.ts](../apps/backend/src/app.module.ts) | Корневой Nest module: технический HTTP, Database/Audit/Catalog/Warehouses/Inventory modules. |
 | [apps/backend/src/app.service.ts](../apps/backend/src/app.service.ts) | Статическое приветствие API без I/O. |
 | [apps/backend/src/main.ts](../apps/backend/src/main.ts) | HTTP bootstrap, validated config, shutdown hooks и безопасная ошибка запуска. |
 | [apps/backend/tsconfig.build.json](../apps/backend/tsconfig.build.json) | Build-настройки: исключение тестов, зависимостей и dist. |
@@ -63,7 +63,7 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [apps/backend/src/infrastructure/database/connection.ts](../apps/backend/src/infrastructure/database/connection.ts) | Общая pg Pool/Drizzle фабрика Nest и CLI; bounded pool, безопасные idle errors. |
 | [apps/backend/src/infrastructure/database/database.module.ts](../apps/backend/src/infrastructure/database/database.module.ts) | Nest DatabaseModule/Service: config, startup/shutdown pool и TRANSACTION_RUNNER provider. |
 | [apps/backend/src/infrastructure/database/migrate.ts](../apps/backend/src/infrastructure/database/migrate.ts) | Compiled CLI SQL migrations, journal, finally pool.end и безопасная ошибка. |
-| [apps/backend/src/infrastructure/database/schema.ts](../apps/backend/src/infrastructure/database/schema.ts) | Агрегатор source schemas metadata/audit, без складских таблиц. |
+| [apps/backend/src/infrastructure/database/schema.ts](../apps/backend/src/infrastructure/database/schema.ts) | Агрегатор module-owned schemas metadata/audit/catalog/warehouses/inventory. |
 | [apps/backend/test/README.md](../apps/backend/test/README.md) | Jest suites, Testcontainers, Docker prerequisites, cleanup и отдельный Compose smoke. |
 | [apps/backend/test/database-baseline.test.cjs](../apps/backend/test/database-baseline.test.cjs) | Dev-only real PostgreSQL smoke: migrate twice, restart persistence и CLI termination. |
 | [docs/reports/wms-101.md](../docs/reports/wms-101.md) | WMS-101: окружение и первая миграция. |
@@ -103,3 +103,39 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [apps/backend/src/modules/audit/dto/audit-entry.dto.ts](../apps/backend/src/modules/audit/dto/audit-entry.dto.ts) | Внутренние AuditEntryInput, PreparedAuditEntry и SafeAuditChange без HTTP decorators. |
 | [apps/backend/src/modules/audit/repositories/audit.repository.ts](../apps/backend/src/modules/audit/repositories/audit.repository.ts) | AuditRepository: SQL INSERT через обязательный transaction context, возврат UUID. |
 | [apps/backend/src/modules/audit/services/audit.service.ts](../apps/backend/src/modules/audit/services/audit.service.ts) | Публичный AuditService: validation/redaction, передача подготовленного DTO в repository. |
+| [apps/backend/drizzle/0003_charming_satana.sql](../apps/backend/drizzle/0003_charming_satana.sql) | Generated WMS-104 stock schema. |
+| [apps/backend/drizzle/0004_inventory-permissions.sql](../apps/backend/drizzle/0004_inventory-permissions.sql) | Авторская custom migration runtime grants и movement append-only function/trigger. |
+| [apps/backend/drizzle/meta/0003_snapshot.json](../apps/backend/drizzle/meta/0003_snapshot.json) | Generated Drizzle snapshot WMS-104; pnpm db:generate, не редактировать вручную. |
+| [apps/backend/drizzle/meta/0004_snapshot.json](../apps/backend/drizzle/meta/0004_snapshot.json) | Generated Drizzle snapshot WMS-104; pnpm db:generate, не редактировать вручную. |
+| [apps/backend/src/infrastructure/database/dev-fixtures.ts](../apps/backend/src/infrastructure/database/dev-fixtures.ts) | Общий dev/test builder: один товар, склад и три зоны через сервисы владельцев; без stock начисления. |
+| [apps/backend/src/infrastructure/database/seed-dev.ts](../apps/backend/src/infrastructure/database/seed-dev.ts) | Dev-only CLI fixtures: guard до подключения, одна транзакция, закрытие Nest/pool в finally. |
+| [apps/backend/src/modules/catalog/README.md](../apps/backend/src/modules/catalog/README.md) | Catalog module. |
+| [apps/backend/src/modules/catalog/catalog.module.ts](../apps/backend/src/modules/catalog/catalog.module.ts) | Nest CatalogModule: private repository, exported CatalogService; без HTTP CRUD. |
+| [apps/backend/src/modules/catalog/catalog.schema.ts](../apps/backend/src/modules/catalog/catalog.schema.ts) | Catalog-owned products: unique normalized SKU и единица piece первого релиза. |
+| [apps/backend/src/modules/catalog/dto/product.dto.ts](../apps/backend/src/modules/catalog/dto/product.dto.ts) | Внутренние DTO catalog; только штуки, публичного HTTP API пока нет. |
+| [apps/backend/src/modules/catalog/repositories/catalog.repository.ts](../apps/backend/src/modules/catalog/repositories/catalog.repository.ts) | Catalog SQL: создание и поиск по id через borrowed transaction client. |
+| [apps/backend/src/modules/catalog/services/catalog.service.ts](../apps/backend/src/modules/catalog/services/catalog.service.ts) | Публичный CatalogService: нормализация товара, обязательный audit и lookup для inventory. |
+| [apps/backend/src/modules/inventory/README.md](../apps/backend/src/modules/inventory/README.md) | Inventory module. |
+| [apps/backend/src/modules/inventory/dto/stock.dto.ts](../apps/backend/src/modules/inventory/dto/stock.dto.ts) | Внутренние DTO inventory: ключ остатка, положительное начисление и результат без ORM rows. |
+| [apps/backend/src/modules/inventory/inventory.module.ts](../apps/backend/src/modules/inventory/inventory.module.ts) | InventoryModule: единственный экспорт InventoryService; repositories других модулей не импортируются. |
+| [apps/backend/src/modules/inventory/inventory.schema.ts](../apps/backend/src/modules/inventory/inventory.schema.ts) | Inventory-owned balances/movements: int4 checks, unique stock key и composite location ownership FK. |
+| [apps/backend/src/modules/inventory/repositories/inventory.repository.ts](../apps/backend/src/modules/inventory/repositories/inventory.repository.ts) | Inventory SQL: атомарный guarded upsert без lost update и INSERT immutable movement. |
+| [apps/backend/src/modules/inventory/services/inventory.service.ts](../apps/backend/src/modules/inventory/services/inventory.service.ts) | InventoryService — единственный владелец начисления: validation, справочники, balance+audit+movement. |
+| [apps/backend/src/modules/warehouses/README.md](../apps/backend/src/modules/warehouses/README.md) | Warehouses module. |
+| [apps/backend/src/modules/warehouses/dto/warehouse.dto.ts](../apps/backend/src/modules/warehouses/dto/warehouse.dto.ts) | Внутренние DTO склада/ячеек; зона выражена kind ячейки, отдельной Zone entity пока нет. |
+| [apps/backend/src/modules/warehouses/repositories/warehouses.repository.ts](../apps/backend/src/modules/warehouses/repositories/warehouses.repository.ts) | Warehouses SQL: только собственные таблицы, общий transaction context, без commit. |
+| [apps/backend/src/modules/warehouses/services/warehouses.service.ts](../apps/backend/src/modules/warehouses/services/warehouses.service.ts) | WarehousesService: создание с audit и проверка принадлежности/назначения ячейки для inventory. |
+| [apps/backend/src/modules/warehouses/warehouses.module.ts](../apps/backend/src/modules/warehouses/warehouses.module.ts) | WarehousesModule: экспорт сервиса, repository private, нет публичных CRUD endpoints. |
+| [apps/backend/src/modules/warehouses/warehouses.schema.ts](../apps/backend/src/modules/warehouses/warehouses.schema.ts) | Warehouses-owned таблицы: склад, ячейка, unique code и composite ownership key. |
+| [apps/backend/src/shared/operations/README.md](../apps/backend/src/shared/operations/README.md) | Operation metadata. |
+| [apps/backend/src/shared/operations/dto/operation-metadata.dto.ts](../apps/backend/src/shared/operations/dto/operation-metadata.dto.ts) | Общие внутренние метаданные мутации: доверенный субъект, корреляция и код основания. |
+| [apps/backend/src/shared/quantities/README.md](../apps/backend/src/shared/quantities/README.md) | Quantity contract. |
+| [apps/backend/src/shared/quantities/quantity.ts](../apps/backend/src/shared/quantities/quantity.ts) | Общий int4-контракт количества: SQL, внутренние DTO, аудит и draft event schema. |
+| [apps/backend/src/shared/validation/README.md](../apps/backend/src/shared/validation/README.md) | Resource validation. |
+| [apps/backend/src/shared/validation/identifiers.ts](../apps/backend/src/shared/validation/identifiers.ts) | Переиспользуемая UUID-проверка для внутренних DTO; не раскрывает значения при отказе. |
+| [apps/backend/src/shared/validation/resource-fields.ts](../apps/backend/src/shared/validation/resource-fields.ts) | Общая нормализация SKU/code и названий ресурсов catalog/warehouses. |
+| [apps/backend/test/integration/stock.spec.ts](../apps/backend/test/integration/stock.spec.ts) | WMS-104 PostgreSQL: catalog/warehouse constraints, receipt atomicity, absent-key race, overflow и immutable movement. |
+| [apps/backend/test/unit/stock-quantity.spec.ts](../apps/backend/test/unit/stock-quantity.spec.ts) | Boundary/contract tests WMS-104: int4 quantity в service, audit и неопубликованной event schema. |
+| [docs/adr/0010-minimal-stock.md](../docs/adr/0010-minimal-stock.md) | 0010. Int4 stock quantity и минимальное внутреннее начисление. |
+| [docs/reports/wms-104.md](../docs/reports/wms-104.md) | WMS-104: минимальные складские данные. |
+| [docs/stock-baseline.md](../docs/stock-baseline.md) | Минимальные складские данные WMS-104. |

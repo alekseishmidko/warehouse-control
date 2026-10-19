@@ -174,3 +174,8 @@ input — объект выше. Пример показывает вызов, �
 Подтверждающие тесты: [service](../../../test/unit/audit.service.spec.ts),
 [validation/redaction](../../../test/unit/audit-entry.spec.ts),
 [реальная транзакция, роли и rollback](../../../test/integration/transactions-audit.spec.ts).
+
+WMS-104: OperationMetadata переиспользуется из shared/operations; UUID и stock
+quantity validation — из shared/validation и shared/quantities. Для quantity,
+onHand/reserved allowlist теперь также ограничен int4 максимумом 2147483647.
+Прочие audit поля/маскирование не меняются. Movement хранит FK на audit UUID.

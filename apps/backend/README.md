@@ -1,18 +1,18 @@
 # Backend Warehouse Controller
 
-Документация корневого NestJS-модуля и конфигурации backend после WMS-101–103.
+Документация корневого NestJS-модуля и конфигурации backend после WMS-101–104.
 
 ## Для менеджера
 
 API отвечает на технические маршруты и подключается к PostgreSQL.
-Приёмка, отгрузка и учёт остатков ещё не реализованы. Критерий текущего результата:
+Документы приёмки и отгрузка ещё не реализованы; есть внутреннее начисление stock. Критерий текущего результата:
 повторяемая миграция, сохранность технических данных после restart и закрытие соединений.
 Будущие сценарии — в [описании продукта](../../docs/product.md).
 
 ## Для разработчика
 
 AppModule связывает AppController/AppService, DatabaseModule и AuditModule.
-Transaction runner и AuditService/AuditRepository реализованы; складских бизнес-сценариев,
+Transaction runner и AuditService/AuditRepository реализованы; catalog/warehouses/inventory baseline есть, но документов приёмки,
 авторизации, событий и consumers ещё нет.
 Стартовые маршруты открыты; это не политика будущих бизнес-endpoints.
 
@@ -63,3 +63,12 @@ Dev baseline test перезапускает postgres
 WMS-103: [транзакции и аудит](../../docs/transactions.md),
 [audit module](src/modules/audit/README.md), [shared](src/shared/README.md).
 Внешних audit endpoints нет. Dev Compose credentials не являются production runtime role.
+
+## WMS-104
+
+Новые внутренние модули: [catalog](src/modules/catalog/README.md),
+[warehouses](src/modules/warehouses/README.md), [inventory](src/modules/inventory/README.md).
+Сервисы экспортируются, repositories private, HTTP routes не добавлены.
+Общий quantity/metadata/validation — в shared. Dev seed: pnpm db:seed,
+реализован infrastructure/database/dev-fixtures.ts и seed-dev.ts.
+[Порядок данных и ограничения](../../docs/stock-baseline.md).

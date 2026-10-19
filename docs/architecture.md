@@ -30,10 +30,10 @@
 | Модуль | Владеет |
 |---|---|
 | identity | Пользователи, роли, сессии |
-| catalog | SKU, наименование, единица измерения |
-| warehouses | Склады, зоны, ячейки и назначение ячеек |
+| catalog | WMS-104: создание/lookup Product, SKU, name, unit=piece, без HTTP |
+| warehouses | WMS-104: Warehouse/Location, kind зоны, без HTTP |
 | receiving | Документы и строки приёмки, проведение |
-| inventory | Остатки, движения, резервы, размещение и перемещение |
+| inventory | WMS-104: balance/receipt/movement; резервы и перемещения ещё запланированы |
 | fulfillment | Заказы на отгрузку, задания сборки, отгрузки |
 | audit | Журнал бизнес-действий: WMS-103 write interface реализован, read API ещё нет |
 
@@ -132,3 +132,8 @@ Shared contracts не зависят от ORM; PostgreSQL adapter связыва
 AuditService → AuditRepository используют транзакцию вызывающего сервиса.
 Этот общий transaction port сохранён ради атомарности и scope guards; он не
 навязывает ports/adapters каждому модулю. Внешние endpoints и события не добавлены.
+
+WMS-104 реализует [минимальный складской baseline](stock-baseline.md).
+Сервисы справочников/начисления внутренние, без публичного CRUD. Сквозной сценарий
+документа приёмки и outbox пока не подключены. Quantity int4 и immutable movement
+зафиксированы [ADR-0010](adr/0010-minimal-stock.md).

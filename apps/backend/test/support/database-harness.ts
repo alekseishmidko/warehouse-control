@@ -103,7 +103,9 @@ export async function createDatabaseHarness(): Promise<DatabaseHarness> {
         // Только администратор disposable test container может обходить append-only для cleanup.
         await database.db.transaction(async tx => {
           await tx.execute(sql`alter table audit_entries disable trigger audit_entries_append_only`);
-          await tx.execute(sql`truncate table application_metadata, audit_entries`);
+          await tx.execute(sql`alter table stock_movements disable trigger stock_movements_append_only`);
+          await tx.execute(sql`truncate table application_metadata, audit_entries, stock_movements, stock_balances, locations, products, warehouses`);
+          await tx.execute(sql`alter table stock_movements enable trigger stock_movements_append_only`);
           await tx.execute(sql`alter table audit_entries enable trigger audit_entries_append_only`);
         });
       },
