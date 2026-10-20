@@ -10,13 +10,15 @@
 ## Для разработчика
 
 Содержит [transactions](transactions/README.md), [quantities](quantities/README.md),
-[validation](validation/README.md), [operation metadata](operations/README.md).
+[validation](validation/README.md), [operation metadata](operations/README.md),
+[events](events/README.md): registry, runtime contracts и generated event types.
 Shared не импортирует infrastructure/modules. Runtime-реализация transaction port —
 в database adapter; числовая и текстовая validation выполняется чистыми функциями.
 Переиспользуемый test-only код остаётся в test/support, не здесь.
 Новых utils-каталогов или общего repository нет. Правила —
 [shared/DRY](../../../../docs/shared.md), проверки — `pnpm typecheck`, `pnpm test`.
-Конфигурации, SQL, endpoints, событий и собственных фоновых процессов нет.
+SQL, endpoints, публикации событий и собственных фоновых процессов нет.
+Event schemas компилируются при загрузке registry; env-конфигурация не требуется.
 
 ```mermaid
 flowchart LR

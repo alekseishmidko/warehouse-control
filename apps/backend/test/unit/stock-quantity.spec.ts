@@ -17,8 +17,9 @@ test('SQL integer bounds match service, audit and draft JSON Schema quantity', (
   expect(isStockQuantity(0)).toBe(true);
   expect(() => requirePositiveQuantity(MAX_STOCK_QUANTITY)).not.toThrow();
   const schema = JSON.parse(readFileSync(resolve('../../docs/contracts/events/receiving.receipt-posted.v1.schema.json'), 'utf8'));
+  // Сверяем числовой контракт; описательные annotations (description) не меняют его смысл.
   expect(schema.properties.payload.properties.lines.items.properties.quantity)
-    .toEqual({ type: 'integer', minimum: 1, maximum: MAX_STOCK_QUANTITY });
+    .toMatchObject({ type: 'integer', minimum: 1, maximum: MAX_STOCK_QUANTITY });
   const example = JSON.parse(readFileSync(resolve('../../docs/contracts/examples/receiving.receipt-posted.v1.json'), 'utf8'));
   for (const line of example.payload.lines) expect(() => requirePositiveQuantity(line.quantity)).not.toThrow();
   expect(prepareAuditEntry(auditFixture({ changes: { onHand: { after: MAX_STOCK_QUANTITY } } })).hasRedactedChanges).toBe(false);

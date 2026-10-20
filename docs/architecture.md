@@ -87,7 +87,7 @@ apps/backend/src/
   worker.ts
 apps/web/
 packages/api-client/          # генерация из OpenAPI
-packages/event-contracts/     # будущая генерация из JSON Schema
+packages/event-contracts/     # перенос shared/events при втором реальном приложении-потребителе
 docs/contracts/              # исходные схемы событий
 infra/compose/
 infra/helm/
@@ -137,3 +137,9 @@ WMS-104 реализует [минимальный складской baseline](
 Сервисы справочников/начисления внутренние, без публичного CRUD. Сквозной сценарий
 документа приёмки и outbox пока не подключены. Quantity int4 и immutable movement
 зафиксированы [ADR-0010](adr/0010-minimal-stock.md).
+
+WMS-105: shared/events проверяет JSON Schema 2020-12 по локальному type/version
+registry. Generated TS и runtime schema bundle создаются из docs/contracts/events;
+runtime не читает дерево docs. Общая проверка producer/handler готова к подключению
+в WMS-106/109; outbox/worker пока отсутствуют. Ограничения первой приёмки и причины
+выбора — [ADR-0011](adr/0011-event-contract-validation.md).

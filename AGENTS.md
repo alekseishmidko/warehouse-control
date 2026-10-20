@@ -24,6 +24,8 @@ Supertest, изолированный PostgreSQL Testcontainers и cleanup fixtu
 WMS-103 реализована: shared transaction port/context, PostgreSQL runner и audit module
 с redaction и append-only migrations. WMS-104: минимальные catalog/warehouses/inventory,
 int4 quantity, guarded receipt, immutable movement и dev fixtures CLI.
+WMS-105: Ajv 2020-12/formats, code registry, shared EventContracts producer/handler
+validation entrypoints, generated types/schema bundle и contract fixtures/limits.
 Документы приёмки, frontend, outbox, Kafka, образ backend и Kubernetes ещё не реализованы.
 Не считать наличие документации доказательством реализации.
 
@@ -75,7 +77,8 @@ Test support — `apps/backend/test/support/`; отдельный контейн
 реальные migrations, config override через DI без изменения process.env.
 Не запускать два test:prepare одновременно в одном checkout; suites одного Jest
 прогона работают параллельно и имеют независимые БД.
-Контрактные проверки ещё не настроены. Следующая задача — WMS-105.
+Контрактные fixtures и generation diff проверяются локально в test:prepare/unit.
+CI compatibility comparison ещё нет. Следующая задача — WMS-106 (outbox).
 При добавлении функциональности нужны проверки её бизнес-инвариантов.
 Для outbox обязательны реальные PostgreSQL integration tests: rollback,
 повторная доставка, конкуренция workers, восстановление после сбоя.
@@ -131,4 +134,19 @@ OperationId уникален на одно движение: повтор отк
 Dev fixtures: pnpm db:seed только development, новый набор без stock на каждый запуск.
 Stock SQL/direct writes в tests допустимы только для проверки constraints;
 cleanup отключает audit/movement triggers только в disposable container.
-Draft event quantity уточнён до int4 до публикации. Runtime JSON Schema validation — WMS-105.
+Draft event quantity уточнён до int4 до публикации. Runtime validation готова WMS-105.
+
+## Контракты WMS-105
+
+Source schemas — docs/contracts/events; generated TS/schema bundle в shared/events/generated
+не редактировать вручную. pnpm contracts:generate и contracts:check; check входит в test:prepare.
+Registry известного type/version и KnownEvent расширяются вместе со schema/fixtures.
+prepareForOutbox возвращает проверенный message snapshot: будущий writer проверяет его
+до INSERT в общей транзакции. parseForHandler вызывается до handler; неизвестные версии
+не считаются успешной обработкой. Writer/worker/quarantine пока отсутствуют.
+ReceivingPosted: 1..1000 строк, quantity int4, <=262144 UTF-8 bytes с envelope/unknown fields.
+MAX_RECEIPT_LINES берётся из generated schema, payload DTO — generated type alias;
+будущий receiving HTTP DTO обязан использовать эти limits. Unknown optional fields
+сохраняются; coercion/defaults/field removal выключены. UTC требует Z, UUID — format.
+Контракт не проверяет DB refs, права, duplicate lines или aggregateId=receiptId:
+это ответственность будущего receiving service. Подробности — shared/events/README и ADR-0011.

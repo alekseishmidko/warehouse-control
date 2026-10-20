@@ -17,8 +17,9 @@
 - [Подробный план разработки](docs/development-plan.md)
 - [Контекст для агента](AGENTS.md)
 
-Реализованы каркас backend и WMS-101: PostgreSQL Compose, Drizzle, первая миграция
-и runtime config, Jest/Supertest/Testcontainers harness. Бизнес-модули, backend Docker image и Kubernetes ещё запланированы.
+Реализованы WMS-101–105: PostgreSQL/Drizzle, runtime config, test harness,
+транзакции/audit, минимальные catalog/warehouses/inventory и runtime event contracts.
+Документы приёмки, outbox, backend Docker image и Kubernetes ещё запланированы.
 
 ## Запуск
 
@@ -50,6 +51,8 @@ pnpm dev        # Backend с перезапуском при изменении 
 pnpm typecheck  # Проверка TypeScript во всех пакетах
 pnpm build      # Сборка всех пакетов
 pnpm start      # Запуск собранного backend (после pnpm build)
+pnpm contracts:generate # Типы и runtime schemas из JSON Schema
+pnpm contracts:check    # Проверка generation diff без изменения файлов
 ```
 
 Команды конкретного приложения: `pnpm --filter @warehouse/backend <команда>`.

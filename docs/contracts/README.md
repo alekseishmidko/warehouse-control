@@ -11,8 +11,9 @@
 | Данные БД | SQL/Drizzle migrations | Только backend |
 
 TypeScript-типы сами по себе не валидируют вход. События проверяются по JSON
-Schema перед записью outbox и на границе consumer. OpenAPI generation,
-runtime validator и генераторы ещё предстоит подключить.
+Schema перед записью outbox и на границе consumer. WMS-105 реализует общий
+EventContracts с prepareForOutbox/parseForHandler, registry, runtime validator
+и генерацию event types. Сам outbox/consumer и OpenAPI generation ещё предстоят.
 Дублировать вручную одинаковые DTO в frontend запрещено.
 
 ## HTTP API
@@ -68,8 +69,17 @@ Consumer, зависящий от порядка, подписывается н�
 Пример: [схема](events/receiving.receipt-posted.v1.schema.json),
 [сообщение](examples/receiving.receipt-posted.v1.json).
 Событие содержит фактические строки приёмки, но не ORM-сущности, секреты
-или произвольные персональные данные. Максимум размера и предел строк
-уточняются перед реализацией; большие документы потребуют отдельного контракта.
+или произвольные персональные данные. Первый документ содержит 1..1000 строк,
+quantity — integer 1..2147483647. Всё сообщение ограничено 262144 байт (256 КиБ)
+JSON UTF-8, включая envelope и неизвестные поля. Большой документ разделяют
+до проведения; автоматического дробления событий нет. Пределы уточнены до
+первой публикации v1; дальнейшее сужение опубликованной версии — breaking change.
+
+Payload DTO берётся из generated ReceivingPostedV1, а MAX_RECEIPT_LINES — из
+generated schema. Будущий receiving HTTP DTO обязан использовать эти же limits;
+сейчас публичного DTO приёмки нет. Existing ReceiveStockDto принимает одну строку
+и использует тот же int4 quantity contract. Проверка UUID/UTC/quantity не заменяет
+проверку прав, существования справочников, уникальности строк или состояния документа.
 
 ## Совместимость
 
@@ -86,6 +96,28 @@ Consumer, зависящий от порядка, подписывается н�
 JSON Schema подключим к Registry после проверки поддерживаемого dialect.
 Схемы в Git остаются первичным источником; Registry — проверяемая публикация.
 
+## Реализованные локальные проверки WMS-105
+
+Ajv 8.20.0 (`ajv/dist/2020`) + ajv-formats 3.0.1 full, strict без coercion,
+defaults и удаления полей. Локальный registry поддерживает receiving.receipt-posted:1.
+Полный envelope/payload проверяется перед возвратом producer snapshot и до допуска
+handler caller. Неизвестная версия — UNSUPPORTED_EVENT, invalid payload — INVALID_EVENT,
+неразбираемый JSON — INVALID_JSON, превышенный размер — MESSAGE_TOO_LARGE.
+Действующих INSERT outbox/handler ещё нет: эти границы обязательны для WMS-106/109.
+
+`pnpm contracts:generate` создаёт TS types и runtime schema bundle из исходных JSON,
+`pnpm contracts:check` проверяет точное совпадение без изменения checkout.
+`pnpm test:unit` проверяет исходный пример, [отдельные fixtures](fixtures/README.md),
+formats, required fields и limits; test:prepare включает generation check.
+Generated artifacts коммитятся вместе со схемами; ручное редактирование запрещено.
+Порядок изменения: schema → generate → registry/KnownEvent при новой версии → fixtures →
+check/tests. Команды не требуют Docker/БД. При двух реальных приложениях типы/capability
+переедут из backend shared в packages; сейчас второй потребитель не создан.
+
+Настройка, точное движение данных, ошибки и ограничения генератора:
+[shared events README](../../apps/backend/src/shared/events/README.md),
+[ADR-0011](../adr/0011-event-contract-validation.md).
+
 ## Будущие CI gates
 
 1. Схемы и примеры валидны по JSON Schema 2020-12 с проверкой formats.
@@ -94,7 +126,8 @@ JSON Schema подключим к Registry после проверки подд�
 4. Producer/consumer tests покрывают старые fixtures и неизвестные поля.
 5. Интеграционные проверки подтверждают бизнес-эффект и дедупликацию.
 
-До настройки этих gates нельзя утверждать, что совместимость проверяется автоматически.
+Локальные проверки схем/fixtures/generation уже есть; CI workflow, OpenAPI gate,
+сравнение breaking changes с основной веткой и consumer business integration ещё нет.
 
 ## Уточнение quantity WMS-104
 
@@ -103,5 +136,5 @@ JSON Schema подключим к Registry после проверки подд�
 Старый MAX_SAFE_INTEGER снят только с quantity, не aggregateVersion.
 События/consumer contracts ещё не публиковались; после публикации аналогичное
 сужение станет breaking change и потребует новой major-версии.
-Unit stock-quantity.spec.ts проверяет границы и пример; это не полноценный
-runtime JSON Schema validator, который остаётся задачей WMS-105.
+Unit stock-quantity.spec.ts сверяет общий int4 contract, а event-contracts.spec.ts
+теперь проверяет этот диапазон полноценным runtime validator WMS-105 на обеих границах.

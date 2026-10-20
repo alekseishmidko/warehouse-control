@@ -109,3 +109,15 @@ Replay — отдельная управляемая операция с диа�
 На первом этапе outbox и processed markers не удаляем. Retention вводится вместе
 с политикой replay: удаление markers раньше возможного повтора нарушает гарантию.
 Kafka retention, backup и archive согласуются до внешнего стенда.
+
+## Подготовленная граница validation WMS-105
+
+Outbox SQL writer ещё не реализован. Для WMS-106 уже готов
+EventContracts.prepareForOutbox(input): он проверяет фактический JSON snapshot,
+type/version registry, envelope/payload, formats, line limit и UTF-8 bytes.
+Writer обязан вызвать его до INSERT и сохранить проверенный message в одной
+транзакции с бизнес-изменением; нельзя пересобирать JSON из изменённого input.
+Для WMS-109 подготовлен parseForHandler(message), вызываемый до допуска handler.
+Отказ — permanent error, не успешный marker/ack; durable quarantine появится с worker.
+[Настройка и ошибки](../apps/backend/src/shared/events/README.md),
+[контракт и пределы](contracts/README.md). Это не доказательство уже работающего outbox.

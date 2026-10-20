@@ -1,6 +1,6 @@
 # Backend Warehouse Controller
 
-Документация корневого NestJS-модуля и конфигурации backend после WMS-101–104.
+Документация корневого NestJS-модуля и конфигурации backend после WMS-101–105.
 
 ## Для менеджера
 
@@ -35,6 +35,7 @@ Transaction runner и AuditService/AuditRepository реализованы; catal
 | drizzle.config.ts | PostgreSQL dialect, schema/output пути, validated URL для Kit |
 | drizzle/ | Generated SQL, snapshot, journal и README |
 | test/ | Jest unit/integration, Testcontainers support, отдельный native dev baseline smoke |
+| scripts/generate-event-contracts.cjs | Детерминированная генерация event types/schema bundle; --check только сравнивает |
 | package.json | Runtime/dev dependencies, scripts и exact версии Drizzle/pg |
 | nest-cli.json | sourceRoot src, очистка dist перед build |
 | tsconfig.json | strict base TS, decorators/metadata, src → dist |
@@ -72,3 +73,13 @@ WMS-103: [транзакции и аудит](../../docs/transactions.md),
 Общий quantity/metadata/validation — в shared. Dev seed: pnpm db:seed,
 реализован infrastructure/database/dev-fixtures.ts и seed-dev.ts.
 [Порядок данных и ограничения](../../docs/stock-baseline.md).
+
+## WMS-105
+
+[Shared events](src/shared/events/README.md): Ajv 2020-12/formats, registry type/version,
+producer/handler validation entrypoints и generated DTO. `pnpm contracts:generate`
+создаёт TS types/runtime schemas из docs/contracts/events, `pnpm contracts:check`
+проверяет generation diff без записи. Artifacts включены в Git; test:prepare запускает
+check. Runtime dist не читает docs/JSON. Дополнительных env/DB migrations нет.
+ReceivingPosted ограничен 1000 строками и 256 КиБ UTF-8; quantity int4.
+Outbox write, handler, HTTP receiving DTO и CI compatibility gate ещё предстоят.

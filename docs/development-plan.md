@@ -2,7 +2,7 @@
 
 Документ превращает [roadmap](roadmap.md) в последовательный backlog для разработчика,
 менеджера и агента: задачи, зависимости, проверяемый результат и демонстрация этапа.
-Это план, не отчёт о выполнении. WMS-101–WMS-104 выполнены; остальные задачи запланированы.
+Это план, не отчёт о выполнении. WMS-101–WMS-105 выполнены; остальные задачи запланированы.
 Реализованы каркас NestJS, PostgreSQL/Drizzle, harness, transaction port и audit; статус — в [карте документации](README.md).
 
 ## Как работать с планом
@@ -111,14 +111,18 @@
 - [x] **WMS-104.5** — Реализовать inventory operation начисления и immutable movement, принимающую общий transaction context.
 - [x] **WMS-104.6** — Проверить конкурентное создание отсутствующего balance, неверную ячейку и quantity; результат не нарушает constraints.
 
-### WMS-105. Контракты событий
+### WMS-105. Контракты событий — выполнено
 
-- [ ] **WMS-105.1** — Выбрать JSON Schema validator с dialect 2020-12 и formats; описать настройку и ограничения.
-- [ ] **WMS-105.2** — Подключить существующий ReceivingPosted fixture; проверить UUID, UTC timestamp, положительное quantity и обязательные поля.
-- [ ] **WMS-105.3** — Создать registry типов/версий в коде и проверять envelope/payload до outbox write и на входе handler.
-- [ ] **WMS-105.4** — Настроить генерацию TypeScript из исходных схем и воспроизводимую проверку generation diff.
-- [ ] **WMS-105.5** — Проверить неизвестные optional fields, неизвестную версию и некорректный payload отдельными fixtures.
-- [ ] **WMS-105.6** — Определить предел строк и размер сообщения для первого сценария; совместить его с DTO и documented business limits.
+Реализация/проверки: [отчёт WMS-105](reports/wms-105.md). Готовы общие границы
+prepareForOutbox/parseForHandler; их обязательное подключение к реальным SQL writer
+и worker выполняется в WMS-106/109, которые пока отсутствуют.
+
+- [x] **WMS-105.1** — Выбрать JSON Schema validator с dialect 2020-12 и formats; описать настройку и ограничения.
+- [x] **WMS-105.2** — Подключить существующий ReceivingPosted fixture; проверить UUID, UTC timestamp, положительное quantity и обязательные поля.
+- [x] **WMS-105.3** — Создать registry типов/версий в коде и проверять envelope/payload до outbox write и на входе handler.
+- [x] **WMS-105.4** — Настроить генерацию TypeScript из исходных схем и воспроизводимую проверку generation diff.
+- [x] **WMS-105.5** — Проверить неизвестные optional fields, неизвестную версию и некорректный payload отдельными fixtures.
+- [x] **WMS-105.6** — Определить предел строк и размер сообщения для первого сценария; совместить его с DTO и documented business limits.
 
 ### WMS-106. Запись в outbox
 
@@ -515,8 +519,10 @@ rollback приложения не выдаётся за rollback данных �
 
 ## Следующая задача для агента
 
-WMS-101–WMS-104 завершены. Следующая задача — **WMS-105**:
-JSON Schema runtime validation, registry типов/версий, fixtures и generation/diff
-по шагам WMS-105.1–105.6. Numeric contract draft quantity уже int4; не менять его
-без проверки SQL/service/audit и документации. Не реализовывать пока outbox или
-полную приёмку до их задач. Использовать существующие services и test harness.
+WMS-101–WMS-105 завершены. Следующая задача — **WMS-106**:
+transactional outbox writer/migrations по WMS-106.1–106.6. Использовать существующие
+TransactionContext и EventContracts.prepareForOutbox до INSERT, сохранять проверенный
+message snapshot в той же транзакции. Проверить реальный PostgreSQL rollback и
+конкурентный aggregate sequence. Handler подключит parseForHandler в WMS-109.
+Не менять int4/1000 строк/256 КиБ limits без проверки schemas/DTO/business docs.
+Не реализовывать пока полный receiving, worker или Kafka вне их задач.

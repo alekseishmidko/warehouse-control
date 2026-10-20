@@ -12,16 +12,20 @@
     "db:check": "node dist/infrastructure/database/check.js",
     "test:config": "pnpm test:unit",
     "test:db-baseline": "node --test test/database-baseline.test.cjs",
-    "test:prepare": "pnpm build && node -e \"require('node:fs').rmSync('.test-dist', { recursive: true, force: true })\" && tsc -p tsconfig.test.json",
+    "test:prepare": "pnpm contracts:check && pnpm build && node -e \"require('node:fs').rmSync('.test-dist', { recursive: true, force: true })\" && tsc -p tsconfig.test.json",
     "test": "pnpm test:prepare && jest",
     "test:unit": "pnpm test:prepare && jest --selectProjects unit",
     "test:integration": "pnpm test:prepare && jest --selectProjects integration",
-    "db:seed": "pnpm build && node dist/infrastructure/database/seed-dev.js"
+    "db:seed": "pnpm build && node dist/infrastructure/database/seed-dev.js",
+    "contracts:generate": "node scripts/generate-event-contracts.cjs",
+    "contracts:check": "node scripts/generate-event-contracts.cjs --check"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/platform-express": "^11.1.6",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "drizzle-orm": "0.45.4",
     "pg": "8.23.1",
     "reflect-metadata": "^0.2.2",
@@ -37,6 +41,7 @@
     "@types/supertest": "7.2.1",
     "drizzle-kit": "0.31.11",
     "jest": "30.5.2",
+    "json-schema-to-typescript": "16.0.0",
     "supertest": "7.3.1",
     "typescript": "^5.9.2"
   }
