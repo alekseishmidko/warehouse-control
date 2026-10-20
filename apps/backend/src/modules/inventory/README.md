@@ -101,7 +101,8 @@ pnpm test:unit / test:integration / typecheck. Реальная БД:
 гонку отсутствующего balance, overflow, duplicate operation, FK/unique/CHECK,
 неверные quantity/location и полный rollback. Unit
 [stock-quantity.spec.ts](../../../test/unit/stock-quantity.spec.ts) сверяет диапазон
-с draft JSON Schema; полноценная runtime JSON Schema validation ещё WMS-105.
+с draft JSON Schema; полноценная runtime JSON Schema validation реализована
+в WMS-105 в [shared/events](../../shared/events/README.md). Inventory сам событий не публикует.
 
 DATABASE_URL общий, специальных переменных/метрик/events нет. Миграции 0003/0004:
 pnpm db:migrate. Fixture CLI pnpm db:seed не начисляет stock. Runbook outbox пока

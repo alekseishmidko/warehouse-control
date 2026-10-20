@@ -2,7 +2,8 @@
 
 WMS-102: Jest unit/integration projects, Supertest и PostgreSQL Testcontainers.
 Для менеджера: проверки подтверждают изоляцию данных, commit/rollback, работу
-технического HTTP и освобождение ресурсов при ошибке. Складские сценарии ещё не реализованы.
+технического HTTP и освобождение ресурсов при ошибке. Полная приёмка ещё не реализована;
+проверки внутреннего stock baseline и контрактов описаны в разделах WMS-104/105 ниже.
 
 ## Команды из корня
 
@@ -14,7 +15,8 @@ pnpm test:config     # совместимый alias test:unit
 pnpm typecheck       # production source и TypeScript tests
 ```
 
-Команды test/test:unit/test:integration выполняют test:prepare: собирают backend,
+Команды test/test:unit/test:integration выполняют test:prepare: проверяют generation
+контрактов (contracts:check), собирают backend,
 удаляют старый .test-dist и компилируют tests через tsconfig.test.json.
 Jest читает compiled tests; @backend/* отображается в настоящий production dist,
 поэтому тесты не исполняют вторую копию приложения из test output.
@@ -113,3 +115,16 @@ absent key с barrier, overflow и dev CLI на disposable DB.
 Fixture builder переиспользуется из production infrastructure, не дублируется тестами.
 Reset включает products/warehouses/locations/balances/movements; owner отключает
 оба append-only triggers только в рамках admin cleanup transaction.
+
+## WMS-105
+
+unit/event-contracts.spec.ts проверяет production EventContracts на входах
+prepareForOutbox/parseForHandler: исходный ReceivingPosted и отдельные fixtures,
+полный envelope/payload, UUID/date-time, UTC Z, quantity int4, обязательные поля,
+unknown fields/version, line limit и точный UTF-8 byte limit.
+unit/event-generation.spec.ts запускает generator отдельным Node process (Prettier
+использует ESM), проверяет воспроизводимость и missing/stale TS/schema artifacts
+в disposable temporary directory с cleanup в finally. Checkout не изменяется.
+Команды из корня: `pnpm contracts:generate`, `pnpm contracts:check`, `pnpm test:unit`.
+Docker для контрактных unit tests не нужен; реального outbox/handler integration
+пока нет. Schemas и fixtures описаны в [contracts](../../../docs/contracts/README.md).

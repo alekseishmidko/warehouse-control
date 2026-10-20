@@ -33,7 +33,7 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [docs/architecture.md](../docs/architecture.md) | Архитектура. |
 | [docs/contracts/README.md](../docs/contracts/README.md) | Система контрактов. |
 | [docs/contracts/events/receiving.receipt-posted.v1.schema.json](../docs/contracts/events/receiving.receipt-posted.v1.schema.json) | JSON Schema 2020-12 события приёмки v1; источник контракта, не generated output. |
-| [docs/contracts/examples/receiving.receipt-posted.v1.json](../docs/contracts/examples/receiving.receipt-posted.v1.json) | Пример валидного события приёмки для документации и будущих contract tests. |
+| [docs/contracts/examples/receiving.receipt-posted.v1.json](../docs/contracts/examples/receiving.receipt-posted.v1.json) | Базовый валидный ReceivingPosted fixture; проверяется реальными runtime contract tests. |
 | [docs/documentation-standard.md](../docs/documentation-standard.md) | Стандарт документации. |
 | [docs/development-plan.md](../docs/development-plan.md) | План шести этапов: 38 задач и 217 шагов, зависимости, критерии приёмки и проверки. |
 | [docs/domain.md](../docs/domain.md) | Домен и инварианты. |
@@ -139,3 +139,19 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [docs/adr/0010-minimal-stock.md](../docs/adr/0010-minimal-stock.md) | 0010. Int4 stock quantity и минимальное внутреннее начисление. |
 | [docs/reports/wms-104.md](../docs/reports/wms-104.md) | WMS-104: минимальные складские данные. |
 | [docs/stock-baseline.md](../docs/stock-baseline.md) | Минимальные складские данные WMS-104. |
+| [apps/backend/scripts/generate-event-contracts.cjs](../apps/backend/scripts/generate-event-contracts.cjs) | Генератор TypeScript и runtime schemas из исходных JSON Schema; --check обнаруживает missing/stale output без записи. |
+| [apps/backend/src/shared/events/README.md](../apps/backend/src/shared/events/README.md) | Бизнес- и техническая документация event contracts: границы, ошибки, настройка, limits и движение данных. |
+| [apps/backend/src/shared/events/event-registry.ts](../apps/backend/src/shared/events/event-registry.ts) | Локальный type/version registry, Ajv 2020-12/full formats и общие event/receipt limits. |
+| [apps/backend/src/shared/events/event-contract.error.ts](../apps/backend/src/shared/events/event-contract.error.ts) | Безопасные permanent contract error codes без payload в диагностике. |
+| [apps/backend/src/shared/events/dto/event.dto.ts](../apps/backend/src/shared/events/dto/event.dto.ts) | Внутренние KnownEvent/PreparedEvent и payload alias из generated contract; не HTTP/ORM DTO. |
+| [apps/backend/src/shared/events/services/event-contracts.ts](../apps/backend/src/shared/events/services/event-contracts.ts) | Producer snapshot validation и вход handler: UTF-8 bytes, JSON, registry и полный envelope/payload. |
+| [apps/backend/src/shared/events/generated/event-types.ts](../apps/backend/src/shared/events/generated/event-types.ts) | Generated TS из docs/contracts/events: pnpm contracts:generate; вручную не редактировать, diff проверяет contracts:check. |
+| [apps/backend/src/shared/events/generated/event-schemas.ts](../apps/backend/src/shared/events/generated/event-schemas.ts) | Generated runtime schema bundle из тех же JSON: pnpm contracts:generate; без docs runtime, без ручных правок. |
+| [apps/backend/test/unit/event-contracts.spec.ts](../apps/backend/test/unit/event-contracts.spec.ts) | Контрактные fixtures и обе runtime границы: UUID/UTC/int4/required/unknown fields/version/line/UTF-8 limits. |
+| [apps/backend/test/unit/event-generation.spec.ts](../apps/backend/test/unit/event-generation.spec.ts) | Детерминированная generation, missing/stale checks в temporary directory; Node subprocess и finally cleanup. |
+| [docs/contracts/fixtures/README.md](../docs/contracts/fixtures/README.md) | Назначение синтетических полных contract fixtures и ожидаемые результаты validation. |
+| [docs/contracts/fixtures/receiving.optional-fields.json](../docs/contracts/fixtures/receiving.optional-fields.json) | ReceivingPosted с неизвестными optional fields в envelope/payload/line; все поля принимаются и сохраняются. |
+| [docs/contracts/fixtures/receiving.unknown-version.json](../docs/contracts/fixtures/receiving.unknown-version.json) | ReceivingPosted с schemaVersion=2; ожидается UNSUPPORTED_EVENT на обеих границах. |
+| [docs/contracts/fixtures/receiving.invalid-payload.json](../docs/contracts/fixtures/receiving.invalid-payload.json) | ReceivingPosted с quantity=0; ожидается INVALID_EVENT на обеих границах. |
+| [docs/adr/0011-event-contract-validation.md](../docs/adr/0011-event-contract-validation.md) | Решение об Ajv, generation, runtime boundaries и пределах неопубликованного ReceivingPosted v1. |
+| [docs/reports/wms-105.md](../docs/reports/wms-105.md) | Результаты WMS-105, проверки, ограничения и обязательные точки подключения в WMS-106/109. |

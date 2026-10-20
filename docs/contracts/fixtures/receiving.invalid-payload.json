@@ -1,0 +1,22 @@
+{
+  "eventId": "78ae6ebd-16c3-4cb8-896b-de321cb8c634",
+  "type": "receiving.receipt-posted",
+  "schemaVersion": 1,
+  "aggregateType": "receipt",
+  "aggregateId": "3e95a269-e552-401b-b3f0-85bc568d845b",
+  "aggregateVersion": 1,
+  "occurredAt": "2026-10-17T06:00:00.000Z",
+  "correlationId": "dbb37b21-1c4a-4b32-9307-148df1647f4c",
+  "payload": {
+    "receiptId": "3e95a269-e552-401b-b3f0-85bc568d845b",
+    "warehouseId": "708c21f2-652e-45a0-b910-f4db41fca885",
+    "receivingLocationId": "b01e0ef6-e01e-472d-891f-e7d219a21e42",
+    "lines": [
+      {
+        "receiptLineId": "482adf2c-e40a-46c9-8640-b4606363fa80",
+        "productId": "801c9003-42c2-48f5-af04-ae26f106ea46",
+        "quantity": 0
+      }
+    ]
+  }
+}

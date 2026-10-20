@@ -28,8 +28,8 @@ PostgreSQL может явно/неявно приводить numeric expressio
 
 MAX_STOCK_QUANTITY — общий source constant в shared/quantities. Inventory SQL schema,
 audit changes и service validation используют его; JSON Schema содержит то же
-значение явно и проверяется contract-boundary unit test. Полноценный schema validator
-и генерация event types ещё WMS-105.
+значение явно и проверяется contract-boundary unit test. WMS-105 добавила полноценный
+schema validator и генерацию event types; [настройки и limits](contracts/README.md).
 
 Draft receiving.receipt-posted v1.quantity.maximum сужен с MAX_SAFE_INTEGER до int4.
 События ещё не публикуются, stored outbox/внешних consumers нет, поэтому уточнена

@@ -20,6 +20,7 @@
 | [Эксплуатация](operations.md) | Docker, Kubernetes, наблюдаемость, CI/CD |
 | [План](roadmap.md) | Этапы и критерии готовности |
 | [Отчёт WMS-104](reports/wms-104.md) | Складские модели, гонки, ограничения и проверки |
+| [Отчёт WMS-105](reports/wms-105.md) | Runtime contracts, generation, fixtures и пределы сообщений |
 | [Отчёт WMS-103](reports/wms-103.md) | Атомарность audit, scopes, права и результаты проверок |
 | [Отчёт WMS-102](reports/wms-102.md) | Jest, Supertest, изоляция БД и проверки cleanup |
 | [Отчёт WMS-101](reports/wms-101.md) | Проверенное окружение, миграции и результаты проверок |
@@ -48,10 +49,13 @@
   redaction и migrations с append-only trigger/runtime grants.
 - Готово WMS-104: минимальные catalog/warehouses/inventory, начисление в общем context,
   immutable movement/audit, int4 quantity и dev-only fixtures CLI.
+- Готово WMS-105: Ajv 2020-12/formats, code registry, producer/handler validation
+  entrypoints, TS/schema generation и diff gate, контрактные fixtures и limits.
 - Описано, но не реализовано: документы приёмки, остальные складские операции и outbox,
   обработчики, авторизация, frontend, Docker image backend, Kubernetes и CI/CD.
 - Пример контракта `ReceivingPosted` — проектный образец, не опубликованный API.
-- CI-проверка JSON Schema, OpenAPI и совместимости пока не настроена.
+- Локальные schema/fixtures/generation проверки выполняются в unit suite;
+  CI workflow, OpenAPI и breaking-change comparison пока не настроены.
 
 ## Порядок чтения
 
