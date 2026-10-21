@@ -1,6 +1,6 @@
 # Backend Warehouse Controller
 
-Документация корневого NestJS-модуля и конфигурации backend после WMS-101–105.
+Документация корневого NestJS-модуля и конфигурации backend после WMS-101–106.
 
 ## Для менеджера
 
@@ -11,9 +11,10 @@ API отвечает на технические маршруты и подкл�
 
 ## Для разработчика
 
-AppModule связывает AppController/AppService, DatabaseModule и AuditModule.
+AppModule связывает AppController/AppService, DatabaseModule, AuditModule,
+CatalogModule, WarehousesModule, InventoryModule и OutboxModule.
 Transaction runner и AuditService/AuditRepository реализованы; catalog/warehouses/inventory baseline есть, но документов приёмки,
-авторизации, событий и consumers ещё нет.
+авторизации, бизнес producer документа и consumers ещё нет; outbox writer подключён отдельно.
 Стартовые маршруты открыты; это не политика будущих бизнес-endpoints.
 
 | Маршрут | Ответ | Ограничение |
@@ -82,4 +83,13 @@ producer/handler validation entrypoints и generated DTO. `pnpm contracts:genera
 проверяет generation diff без записи. Artifacts включены в Git; test:prepare запускает
 check. Runtime dist не читает docs/JSON. Дополнительных env/DB migrations нет.
 ReceivingPosted ограничен 1000 строками и 256 КиБ UTF-8; quantity int4.
-Outbox write, handler, HTTP receiving DTO и CI compatibility gate ещё предстоят.
+Outbox write подключён в WMS-106; handler, HTTP receiving DTO и CI compatibility gate ещё предстоят.
+
+## WMS-106
+
+[Outbox writer](src/infrastructure/outbox/README.md): OutboxModule экспортирует
+OutboxService.append(context,command); private repository не открывает транзакций.
+UUID/version генерирует writer, prepareForOutbox проверяет финальный snapshot до SQL.
+Atomic counter/events/deliveries/streams, immutable/retention grants/triggers:
+новые migrations 0005/0006, dev Compose мигрируется явно через pnpm db:migrate.
+Документ приёмки/worker/handler ещё не подключены. Подробности — [ADR-0012](../../docs/adr/0012-outbox-writer.md).

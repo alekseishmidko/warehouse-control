@@ -26,7 +26,9 @@ WMS-103 реализована: shared transaction port/context, PostgreSQL runn
 int4 quantity, guarded receipt, immutable movement и dev fixtures CLI.
 WMS-105: Ajv 2020-12/formats, code registry, shared EventContracts producer/handler
 validation entrypoints, generated types/schema bundle и contract fixtures/limits.
-Документы приёмки, frontend, outbox, Kafka, образ backend и Kubernetes ещё не реализованы.
+WMS-106: OutboxService/Repository, migrations с aggregate counter, deliveries/streams,
+immutable envelope и retention guards. Документы приёмки, frontend, worker, Kafka,
+образ backend и Kubernetes ещё не реализованы.
 Не считать наличие документации доказательством реализации.
 
 ## Обязательные ограничения
@@ -78,7 +80,7 @@ Test support — `apps/backend/test/support/`; отдельный контейн
 Не запускать два test:prepare одновременно в одном checkout; suites одного Jest
 прогона работают параллельно и имеют независимые БД.
 Контрактные fixtures и generation diff проверяются локально в test:prepare/unit.
-CI compatibility comparison ещё нет. Следующая задача — WMS-106 (outbox).
+CI compatibility comparison ещё нет. Следующая задача — WMS-107 (HTTP-команды/идемпотентность).
 При добавлении функциональности нужны проверки её бизнес-инвариантов.
 Для outbox обязательны реальные PostgreSQL integration tests: rollback,
 повторная доставка, конкуренция workers, восстановление после сбоя.
@@ -141,12 +143,30 @@ Draft event quantity уточнён до int4 до публикации. Runtime
 Source schemas — docs/contracts/events; generated TS/schema bundle в shared/events/generated
 не редактировать вручную. pnpm contracts:generate и contracts:check; check входит в test:prepare.
 Registry известного type/version и KnownEvent расширяются вместе со schema/fixtures.
-prepareForOutbox возвращает проверенный message snapshot: будущий writer проверяет его
+prepareForOutbox возвращает проверенный message snapshot: OutboxService проверяет его
 до INSERT в общей транзакции. parseForHandler вызывается до handler; неизвестные версии
-не считаются успешной обработкой. Writer/worker/quarantine пока отсутствуют.
+не считаются успешной обработкой. Writer реализован; worker/quarantine пока отсутствуют.
 ReceivingPosted: 1..1000 строк, quantity int4, <=262144 UTF-8 bytes с envelope/unknown fields.
 MAX_RECEIPT_LINES берётся из generated schema, payload DTO — generated type alias;
 будущий receiving HTTP DTO обязан использовать эти limits. Unknown optional fields
 сохраняются; coercion/defaults/field removal выключены. UTC требует Z, UUID — format.
 Контракт не проверяет DB refs, права, duplicate lines или aggregateId=receiptId:
 это ответственность будущего receiving service. Подробности — shared/events/README и ADR-0011.
+
+
+## Outbox WMS-106
+
+OutboxModule в infrastructure экспортирует только OutboxService.append(context, AppendEventDto).
+Producer не задаёт eventId/aggregateVersion; writer создаёт UUID, preflight snapshot,
+выделяет версию guarded upsert в outbox_aggregate_sequences и проверяет финальные bytes
+через EventContracts до INSERT. JSONB сохраняется из проверенного message (смысл,
+не whitespace/key order). Никаких run/commit/pool в writer. Ошибки append обязательно
+выходят до runner: подавление после counter update может оставить пропуск версии.
+Destination inventory.putaway зарегистрирован кодом и migration CHECK для полного receipt stream.
+Stream создаётся cursor=0, существующие cursor/lease не сбрасываются; delivery pending.
+Новые consumers требуют migration/replay/start-position плана, не простого редактирования массива.
+Migrations 0005/0006 новые; events immutable, удаления всех четырёх outbox таблиц запрещены
+до retention policy. Runtime events только SELECT/INSERT, остальным разрешён UPDATE;
+DBA может обойти triggers. Test reset отключает их только в disposable container.
+Workers/claim/dedup/quarantine/Kafka ещё нет; append повторно создаёт новый факт,
+будущая повторная доставка использует сохранённый eventId, а не новый append.

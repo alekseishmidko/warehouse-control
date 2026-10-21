@@ -86,3 +86,13 @@ balance создаётся guarded upsert с unique stock key. Location ownershi
 composite FK. Повтор operationId отклоняется с rollback, не считается успехом.
 Размещение, резервирование и отгрузка в правилах выше остаются целевыми сценариями.
 Детали/DTO/ограничения: [stock-baseline](stock-baseline.md).
+
+
+## Реализованный outbox writer WMS-106
+
+OutboxService принимает факт с общим context после бизнес-изменения, сам выделяет
+UUID/непрерывную event version в транзакции и пишет immutable envelope, pending delivery
+и stream. Атомарность с stock/movement/audit доказана integration-тестом, но документ
+приёмки/проведение ещё не реализованы. Повтор append создаёт новый факт: запрет
+повторного posting/idempotency должны обеспечить будущие receiving/HTTP-сервисы.
+[Физическая модель и ограничения](../apps/backend/src/infrastructure/outbox/README.md).

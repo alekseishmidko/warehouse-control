@@ -35,3 +35,17 @@ stock_balances/stock_movements с FK/unique/CHECK. 0004_inventory-permissions.sq
 meta/0003_snapshot.json и meta/0004_snapshot.json generated Kit; не редактировать.
 Прежние SQL migrations не менялись. Миграции проверены на чистой Testcontainers БД;
 dev Compose нужно мигрировать явно. Подробности — [stock baseline](../../../docs/stock-baseline.md).
+
+## WMS-106
+
+0005_bitter_prism.sql — generated outbox_events/outbox_deliveries/delivery_streams
+и дополнительный transactional outbox_aggregate_sequences: PK/unique/FK/CHECK/indexes.
+0006_outbox-retention.sql — авторская custom migration immutable envelope,
+retention DELETE/TRUNCATE guards и warehouse_app grants. Scaffold:
+`pnpm --filter @warehouse/backend exec drizzle-kit generate --custom --name=outbox-retention`.
+meta/0005_snapshot.json и meta/0006_snapshot.json — generated Kit, вместе с journal;
+не редактировать вручную. Custom grants/triggers не отображаются schema snapshot.
+Проверены чистая БД и повтор миграции, db:generate после них не даёт schema changes.
+Dev volume не мигрируется автоматически; после обновления выполнить pnpm db:migrate.
+Удаление исторических outbox rows запрещено до отдельной replay/retention policy.
+[Файлы/инварианты/права](../src/infrastructure/outbox/README.md).

@@ -126,5 +126,22 @@ unit/event-generation.spec.ts запускает generator отдельным No
 использует ESM), проверяет воспроизводимость и missing/stale TS/schema artifacts
 в disposable temporary directory с cleanup в finally. Checkout не изменяется.
 Команды из корня: `pnpm contracts:generate`, `pnpm contracts:check`, `pnpm test:unit`.
-Docker для контрактных unit tests не нужен; реального outbox/handler integration
-пока нет. Schemas и fixtures описаны в [contracts](../../../docs/contracts/README.md).
+Docker для контрактных unit tests не нужен; реальный outbox writer integration добавлен WMS-106; handler пока нет. Schemas и fixtures описаны в [contracts](../../../docs/contracts/README.md).
+
+## WMS-106
+
+integration/outbox.spec.ts проверяет реальный OutboxService из Nest AppModule:
+commit/rollback с inventory/audit, невидимость до commit, сбой INSERT delivery,
+повтор migrations, уникальность eventId/aggregateVersion/delivery/stream, FK/CHECK,
+конкурентный absent counter, pg_blocking_pids для ожидания lock, rollback/reuse version
+и независимый агрегат. Падение соединения до commit воспроизводится pg_terminate_backend
+только в disposable DB, затем проверяется новая успешная запись с версией 1.
+Также покрыты stale/forged contexts, UUID case, final bytes/version bounds,
+права warehouse_app и immutable/retention triggers владельца. Worker ещё не реализован,
+поэтому redelivery/claim/crash recovery после claim остаются WMS-109/110.
+
+support/outbox.fixture.ts загружает source example до транзакций, создаёт независимые
+AppendEventDto без генерации бизнес-эффектов. Reset отключает четыре outbox triggers
+и включает обратно внутри admin cleanup transaction только в suite container;
+исходный migration journal и dev Compose не трогает. Fault trigger удаляется finally.
+Команда: pnpm test (Docker обязателен для integration, skip/fallback отсутствуют).

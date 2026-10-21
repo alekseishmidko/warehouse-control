@@ -12,7 +12,7 @@ import type { KnownEvent, PreparedEvent } from '../dto/event.dto';
  */
 export class EventContracts {
   /**
-   * Подготавливает независимый JSON snapshot для будущей записи outbox.
+   * Подготавливает независимый JSON snapshot для записи через OutboxService.
    *
    * @param input Данные события из producer; доверять их TypeScript-типу недостаточно.
    * @returns Проверенный event и именно та строка message, которую проверил validator.
