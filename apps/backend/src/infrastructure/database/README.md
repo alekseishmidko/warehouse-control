@@ -51,7 +51,8 @@ Runtime CLI ищет migration assets рядом с backend; будущий Dock
 включать `drizzle/`, одного `dist/` недостаточно.
 
 Первый baseline содержит application_metadata и timestamp default now();
-не содержит business seed, outbox и API для изменения метаданных.
+не содержит business seed и API для изменения метаданных. WMS-106 добавляет
+outbox schema exports для миграций; writer находится в соседнем infrastructure/outbox.
 Применённые migrations не редактируются. Expand/contract и отдельный migration Job
 добавятся на Kubernetes-этапе. См. [описание generated assets](../../../drizzle/README.md).
 
@@ -93,3 +94,10 @@ seed-dev.ts — development-only CLI с транзакцией и finally app.cl
 при NODE_ENV=test/production. Нужны текущие migrations.
 Schema.ts агрегирует 7 таблиц; owner-specific models описаны в
 [stock baseline](../../../../../docs/stock-baseline.md).
+
+
+WMS-106 crash-проверка: pool factory подписывается на error каждого pg client,
+включая checked-out connection между запросами. Это предотвращает необработанный
+EventEmitter error при server-side termination; следующий SQL/commit всё равно
+отклоняется, auto retry нет. В логи попадает только безопасный фиксированный текст.
+Idle pool errors также обрабатываются. Потеря commit acknowledgement не доказывает rollback.

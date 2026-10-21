@@ -17,9 +17,9 @@
 - [Подробный план разработки](docs/development-plan.md)
 - [Контекст для агента](AGENTS.md)
 
-Реализованы WMS-101–105: PostgreSQL/Drizzle, runtime config, test harness,
-транзакции/audit, минимальные catalog/warehouses/inventory и runtime event contracts.
-Документы приёмки, outbox, backend Docker image и Kubernetes ещё запланированы.
+Реализованы WMS-101–106: PostgreSQL/Drizzle, runtime config, test harness,
+транзакции/audit, минимальные catalog/warehouses/inventory, event contracts и outbox writer.
+Документы приёмки, worker, backend Docker image и Kubernetes ещё запланированы.
 
 ## Запуск
 

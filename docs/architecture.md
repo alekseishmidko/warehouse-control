@@ -15,7 +15,7 @@
 | Workspace | pnpm + TypeScript | Реализован |
 | Backend | NestJS | Каркас реализован |
 | Данные | PostgreSQL + Drizzle + SQL | WMS-101: подключение и технический baseline |
-| Надёжные события | PostgreSQL transactional outbox | Первый этап |
+| Надёжные события | PostgreSQL transactional outbox | WMS-106 writer готов, worker ещё предстоит |
 | Event transport | Kafka, затем Schema Registry | Последующий этап |
 | UI | React, Vite, TanStack Query, Tailwind, shadcn/ui | Целевой стек |
 | Контейнеры | Docker, Compose | PostgreSQL Compose готов; образ backend предстоит |
@@ -135,11 +135,18 @@ AuditService → AuditRepository используют транзакцию вы�
 
 WMS-104 реализует [минимальный складской baseline](stock-baseline.md).
 Сервисы справочников/начисления внутренние, без публичного CRUD. Сквозной сценарий
-документа приёмки и outbox пока не подключены. Quantity int4 и immutable movement
+документа приёмки пока не подключён; outbox writer доступен отдельно с WMS-106. Quantity int4 и immutable movement
 зафиксированы [ADR-0010](adr/0010-minimal-stock.md).
 
 WMS-105: shared/events проверяет JSON Schema 2020-12 по локальному type/version
 registry. Generated TS и runtime schema bundle создаются из docs/contracts/events;
 runtime не читает дерево docs. Общая проверка producer/handler готова к подключению
-в WMS-106/109; outbox/worker пока отсутствуют. Ограничения первой приёмки и причины
+в WMS-106 (готово) / WMS-109 (будущий handler); worker пока отсутствует. Ограничения первой приёмки и причины
 выбора — [ADR-0011](adr/0011-event-contract-validation.md).
+
+
+WMS-106: infrastructure/outbox предоставляет OutboxService → private OutboxRepository.
+Writer использует shared EventContracts и borrowed transactionClient, без собственного
+pool/run/commit. Четыре PostgreSQL таблицы включают transactional aggregate counter;
+каждый receipt event получает pending inventory.putaway delivery и stream. Это запись
+в durable storage, worker/handler остаются будущими процессами. [ADR-0012](adr/0012-outbox-writer.md).

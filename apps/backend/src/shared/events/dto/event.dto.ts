@@ -15,7 +15,7 @@ export type KnownEvent = ReceivingPostedV1;
  */
 export type ReceivingPostedPayload = ReceivingPostedV1['payload'];
 
-/** Проверенная копия JSON и её сериализация для будущего INSERT outbox в общей транзакции. */
+/** Проверенная копия JSON и её сериализация для INSERT outbox в общей транзакции. */
 export interface PreparedEvent {
   /** Независимый snapshot для чтения полей; readonly не делает вложенные объекты неизменяемыми runtime. */
   readonly event: KnownEvent;

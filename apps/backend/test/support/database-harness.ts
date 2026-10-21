@@ -104,7 +104,16 @@ export async function createDatabaseHarness(): Promise<DatabaseHarness> {
         await database.db.transaction(async tx => {
           await tx.execute(sql`alter table audit_entries disable trigger audit_entries_append_only`);
           await tx.execute(sql`alter table stock_movements disable trigger stock_movements_append_only`);
-          await tx.execute(sql`truncate table application_metadata, audit_entries, stock_movements, stock_balances, locations, products, warehouses`);
+          await tx.execute(sql`alter table outbox_events disable trigger outbox_events_immutable`);
+          await tx.execute(sql`alter table outbox_deliveries disable trigger outbox_deliveries_retained`);
+          await tx.execute(sql`alter table delivery_streams disable trigger delivery_streams_retained`);
+          await tx.execute(sql`alter table outbox_aggregate_sequences disable trigger outbox_aggregate_sequences_retained`);
+          await tx.execute(sql`truncate table application_metadata, audit_entries, stock_movements, stock_balances,
+            locations, products, warehouses, outbox_deliveries, outbox_events, delivery_streams, outbox_aggregate_sequences`);
+          await tx.execute(sql`alter table outbox_aggregate_sequences enable trigger outbox_aggregate_sequences_retained`);
+          await tx.execute(sql`alter table delivery_streams enable trigger delivery_streams_retained`);
+          await tx.execute(sql`alter table outbox_deliveries enable trigger outbox_deliveries_retained`);
+          await tx.execute(sql`alter table outbox_events enable trigger outbox_events_immutable`);
           await tx.execute(sql`alter table stock_movements enable trigger stock_movements_append_only`);
           await tx.execute(sql`alter table audit_entries enable trigger audit_entries_append_only`);
         });

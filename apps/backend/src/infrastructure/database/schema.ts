@@ -1,4 +1,4 @@
-/** @file Агрегатор module-owned Drizzle schemas metadata/audit/catalog/warehouses/inventory для migrations. */
+/** @file Агрегатор module-owned Drizzle schemas metadata/audit/stock и infrastructure outbox для migrations. */
 import { pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 export { auditEntries } from '../../modules/audit/audit.schema';
 
@@ -12,3 +12,4 @@ export const applicationMetadata = pgTable('application_metadata', {
 export { products } from '../../modules/catalog/catalog.schema';
 export { warehouses, locations } from '../../modules/warehouses/warehouses.schema';
 export { stockBalances, stockMovements } from '../../modules/inventory/inventory.schema';
+export { outboxAggregateSequences, outboxEvents, outboxDeliveries, deliveryStreams } from '../outbox/outbox.schema';

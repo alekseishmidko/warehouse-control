@@ -2,7 +2,7 @@
 
 Документ превращает [roadmap](roadmap.md) в последовательный backlog для разработчика,
 менеджера и агента: задачи, зависимости, проверяемый результат и демонстрация этапа.
-Это план, не отчёт о выполнении. WMS-101–WMS-105 выполнены; остальные задачи запланированы.
+Это план, не отчёт о выполнении. WMS-101–WMS-106 выполнены; остальные задачи запланированы.
 Реализованы каркас NestJS, PostgreSQL/Drizzle, harness, transaction port и audit; статус — в [карте документации](README.md).
 
 ## Как работать с планом
@@ -114,8 +114,8 @@
 ### WMS-105. Контракты событий — выполнено
 
 Реализация/проверки: [отчёт WMS-105](reports/wms-105.md). Готовы общие границы
-prepareForOutbox/parseForHandler; их обязательное подключение к реальным SQL writer
-и worker выполняется в WMS-106/109, которые пока отсутствуют.
+prepareForOutbox/parseForHandler; writer подключён в WMS-106,
+подключение handler остаётся WMS-109.
 
 - [x] **WMS-105.1** — Выбрать JSON Schema validator с dialect 2020-12 и formats; описать настройку и ограничения.
 - [x] **WMS-105.2** — Подключить существующий ReceivingPosted fixture; проверить UUID, UTC timestamp, положительное quantity и обязательные поля.
@@ -124,14 +124,17 @@ prepareForOutbox/parseForHandler; их обязательное подключе
 - [x] **WMS-105.5** — Проверить неизвестные optional fields, неизвестную версию и некорректный payload отдельными fixtures.
 - [x] **WMS-105.6** — Определить предел строк и размер сообщения для первого сценария; совместить его с DTO и documented business limits.
 
-### WMS-106. Запись в outbox
+### WMS-106. Запись в outbox — выполнено
 
-- [ ] **WMS-106.1** — Перенести логическую модель outbox_events, deliveries и streams в migrations с unique constraints и индексами.
-- [ ] **WMS-106.2** — Определить write interface с обязательным transaction context; запретить независимый commit внутри writer.
-- [ ] **WMS-106.3** — Выделять eventId и aggregate sequence атомарно; обеспечить отсутствие конкурирующих одинаковых версий.
-- [ ] **WMS-106.4** — Зарегистрировать destination первого обработчика и создавать delivery/stream в той же транзакции.
-- [ ] **WMS-106.5** — Проверить rollback после writer, уникальность eventId/sequence и конкурентную запись событий агрегата.
-- [ ] **WMS-106.6** — Зафиксировать неизменяемость envelope и retention без удаления до появления политики replay.
+Реализация: [outbox README](../apps/backend/src/infrastructure/outbox/README.md),
+проверки: [отчёт WMS-106](reports/wms-106.md). Worker/claim/replay ещё не реализованы.
+
+- [x] **WMS-106.1** — Перенести логическую модель outbox_events, deliveries и streams в migrations с unique constraints и индексами.
+- [x] **WMS-106.2** — Определить write interface с обязательным transaction context; запретить независимый commit внутри writer.
+- [x] **WMS-106.3** — Выделять eventId и aggregate sequence атомарно; обеспечить отсутствие конкурирующих одинаковых версий.
+- [x] **WMS-106.4** — Зарегистрировать destination первого обработчика и создавать delivery/stream в той же транзакции.
+- [x] **WMS-106.5** — Проверить rollback после writer, уникальность eventId/sequence и конкурентную запись событий агрегата.
+- [x] **WMS-106.6** — Зафиксировать неизменяемость envelope и retention без удаления до появления политики replay.
 
 ### WMS-107. HTTP-команды и идемпотентность
 
@@ -519,10 +522,10 @@ rollback приложения не выдаётся за rollback данных �
 
 ## Следующая задача для агента
 
-WMS-101–WMS-105 завершены. Следующая задача — **WMS-106**:
-transactional outbox writer/migrations по WMS-106.1–106.6. Использовать существующие
-TransactionContext и EventContracts.prepareForOutbox до INSERT, сохранять проверенный
-message snapshot в той же транзакции. Проверить реальный PostgreSQL rollback и
-конкурентный aggregate sequence. Handler подключит parseForHandler в WMS-109.
-Не менять int4/1000 строк/256 КиБ limits без проверки schemas/DTO/business docs.
-Не реализовывать пока полный receiving, worker или Kafka вне их задач.
+WMS-101–WMS-106 завершены. Следующая задача — **WMS-107**:
+HTTP-команды/validation/problem responses/correlationId/OpenAPI/idempotency по шагам
+107.1–107.6. Сохранить общий TransactionContext и существующие OutboxService/AuditService.
+Writer уже генерирует eventId/aggregateVersion, не принимает их от producer и не коммитит.
+Полный receiving — WMS-108, worker/parseForHandler — WMS-109. Не реализовывать их заранее.
+Не менять int4/1000 строк/256 КиБ limits без schemas/DTO/business docs. Replay/retention
+не включены; старые migrations и immutable envelopes не переписывать.

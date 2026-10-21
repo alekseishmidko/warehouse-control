@@ -7,10 +7,11 @@ import { AuditModule } from './modules/audit/audit.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { WarehousesModule } from './modules/warehouses/warehouses.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { OutboxModule } from './infrastructure/outbox/outbox.module';
 
-/** Регистрирует HTTP-каркас и PostgreSQL; минимальные catalog/warehouses/inventory без HTTP CRUD. */
+/** Регистрирует HTTP-каркас, PostgreSQL, складские модули и outbox writer; бизнес HTTP/worker ещё нет. */
 @Module({
-  imports: [DatabaseModule, AuditModule, CatalogModule, WarehousesModule, InventoryModule],
+  imports: [DatabaseModule, AuditModule, CatalogModule, WarehousesModule, InventoryModule, OutboxModule],
   controllers: [AppController],
   providers: [AppService],
 })

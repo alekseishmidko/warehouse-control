@@ -36,6 +36,20 @@
       "when": 1792412735261,
       "tag": "0004_inventory-permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792603066833,
+      "tag": "0005_bitter_prism",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792603067223,
+      "tag": "0006_outbox-retention",
+      "breakpoints": true
     }
   ]
 }

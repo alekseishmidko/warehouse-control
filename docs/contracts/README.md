@@ -13,7 +13,7 @@
 TypeScript-типы сами по себе не валидируют вход. События проверяются по JSON
 Schema перед записью outbox и на границе consumer. WMS-105 реализует общий
 EventContracts с prepareForOutbox/parseForHandler, registry, runtime validator
-и генерацию event types. Сам outbox/consumer и OpenAPI generation ещё предстоят.
+и генерацию event types. Writer подключён в WMS-106; consumer и OpenAPI generation ещё предстоят.
 Дублировать вручную одинаковые DTO в frontend запрещено.
 
 ## HTTP API
@@ -103,7 +103,9 @@ defaults и удаления полей. Локальный registry подде�
 Полный envelope/payload проверяется перед возвратом producer snapshot и до допуска
 handler caller. Неизвестная версия — UNSUPPORTED_EVENT, invalid payload — INVALID_EVENT,
 неразбираемый JSON — INVALID_JSON, превышенный размер — MESSAGE_TOO_LARGE.
-Действующих INSERT outbox/handler ещё нет: эти границы обязательны для WMS-106/109.
+OutboxService WMS-106 проверяет envelope до INSERT в общей транзакции и сам выделяет
+eventId/aggregateVersion; producer не вправе передавать эти поля. Реального handler
+ещё нет: его validation gate подключается в WMS-109.
 
 `pnpm contracts:generate` создаёт TS types и runtime schema bundle из исходных JSON,
 `pnpm contracts:check` проверяет точное совпадение без изменения checkout.

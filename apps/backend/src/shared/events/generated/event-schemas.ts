@@ -43,7 +43,7 @@ export const eventSchemas = {
         "type": "integer",
         "minimum": 1,
         "maximum": 9007199254740991,
-        "description": "Порядковая версия события агрегата: положительное целое в безопасном диапазоне JavaScript number. Атомарное выделение версии выполняет будущий outbox сценарий."
+        "description": "Порядковая версия события агрегата: положительное целое в безопасном диапазоне JavaScript number. Атомарное выделение версии выполняет OutboxService в транзакции бизнес-сценария."
       },
       "occurredAt": {
         "type": "string",

@@ -8,9 +8,15 @@ Outbox — надёжная очередь фактов; бизнес-код н�
 Доставка at least once, обработка идемпотентная, порядок только внутри агрегата.
 Глобальный порядок и exactly once между PostgreSQL и Kafka не гарантируются.
 
+WMS-106 реализует запись события/delivery/stream и транзакционный счётчик.
+Worker, обработчики, claim/retries/processed markers и Kafka ниже пока описывают
+целевой протокол. Полного документа приёмки ещё нет; атомарная композиция с
+inventory/audit подтверждена integration-тестом, не публичным HTTP endpoint.
+
 ## Логическая модель хранения
 
-Это проект таблиц, не применённая миграция:
+Реализованы migrations 0005/0006 для первых четырёх таблиц ниже (включая counter).
+Они применяются тестами к disposable БД; dev Compose мигрируется явно пользователем:
 
 - `outbox_events`: event_id PK, aggregate_type/id/version, envelope JSONB,
   created_at. Unique `(aggregate_type, aggregate_id, aggregate_version)`.
@@ -21,13 +27,17 @@ Outbox — надёжная очередь фактов; бизнес-код н�
   `completed`, `dead`. Индекс по доступным незавершённым доставкам.
 - `delivery_streams`: destination, aggregate_type/id, last_completed_version,
   lease_until/token. Unique по destination и агрегату. Координирует порядок.
-- `processed_events`: consumer_name, event_id, processed_at;
+- `outbox_aggregate_sequences`: PK `(aggregate_type, aggregate_id)`, last_version
+  bigint 1..9007199254740991. Guarded upsert выделяет версию под row lock в общей
+  транзакции; rollback отменяет изменение counter, nextval не используется.
+- Будущая `processed_events`: consumer_name, event_id, processed_at;
   unique `(consumer_name, event_id)`.
-- `consumer_streams`: consumer_name, aggregate_type/id, last_processed_version.
+- Будущая `consumer_streams`: consumer_name, aggregate_type/id, last_processed_version.
   Нужен обработчикам, которым важен последовательный полный поток.
 
 Новая запись outbox и необходимые delivery rows создаются в бизнес-транзакции.
-Первоначальный destination — стабильное имя локального обработчика.
+Первоначальный destination — `inventory.putaway`, зарегистрирован в коде и CHECK
+новой migration. Новый stream получает cursor=0; существующий cursor/lease не сбрасывается.
 Полный поток каждого агрегата получает каждый зарегистрированный consumer;
 неинтересный тип — транзакционный no-op с продвижением cursor.
 Новые consumers вводятся с явной стартовой позицией или replay, не с неявным
@@ -110,14 +120,19 @@ Replay — отдельная управляемая операция с диа�
 с политикой replay: удаление markers раньше возможного повтора нарушает гарантию.
 Kafka retention, backup и archive согласуются до внешнего стенда.
 
-## Подготовленная граница validation WMS-105
+## Подключённая validation WMS-106
 
-Outbox SQL writer ещё не реализован. Для WMS-106 уже готов
+OutboxService.append(context, AppendEventDto) использует
 EventContracts.prepareForOutbox(input): он проверяет фактический JSON snapshot,
 type/version registry, envelope/payload, formats, line limit и UTF-8 bytes.
-Writer обязан вызвать его до INSERT и сохранить проверенный message в одной
-транзакции с бизнес-изменением; нельзя пересобирать JSON из изменённого input.
+Writer делает preflight snapshot до SQL, выделяет версию в counter и повторно
+проверяет финальные bytes перед INSERT. Проверенный message сохраняется через
+параметризованный JSONB cast в одной транзакции с бизнес-изменением; input не
+пересобирается после await. Любая ошибка append обязана выйти до runner для rollback.
 Для WMS-109 подготовлен parseForHandler(message), вызываемый до допуска handler.
 Отказ — permanent error, не успешный marker/ack; durable quarantine появится с worker.
 [Настройка и ошибки](../apps/backend/src/shared/events/README.md),
-[контракт и пределы](contracts/README.md). Это не доказательство уже работающего outbox.
+[контракт и пределы](contracts/README.md).
+Реальный writer/SQL/ошибки: [README outbox](../apps/backend/src/infrastructure/outbox/README.md).
+Immutable/retention triggers защищают обычный DML, не DBA. Автоматического удаления
+events/deliveries/streams/counters нет, включая completed/dead, до replay policy.
