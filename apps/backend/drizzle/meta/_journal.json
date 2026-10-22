@@ -50,6 +50,20 @@
       "when": 1792603067223,
       "tag": "0006_outbox-retention",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792685955145,
+      "tag": "0007_dizzy_george_stacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792685955551,
+      "tag": "0008_idempotency-retention",
+      "breakpoints": true
     }
   ]
 }

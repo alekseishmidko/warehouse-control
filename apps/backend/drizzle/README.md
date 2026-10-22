@@ -49,3 +49,15 @@ meta/0005_snapshot.json и meta/0006_snapshot.json — generated Kit, вмест
 Dev volume не мигрируется автоматически; после обновления выполнить pnpm db:migrate.
 Удаление исторических outbox rows запрещено до отдельной replay/retention policy.
 [Файлы/инварианты/права](../src/infrastructure/outbox/README.md).
+
+
+## WMS-107
+
+0007_dizzy_george_stacy.sql — generated http_idempotency со scope PK и hash/result CHECK.
+0008_idempotency-retention.sql — custom warehouse_app grants, immutable identity/completed
+result trigger и retained DELETE/TRUNCATE guard (общая function WMS-106). Scaffold создан
+`pnpm --filter @warehouse/backend exec drizzle-kit generate --custom --name=idempotency-retention`.
+meta/0007_snapshot.json, meta/0008_snapshot.json и journal generated Kit; вручную не править,
+triggers/grants не представлены snapshot. Старые SQL migrations не менялись.
+Dev БД мигрировать явно через pnpm db:migrate, disposable test cleanup не трогает её volume.
+Storage protocol/ретенция — [idempotency README](../src/infrastructure/idempotency/README.md).

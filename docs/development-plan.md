@@ -2,7 +2,7 @@
 
 Документ превращает [roadmap](roadmap.md) в последовательный backlog для разработчика,
 менеджера и агента: задачи, зависимости, проверяемый результат и демонстрация этапа.
-Это план, не отчёт о выполнении. WMS-101–WMS-106 выполнены; остальные задачи запланированы.
+Это план, не отчёт о выполнении. WMS-101–WMS-107 выполнены; остальные задачи запланированы.
 Реализованы каркас NestJS, PostgreSQL/Drizzle, harness, transaction port и audit; статус — в [карте документации](README.md).
 
 ## Как работать с планом
@@ -136,14 +136,18 @@ prepareForOutbox/parseForHandler; writer подключён в WMS-106,
 - [x] **WMS-106.5** — Проверить rollback после writer, уникальность eventId/sequence и конкурентную запись событий агрегата.
 - [x] **WMS-106.6** — Зафиксировать неизменяемость envelope и retention без удаления до появления политики replay.
 
-### WMS-107. HTTP-команды и идемпотентность
+### WMS-107. HTTP-команды и идемпотентность — выполнено
 
-- [ ] **WMS-107.1** — Добавить бизнес-префикс /api/v1, validation pipeline и единый mapper ошибок в application/problem+json.
-- [ ] **WMS-107.2** — Ввести validated correlationId и server-side dev actor только для явно изолированного dev/test; проверить запрет вне этих режимов.
-- [ ] **WMS-107.3** — Спроектировать HTTP idempotency storage: scope actor/operation/key, hash нормализованного запроса и сохранённый результат.
-- [ ] **WMS-107.4** — Реализовать сериализацию конкурентных одинаковых ключей и атомарность результата с бизнес-операцией.
-- [ ] **WMS-107.5** — Подключить OpenAPI generation с documented error codes и заголовками; не описывать ещё отсутствующие endpoints как готовые.
-- [ ] **WMS-107.6** — Проверить одинаковый повтор, другой payload с прежним ключом, rollback первого запроса и повтор после сетевого timeout.
+Результат: [отчёт WMS-107](reports/wms-107.md), [HTTP](../apps/backend/src/infrastructure/http/README.md),
+[idempotency](../apps/backend/src/infrastructure/idempotency/README.md). Команды пока
+проверяются тестовым controller, production graph содержит только технические GET.
+
+- [x] **WMS-107.1** — Добавить бизнес-префикс /api/v1, validation pipeline и единый mapper ошибок в application/problem+json.
+- [x] **WMS-107.2** — Ввести validated correlationId и server-side dev actor только для явно изолированного dev/test; проверить запрет вне этих режимов.
+- [x] **WMS-107.3** — Спроектировать HTTP idempotency storage: scope actor/operation/key, hash нормализованного запроса и сохранённый результат.
+- [x] **WMS-107.4** — Реализовать сериализацию конкурентных одинаковых ключей и атомарность результата с бизнес-операцией.
+- [x] **WMS-107.5** — Подключить OpenAPI generation с documented error codes и заголовками; не описывать ещё отсутствующие endpoints как готовые.
+- [x] **WMS-107.6** — Проверить одинаковый повтор, другой payload с прежним ключом, rollback первого запроса и повтор после сетевого timeout.
 
 ### WMS-108. Вертикальный сценарий приёмки
 
@@ -353,26 +357,36 @@ Gate 3: чистая установка и повтор демонстрации
 
 | ID | Задача и зависимости | Результат и критерий приёмки |
 |---|---|---|
-| WMS-401 | Pino/OTel | HTTP → outbox → handler можно связать по correlationId и trace context; чувствительные данные исключены |
-| WMS-402 | Dashboards и alerts; после 401 | Prometheus/Grafana, Loki/Tempo; видны latency, pool, retries/dead, oldest event age, blocked streams; dead вызывает проверяемое уведомление на стенде |
+| WMS-401 | Централизованный logger, key-value JSON и OTel | API/worker/CLI используют единый logger и схему полей; HTTP → outbox → handler связываются по correlationId и trace context; чувствительные данные исключены |
+| WMS-402 | Централизованный сбор логов, dashboards и alerts; после 401 | Логи API/worker/CLI доступны в Loki/Grafana и ищутся по key-value полям; Prometheus/Tempo показывают метрики/traces, dead вызывает проверяемое уведомление на стенде |
 | WMS-403 | k6 и baseline; после 402 | Нагрузка на резерв одного остатка и рост outbox; зафиксированы железо, конфигурация, latency, throughput и бизнес-инварианты, а не только RPS |
 | WMS-404 | Recovery drill; после 403 | Пройден runbook, определены начальные thresholds/SLO для стенда; отчёт содержит наблюдения и ограничения |
 
-### WMS-401. Логи и трассировка
+### WMS-401. Централизованный logger, key-value логи и трассировка
 
-- [ ] **WMS-401.1** — Заменить разрозненные логи Pino на структурированный формат с redaction чувствительных полей.
+- [ ] **WMS-401.1** — Создать единый logger на Pino для API, worker, CLI и Nest startup/shutdown; заменить разрозненные console/Nest logs. Зафиксировать формат: одно JSON-сообщение на строку, данные отдельными key-value полями, без ручной сборки строк. Общий контракт/правила — shared/logging, Nest/Pino I/O adapter и конфигурация — infrastructure/logging; не создавать logger в каждом модуле. Описать уровни, redaction, безопасный startup fallback и режим локального pretty output, отключённый при централизованном сборе.
 - [ ] **WMS-401.2** — Подключить OTel в startup до instrumentation, задать service/environment/process attributes.
-- [ ] **WMS-401.3** — Передавать validated correlationId/trace context HTTP → event → handler; для отложенного выполнения использовать link по выбранной модели.
-- [ ] **WMS-401.4** — Добавить spans бизнес-операции, transaction и обработки без записи полного payload.
-- [ ] **WMS-401.5** — Проверить на реальном сценарии, что один документ находится по логам и traces, включая повтор и ошибку.
+- [ ] **WMS-401.3** — Передавать validated correlationId/trace context HTTP → event → handler; для отложенного выполнения использовать link по выбранной модели. Зафиксировать общую схему логов: timestamp, level, service, environment, process, module, event, message; добавлять correlationId, traceId/spanId, eventId, aggregateId, destination, attempt, durationMs и errorCode по контексту. Child logger получает контекст сценария без ручного повторения полей в каждом вызове; контексты параллельных запросов/обработок не смешиваются.
+- [ ] **WMS-401.4** — Добавить spans бизнес-операции, transaction и обработки без записи полного payload. Логировать начало/результат, rollback, retry и ошибки отдельными событиями с key-value полями; успешный commit не объявлять до завершения runner. Исключать credentials, tokens, cookies, персональные данные, полный HTTP/event payload и небезопасные driver errors. Операционные логи не заменяют транзакционный бизнес-аудит.
+- [ ] **WMS-401.5** — Проверить на реальном сценарии, что один документ находится по логам и traces, включая повтор и ошибку. Автоматически проверить JSON parsing каждой строки, обязательные поля, redaction, отсутствие утечки контекста между параллельными сценариями и ложного success после rollback; добавить примеры логов и команды диагностики в README logging.
 
-### WMS-402. Метрики, dashboards и сигналы
+Целевой пример key-value сообщения (пока не реализованный формат):
 
-- [ ] **WMS-402.1** — Настроить Prometheus scrape, Grafana, Loki и Tempo отдельным локальным профилем.
+```json
+{"timestamp":"2026-10-22T08:00:00.000Z","level":"info","service":"warehouse-backend","environment":"development","process":"api","module":"receiving","event":"receiving.posted","message":"Receipt posted","correlationId":"dbb37b21-1c4a-4b32-9307-148df1647f4c","aggregateId":"3e95a269-e552-401b-b3f0-85bc568d845b","durationMs":42}
+```
+
+Идентификаторы и числа передаются отдельными полями, а message остаётся коротким
+пояснением для человека. Этот пример описывает будущий лог после commit;
+он не означает, что receiving или централизованный logger уже подключены.
+
+### WMS-402. Централизованный сбор логов, метрики, dashboards и сигналы
+
+- [ ] **WMS-402.1** — Настроить Prometheus scrape, Grafana, Loki и Tempo отдельным локальным профилем. Подключить централизованный сбор JSON stdout/stderr контейнеров API/worker/CLI через collector в Loki: collector выбрать и задокументировать при реализации. Приложение не отправляет логи в Loki синхронно из бизнес-транзакции; описать parsing key-value JSON, добавление namespace/pod/container metadata и обработку строк startup fallback.
 - [ ] **WMS-402.2** — Экспортировать HTTP/DB/outbox метрики с ограниченной cardinality.
-- [ ] **WMS-402.3** — Создать dashboards: пользовательская операция, очередь доставки, состояние workers и infrastructure.
+- [ ] **WMS-402.3** — Создать dashboards: пользовательская операция, очередь доставки, состояние workers и infrastructure. Добавить централизованный поиск логов по correlationId/eventId/aggregateId/errorCode и переходы log ↔ trace; подтвердить поиск событий одного сценария из API и worker. В labels Loki оставлять только ограниченные service/environment/process/module; UUID, trace IDs и текст ошибок хранить полями, не labels.
 - [ ] **WMS-402.4** — Добавить alerts на dead, oldest age и ошибки обработки; определить локальный получатель без несанкционированных внешних сообщений.
-- [ ] **WMS-402.5** — Искусственно вызвать сбой и проверить alert firing/resolution; задать предварительные storage/retention limits.
+- [ ] **WMS-402.5** — Искусственно вызвать сбой и проверить alert firing/resolution; задать предварительные storage/retention limits. Проверить restart collector и недоступность Loki: бизнес-операции не зависят от доставки логов, buffers/retries ограничены, возможные потери и диагностика документированы. Описать доступ к логам и очистку по retention; не обещать exactly once доставку логов.
 
 ### WMS-403. Нагрузочные сценарии
 
@@ -391,7 +405,9 @@ Gate 3: чистая установка и повтор демонстрации
 - [ ] **WMS-404.5** — Обновить runbook и отчёт: причина, действия, длительность восстановления и сверка инвариантов.
 
 Gate 4: разработчик находит причину задержки, менеджер понимает затронутый процесс;
-пороговые значения основаны на измерениях. Большие identifiers не становятся labels метрик.
+пороговые значения основаны на измерениях. Логи API/worker централизованно доступны
+в Grafana/Loki, key-value поля позволяют найти полный путь сценария без поиска UUID
+в свободном тексте. Большие identifiers не становятся labels метрик или Loki.
 
 ## Этап 5. Kafka без удаления outbox
 
@@ -522,10 +538,11 @@ rollback приложения не выдаётся за rollback данных �
 
 ## Следующая задача для агента
 
-WMS-101–WMS-106 завершены. Следующая задача — **WMS-107**:
-HTTP-команды/validation/problem responses/correlationId/OpenAPI/idempotency по шагам
-107.1–107.6. Сохранить общий TransactionContext и существующие OutboxService/AuditService.
-Writer уже генерирует eventId/aggregateVersion, не принимает их от producer и не коммитит.
-Полный receiving — WMS-108, worker/parseForHandler — WMS-109. Не реализовывать их заранее.
-Не менять int4/1000 строк/256 КиБ limits без schemas/DTO/business docs. Replay/retention
-не включены; старые migrations и immutable envelopes не переписывать.
+WMS-101–WMS-107 завершены. Следующая задача — **WMS-108**: документ приёмки,
+создание/проведение и реальные HTTP controllers/DTO в receiving. Использовать HttpCommand,
+CommandContext, HttpCommandsService.execute и нормализованные target/body; проверять
+доступ до dedup на каждой попытке, состояние документа — внутри callback. Inventory,
+audit и OutboxService получают тот же context, nested run запрещён. Сохранять
+int4/1000 строк/256 КиБ limits и regenerate/check OpenAPI. Worker/handler остаются WMS-109/110.
+Dev actor только explicit isolated dev/test; production identity ещё нет. Не добавлять
+test fixture endpoint в production, не менять старые migrations/immutable envelopes.

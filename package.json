@@ -24,7 +24,9 @@
     "test:integration": "pnpm --filter @warehouse/backend test:integration",
     "db:seed": "pnpm --filter @warehouse/backend db:seed",
     "contracts:generate": "pnpm --filter @warehouse/backend contracts:generate",
-    "contracts:check": "pnpm --filter @warehouse/backend contracts:check"
+    "contracts:check": "pnpm --filter @warehouse/backend contracts:check",
+    "openapi:generate": "pnpm --filter @warehouse/backend openapi:generate",
+    "openapi:check": "pnpm --filter @warehouse/backend openapi:check"
   },
   "private": true
 }

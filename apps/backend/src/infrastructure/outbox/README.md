@@ -74,7 +74,7 @@ ReceivingPosted v1. После появления других типов handle
 
 Envelope не меняется при повторной доставке. Writer повторно вызванный с той же
 командой создаёт **новое** событие с новым eventId/версией: это не command dedup.
-В WMS-107/108 будут HTTP idempotency и запрет повторного posting. Future delivery
+WMS-107 реализует HTTP idempotency framework, WMS-108 добавит запрет повторного posting. Future delivery
 retries должны использовать уже сохранённый eventId и envelope, не вызывать append.
 TTL/cleanup/архивации нет до утверждения replay/retention policy. Не удаляются
 completed/dead deliveries, streams и counters; строки потребуют ёмкости на диске.

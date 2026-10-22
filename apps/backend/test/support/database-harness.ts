@@ -7,11 +7,13 @@ import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { sql } from 'drizzle-orm';
 import { INestApplication } from '@nestjs/common';
+import type { ModuleMetadata } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '@backend/app.module';
 import { validateEnvironment, RuntimeConfig } from '@backend/infrastructure/config/environment';
 import { createDatabaseConnection } from '@backend/infrastructure/database/connection';
 import { DATABASE_CONFIG } from '@backend/infrastructure/database/database.module';
+import { configureHttp } from '@backend/infrastructure/http/configure-http';
 
 const STARTUP_TIMEOUT_MS = 60000;
 const CLEANUP_TIMEOUT_MS = 15000;
@@ -23,7 +25,7 @@ export interface DatabaseHarness {
   readonly containerId: string;
   readonly closed: boolean;
   /** Запускает настоящий AppModule с config override; env/Compose и исходный startup не меняются. */
-  createHttpApplication(): Promise<INestApplication>;
+  createHttpApplication(options?: ModuleMetadata & { config?: RuntimeConfig }): Promise<INestApplication>;
   /** Очищает только fixture data этой suite; migration journal остаётся. Не для concurrent tests одной suite. */
   reset(): Promise<void>;
   /** Идемпотентно закрывает все зарегистрированные ресурсы; ошибка cleanup не скрывается. */
@@ -90,12 +92,15 @@ export async function createDatabaseHarness(): Promise<DatabaseHarness> {
     return {
       connection: database, config, containerId: started.getId(),
       get closed() { return closed; },
-      async createHttpApplication() {
-        const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-          .overrideProvider(DATABASE_CONFIG).useValue(config).compile();
+      // Дополнительные controllers/providers существуют только в конкретном test graph.
+      // Production AppModule не изменяется, config override не пишет process.env.
+      async createHttpApplication(options = {}) {
+        const moduleRef = await Test.createTestingModule({ imports: [AppModule, ...(options.imports ?? [])], controllers: options.controllers, providers: options.providers })
+          .overrideProvider(DATABASE_CONFIG).useValue(options.config ?? config).compile();
         let app: INestApplication | undefined;
         cleanups.push(() => app ? app.close() : moduleRef.close());
         app = moduleRef.createNestApplication({ logger: false });
+        configureHttp(app);
         await app.init();
         return app;
       },
@@ -108,9 +113,13 @@ export async function createDatabaseHarness(): Promise<DatabaseHarness> {
           await tx.execute(sql`alter table outbox_deliveries disable trigger outbox_deliveries_retained`);
           await tx.execute(sql`alter table delivery_streams disable trigger delivery_streams_retained`);
           await tx.execute(sql`alter table outbox_aggregate_sequences disable trigger outbox_aggregate_sequences_retained`);
+          // Сохранённые HTTP results в обычной эксплуатации retained; только disposable
+          // admin cleanup снимает этот guard на время truncate, без удаления migration journal.
+          await tx.execute(sql`alter table http_idempotency disable trigger http_idempotency_retained`);
           await tx.execute(sql`truncate table application_metadata, audit_entries, stock_movements, stock_balances,
-            locations, products, warehouses, outbox_deliveries, outbox_events, delivery_streams, outbox_aggregate_sequences`);
+            locations, products, warehouses, outbox_deliveries, outbox_events, delivery_streams, outbox_aggregate_sequences, http_idempotency`);
           await tx.execute(sql`alter table outbox_aggregate_sequences enable trigger outbox_aggregate_sequences_retained`);
+          await tx.execute(sql`alter table http_idempotency enable trigger http_idempotency_retained`);
           await tx.execute(sql`alter table delivery_streams enable trigger delivery_streams_retained`);
           await tx.execute(sql`alter table outbox_deliveries enable trigger outbox_deliveries_retained`);
           await tx.execute(sql`alter table outbox_events enable trigger outbox_events_immutable`);

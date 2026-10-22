@@ -1,7 +1,7 @@
 # Этапы реализации
 
 Не начинать следующий инфраструктурный этап до рабочего вертикального сценария.
-Этап 1 начат: WMS-101–WMS-106 выполнены; остальные задачи пока не реализованы.
+Этап 1 начат: WMS-101–WMS-107 выполнены; остальные задачи пока не реализованы.
 
 Подробный backlog с ID задач, зависимостями, демонстрациями и критериями перехода:
 [план разработки](development-plan.md): 38 задач, разбитых на 217 шагов с чекбоксами.
@@ -17,14 +17,16 @@ WMS-103 завершена: transaction context/runner, audit и append-only п�
 WMS-104 завершена: catalog/warehouses/inventory baseline, quantity/movements и fixtures.
 WMS-105 завершена: runtime contracts, локальный registry, TS generation/diff и fixtures.
 WMS-106 завершена: outbox writer/counter/delivery/stream в одном context, immutable retention.
-Следующая задача: WMS-107, HTTP-основа команд и идемпотентность; worker — WMS-109.
+WMS-107 завершена: HTTP validation/problems/dev context, command dedup и offline OpenAPI.
+Следующая задача: WMS-108, документ приёмки и проведение; worker — WMS-109.
 
 Отчёты: [окружение WMS-101](reports/wms-101.md),
 [тестовая инфраструктура WMS-102](reports/wms-102.md),
 [транзакции и аудит WMS-103](reports/wms-103.md),
 [складской baseline WMS-104](reports/wms-104.md),
 [контракты WMS-105](reports/wms-105.md),
-[outbox writer WMS-106](reports/wms-106.md).
+[outbox writer WMS-106](reports/wms-106.md),
+[HTTP/idempotency WMS-107](reports/wms-107.md).
 
 ## 1. Приёмка + outbox + Docker
 

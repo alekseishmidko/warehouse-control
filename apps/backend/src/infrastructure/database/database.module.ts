@@ -48,6 +48,6 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       inject: [DatabaseService],
     },
   ],
-  exports: [DatabaseService, TRANSACTION_RUNNER],
+  exports: [DATABASE_CONFIG, DatabaseService, TRANSACTION_RUNNER],
 })
 export class DatabaseModule {}

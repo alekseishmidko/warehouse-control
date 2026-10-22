@@ -20,6 +20,7 @@
 | [Эксплуатация](operations.md) | Docker, Kubernetes, наблюдаемость, CI/CD |
 | [План](roadmap.md) | Этапы и критерии готовности |
 | [Отчёт WMS-104](reports/wms-104.md) | Складские модели, гонки, ограничения и проверки |
+| [Отчёт WMS-107](reports/wms-107.md) | HTTP foundation, OpenAPI и транзакционная идемпотентность |
 | [Отчёт WMS-106](reports/wms-106.md) | Атомарная запись outbox, counter races, migrations и retention |
 | [Отчёт WMS-105](reports/wms-105.md) | Runtime contracts, generation, fixtures и пределы сообщений |
 | [Отчёт WMS-103](reports/wms-103.md) | Атомарность audit, scopes, права и результаты проверок |
@@ -54,11 +55,13 @@
   entrypoints, TS/schema generation и diff gate, контрактные fixtures и limits.
 - Готово WMS-106: PostgreSQL outbox writer, транзакционные aggregate counters, pending
   deliveries/streams, immutable envelope и retention guards. Worker ещё отсутствует.
+- Готово WMS-107: prefix/validation/problem responses/correlationId, isolated dev actor,
+  command idempotency storage и OpenAPI generation/diff; production business routes ещё нет.
 - Описано, но не реализовано: документы приёмки, остальные складские операции,
   обработчики, авторизация, frontend, Docker image backend, Kubernetes и CI/CD.
 - Пример контракта `ReceivingPosted` — проектный образец, не опубликованный API.
 - Локальные schema/fixtures/generation проверки выполняются в unit suite;
-  CI workflow, OpenAPI и breaking-change comparison пока не настроены.
+  OpenAPI generation/diff готов локально; CI workflow и breaking-change comparison пока не настроены.
 
 ## Порядок чтения
 

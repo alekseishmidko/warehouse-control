@@ -26,3 +26,9 @@ outbox write interface добавлен в WMS-106. Публикации соб�
 WMS-104 добавляет dev fixture builder/CLI и агрегацию module-owned stock schemas.
 Builder вызывает экспортируемые сервисы, не пишет в чужие таблицы напрямую.
 Справочники/stock модели: [baseline](../../../../docs/stock-baseline.md).
+
+
+WMS-107 добавляет [HTTP](http/README.md) и [idempotency](idempotency/README.md):
+DTO/guards/problem mapper, изолированный dev actor, command transaction и saved response.
+Production business endpoints ещё нет. JSON hashing/error codes — в shared,
+PostgreSQL/HTTP/Nest adapters остаются здесь. OpenAPI генерируется offline из текущего graph.

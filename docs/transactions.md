@@ -149,3 +149,14 @@ Admin reset disposable harness отключает trigger и очищает та
 Источники: [Drizzle transactions](https://orm.drizzle.team/docs/transactions),
 [PostgreSQL SQLSTATE](https://www.postgresql.org/docs/17/errcodes-appendix.html),
 [PostgreSQL triggers](https://www.postgresql.org/docs/17/sql-createtrigger.html).
+
+
+## HTTP command owner WMS-107
+
+HttpCommandsService.execute владеет transaction для HTTP сценария и передаёт callback
+тот же context. Claim idempotency/result и business/audit/outbox коммитятся вместе,
+вложенный run не нужен. При replay callback не запускается. Авторизация выполняется
+до dedup на каждом HTTP запросе, business state проверяется в callback. Ошибки не
+кешируются; сетевой timeout не означает отменённую DB транзакцию. После неизвестного
+исхода commit повтор с исходным key разрешает replay, новый key может повторить эффект.
+Подробнее — [storage protocol](../apps/backend/src/infrastructure/idempotency/README.md).

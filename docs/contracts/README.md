@@ -5,7 +5,7 @@
 | Контракт | Источник | Потребитель |
 |---|---|---|
 | HTTP API | NestJS DTO + runtime validation + OpenAPI decorators | Web и интеграции |
-| Документ OpenAPI | Генерируется из приложения, проверяется в CI | Генератор api-client |
+| Документ OpenAPI | Генерируется из приложения, локальный diff check; CI предстоит | Будущий генератор api-client |
 | События | Версионированные JSON Schema в этой директории | Workers и Kafka consumers |
 | Типы событий | Генерируются из JSON Schema | Backend и consumers |
 | Данные БД | SQL/Drizzle migrations | Только backend |
@@ -13,12 +13,12 @@
 TypeScript-типы сами по себе не валидируют вход. События проверяются по JSON
 Schema перед записью outbox и на границе consumer. WMS-105 реализует общий
 EventContracts с prepareForOutbox/parseForHandler, registry, runtime validator
-и генерацию event types. Writer подключён в WMS-106; consumer и OpenAPI generation ещё предстоят.
+и генерацию event types. Writer подключён WMS-106, OpenAPI generation WMS-107; consumer ещё предстоит.
 Дублировать вручную одинаковые DTO в frontend запрещено.
 
 ## HTTP API
 
-Будущий бизнес-префикс `/api/v1`; существующие `/` и `/health` пока остаются
+Настроен бизнес-префикс `/api/v1`; существующие `/` и `/health` остаются
 каркасными маршрутами. Не документировать будущие endpoint как работающие.
 JSON использует camelCase, идентификаторы — UUID, время — UTC RFC 3339.
 Списки: cursor pagination с фиксированным стабильным порядком и максимальным limit.
@@ -31,7 +31,7 @@ JSON использует camelCase, идентификаторы — UUID, вр
 422 — нарушение бизнес-правила, например недостаточный остаток.
 
 Для команд с побочными эффектами обязателен `Idempotency-Key`.
-Уникальность: `(actorId, operation, key)`; сохраняем hash нормализованного запроса
+Уникальность: `(actorType, actorId, operation, key)`; сохраняем hash нормализованного запроса
 и результат успешной операции в её транзакции. Тот же ключ и другой запрос → 409.
 Параллельный повтор сериализуется уникальным ограничением; успешный повтор
 возвращает прежний результат. Политика хранения определяется перед реализацией;
@@ -128,7 +128,7 @@ check/tests. Команды не требуют Docker/БД. При двух р�
 4. Producer/consumer tests покрывают старые fixtures и неизвестные поля.
 5. Интеграционные проверки подтверждают бизнес-эффект и дедупликацию.
 
-Локальные проверки схем/fixtures/generation уже есть; CI workflow, OpenAPI gate,
+Локальные проверки schemas/fixtures/event generation и OpenAPI generation diff уже есть; CI workflow,
 сравнение breaking changes с основной веткой и consumer business integration ещё нет.
 
 ## Уточнение quantity WMS-104
@@ -140,3 +140,34 @@ check/tests. Команды не требуют Docker/БД. При двух р�
 сужение станет breaking change и потребует новой major-версии.
 Unit stock-quantity.spec.ts сверяет общий int4 contract, а event-contracts.spec.ts
 теперь проверяет этот диапазон полноценным runtime validator WMS-105 на обеих границах.
+
+
+## Реализованные HTTP boundaries WMS-107
+
+ValidationPipe использует class-validator/class-transformer без implicit conversion,
+с whitelist/forbidNonWhitelisted. Ошибки application/problem+json имеют статические
+code/detail, pathname instance без query и UUID correlationId; исходный exception,
+SQL, stack и payload не выдаются. Старые plain service errors безопасно дают 500,
+новые бизнес-ошибки отображаются явно, не по error.message.
+
+X-Correlation-Id — optional UUID: отсутствует → server UUID, некорректен → 400 и новый
+UUID ответа. Для будущих команд Idempotency-Key обязателен и является UUID. Нормализованный
+request включает target/path params и body, исключает correlationId/технические headers.
+Scope уточнён до actorType/actorId/operation/key; operation и actor задаются сервером.
+Один нормализованный hash → сохранённый 200/201/202 JSON body и relative Location;
+другой → 409. Ошибки не кешируются, pending/result/business/audit/outbox фиксируются
+одним run. Нет TTL до отдельной retention policy. Client timeout не доказывает rollback:
+повторять тот же ключ. Авторизация выполняется до replay на каждом запросе.
+
+DEV_ACTOR_ENABLED по умолчанию false. Включение требует explicit NODE_ENV dev/test,
+loopback HTTP_HOST и server-side DEV_ACTOR_ID UUID; guard проверяет peer/proxy headers.
+Production auth ещё нет, business routes по умолчанию закрыты. Технические GET public.
+
+[openapi.json](openapi.json) — generated из production controllers, не править вручную.
+Команды `pnpm openapi:generate` / `pnpm openapi:check` выполняют build, затем offline CLI
+без .env/DB init/listener; test:prepare включает diff check после build. В paths только
+`/` и `/health`; schemas Problem/header metadata не означают готовность business endpoints.
+Swagger UI и frontend api-client пока не добавлены. Подробности/ограничения:
+[HTTP](../../apps/backend/src/infrastructure/http/README.md),
+[idempotency](../../apps/backend/src/infrastructure/idempotency/README.md),
+[ADR-0013](../adr/0013-http-idempotency.md).
