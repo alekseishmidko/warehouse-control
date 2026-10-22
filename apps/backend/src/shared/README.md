@@ -11,7 +11,8 @@
 
 Содержит [transactions](transactions/README.md), [quantities](quantities/README.md),
 [validation](validation/README.md), [operation metadata](operations/README.md),
-[events](events/README.md): registry, runtime contracts и generated event types.
+[events](events/README.md): registry, runtime contracts и generated event types,
+[errors](errors/README.md) и [serialization](serialization/README.md) для команд WMS-107.
 Shared не импортирует infrastructure/modules. Runtime-реализация transaction port —
 в database adapter; числовая и текстовая validation выполняется чистыми функциями.
 Переиспользуемый test-only код остаётся в test/support, не здесь.

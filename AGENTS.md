@@ -27,7 +27,8 @@ int4 quantity, guarded receipt, immutable movement и dev fixtures CLI.
 WMS-105: Ajv 2020-12/formats, code registry, shared EventContracts producer/handler
 validation entrypoints, generated types/schema bundle и contract fixtures/limits.
 WMS-106: OutboxService/Repository, migrations с aggregate counter, deliveries/streams,
-immutable envelope и retention guards. Документы приёмки, frontend, worker, Kafka,
+immutable envelope и retention guards. WMS-107: HTTP boundaries, isolated dev actor,
+idempotency storage и OpenAPI generation/diff. Документы приёмки, frontend, worker, Kafka,
 образ backend и Kubernetes ещё не реализованы.
 Не считать наличие документации доказательством реализации.
 
@@ -80,7 +81,7 @@ Test support — `apps/backend/test/support/`; отдельный контейн
 Не запускать два test:prepare одновременно в одном checkout; suites одного Jest
 прогона работают параллельно и имеют независимые БД.
 Контрактные fixtures и generation diff проверяются локально в test:prepare/unit.
-CI compatibility comparison ещё нет. Следующая задача — WMS-107 (HTTP-команды/идемпотентность).
+CI compatibility comparison ещё нет. Следующая задача — WMS-108 (документ приёмки).
 При добавлении функциональности нужны проверки её бизнес-инвариантов.
 Для outbox обязательны реальные PostgreSQL integration tests: rollback,
 повторная доставка, конкуренция workers, восстановление после сбоя.
@@ -105,6 +106,19 @@ README каждого модуля содержит схему взаимоде�
 и `docs/file-catalog.md`. Каждый новый собственный файл добавлять в каталог.
 Generated artifacts описывать через генератор, не редактировать вручную.
 Обновлять документацию одновременно с поведением; не оставлять TODO вместо неё.
+
+JSDoc/TSDoc и комментарии к работе кода обязательны при каждом добавлении или
+изменении реализации, включая shared, infrastructure, CLI и test support.
+Для классов, методов, функций и DTO описывать назначение, источник/доверие входных
+данных, результат, ошибки и побочные эффекты; применять @param/@returns/@throws,
+когда они проясняют контракт. Внутри нетривиальных алгоритмов объяснять этапы,
+причины проверок, преобразование данных, конкуренцию/блокировки, идемпотентность,
+владельца транзакции и границы commit/rollback. В тестах пояснять fault injection,
+barriers, timeouts и проверяемый инвариант. Одного file-level комментария или README
+для этого недостаточно. Не пересказывать очевидный синтаксис построчно и не
+дублировать общие правила: давать ссылку на владельца контракта. Комментарии должны
+описывать фактическое поведение и обновляться вместе с ним. Для generated code
+править описание исходной схемы/генератора и регенерировать, не комментировать output вручную.
 
 Перед созданием утилиты искать существующий код через `rg`.
 Переиспользуемую техническую логику выносить в `apps/backend/src/shared/<capability>/`;
@@ -131,7 +145,8 @@ Test cleanup вправе обходить trigger только внутри dis
 0 <= reserved <= onHand. Проверки/schema/audit используют общий контракт.
 Только InventoryService.receive изменяет stock, только в receiving location.
 Guarded upsert, audit и immutable movement обязаны использовать один context.
-OperationId уникален на одно движение: повтор отклоняется, HTTP dedup ещё нет.
+OperationId уникален на одно движение: повтор отклоняется; HTTP dedup framework готов,
+но складские HTTP-команды появятся в WMS-108.
 Справочники вызываются через CatalogService/WarehousesService, не чужие repositories.
 Dev fixtures: pnpm db:seed только development, новый набор без stock на каждый запуск.
 Stock SQL/direct writes в tests допустимы только для проверки constraints;
@@ -170,3 +185,27 @@ Migrations 0005/0006 новые; events immutable, удаления всех ч�
 DBA может обойти triggers. Test reset отключает их только в disposable container.
 Workers/claim/dedup/quarantine/Kafka ещё нет; append повторно создаёт новый факт,
 будущая повторная доставка использует сохранённый eventId, а не новый append.
+
+
+## HTTP/idempotency WMS-107
+
+Production routes пока только GET / и /health без prefix. configureHttp до init
+настраивает middleware/prefix api/v1/body limit; APP_PIPE/GUARD/FILTER — HttpModule.
+Ошибки application/problem+json безопасны, correlation UUID валидируется/генерируется.
+Dev actor default off: explicit NODE_ENV dev/test + DEV_ACTOR_ENABLED=true + server
+DEV_ACTOR_ID UUID + loopback HTTP_HOST/peer, без proxy. Не доверять actor в body/headers.
+
+Будущий controller использует HttpCommand(operation), CommandContext, class DTO validation
+и HttpCommandsService.execute(scope,normalizedTargetAndBody,callback). Авторизацию проверить
+до dedup на каждой попытке, state/business правила — внутри callback с общим context.
+Сервис владеет одним run, nested run запрещён; callback без внешнего I/O. Scope PK
+actorType/actorId/operation/UUID key, fingerprint SHA-256 canonical JSON без correlationId.
+Повтор ждёт unique INSERT и читает сохранённый result отдельным read committed statement.
+Result 200/201/202 JSON и relative Location, ошибки не кешируются; status/result/business/audit/
+outbox атомарны. HTTP disconnect не отменяет commit: retry с тем же key. TTL/deletion нет.
+
+Source OpenAPI — production controllers/DTO/decorators; docs/contracts/openapi.json generated
+через pnpm openapi:generate, pnpm openapi:check сравнивает. Offline CLI не вызывает app.init,
+не читает .env/БД. Test prepare включает diff после build. Swagger UI/CI comparison ещё нет.
+Тестовый /api/v1/commands существует только в support fixture, не добавлять в production.
+Новые migrations 0007/0008 не переписывать после применения. Следующий этап WMS-108.

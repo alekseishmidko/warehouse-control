@@ -145,3 +145,21 @@ AppendEventDto без генерации бизнес-эффектов. Reset о
 и включает обратно внутри admin cleanup transaction только в suite container;
 исходный migration journal и dev Compose не трогает. Fault trigger удаляется finally.
 Команда: pnpm test (Docker обязателен для integration, skip/fallback отсутствуют).
+
+
+## WMS-107
+
+unit/http-foundation.spec.ts проверяет canonical JSON, циклы/getters/non-JSON и fail-closed
+runtime config actor. integration/http-commands.spec.ts использует настоящий loopback HTTP
+listener, global guard/pipe/filter, PostgreSQL storage и callback с metadata/audit/outbox.
+Проверяет normalized replay, concurrent winner/conflict, rollback/waiter takeover, клиентский
+deadline и retry, изоляцию scope/target/actor, JSON null result, denied dev modes/headers,
+malformed/oversized JSON, safe problems и runtime grants/immutable result.
+
+support/http-command.fixture.ts содержит DTO/probe/controller только тестов. Harness
+принимает optional controllers/imports/providers/config и вызывает общий configureHttp до
+init; env не меняется. Source AppModule/OpenAPI не импортируют тестовый controller.
+Reset отключает http_idempotency_retained только в disposable DB, затем включает обратно.
+OpenAPI diff добавлен test:prepare после build, offline generation работает без Docker/БД.
+Client timeout не закрывает listener suite (Supertest ephemeral server здесь не подходит).
+Команда pnpm test, unit отдельно pnpm test:unit; no Docker integration skip/fallback.

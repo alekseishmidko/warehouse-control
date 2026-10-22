@@ -18,6 +18,7 @@ ADR фиксирует причину решения и его последст�
 | [0010](0010-minimal-stock.md) | Int4 quantity и минимальные stock модели/начисление | Accepted |
 | [0011](0011-event-contract-validation.md) | Ajv 2020-12, generation и пределы ReceivingPosted | Accepted |
 | [0012](0012-outbox-writer.md) | Outbox writer, транзакционный counter и первоначальный destination | Accepted |
+| [0013](0013-http-idempotency.md) | HTTP boundaries, isolated dev actor и atomic command response | Accepted |
 
 Шаблон нового ADR: [template.md](template.md). Нумерация последовательная.
 Рутинный implementation detail не требует ADR; изменение границ, гарантий,

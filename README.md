@@ -17,8 +17,8 @@
 - [Подробный план разработки](docs/development-plan.md)
 - [Контекст для агента](AGENTS.md)
 
-Реализованы WMS-101–106: PostgreSQL/Drizzle, runtime config, test harness,
-транзакции/audit, минимальные catalog/warehouses/inventory, event contracts и outbox writer.
+Реализованы WMS-101–107: PostgreSQL/Drizzle, runtime config, test harness,
+транзакции/audit, минимальные catalog/warehouses/inventory, event contracts, outbox writer и HTTP/idempotency foundation.
 Документы приёмки, worker, backend Docker image и Kubernetes ещё запланированы.
 
 ## Запуск
@@ -53,6 +53,8 @@ pnpm build      # Сборка всех пакетов
 pnpm start      # Запуск собранного backend (после pnpm build)
 pnpm contracts:generate # Типы и runtime schemas из JSON Schema
 pnpm contracts:check    # Проверка generation diff без изменения файлов
+pnpm openapi:generate   # Build и offline генерация OpenAPI текущих routes
+pnpm openapi:check      # Build и проверка OpenAPI diff без изменения JSON
 ```
 
 Команды конкретного приложения: `pnpm --filter @warehouse/backend <команда>`.

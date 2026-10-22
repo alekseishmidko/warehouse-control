@@ -2,12 +2,18 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadEnvFile } from 'node:process';
+import { isIP } from 'node:net';
+import { isUuid } from '../../shared/validation/identifiers';
 
 /** Проверенные настройки процесса; databaseUrl чувствителен и не должен попадать в логи. */
 export interface RuntimeConfig {
   readonly nodeEnv: 'development' | 'test' | 'production';
   readonly port: number;
   readonly databaseUrl: string;
+  /** IP для listen; включённый dev actor дополнительно требует конкретный loopback address. */
+  readonly httpHost: string;
+  /** Только opt-in server identity dev/test; отсутствие означает запрет business access до production auth. */
+  readonly devActorId?: string;
 }
 
 /** Чистая проверка значений; исключения содержат только имена параметров, никогда их значения. */
@@ -31,10 +37,23 @@ export function validateEnvironment(env: NodeJS.ProcessEnv): RuntimeConfig {
   } catch {
     throw new Error('Invalid DATABASE_URL: expected PostgreSQL URL with user, host and database');
   }
+  // Default bind не открывает локальную учебную среду внешней сети; DNS aliases не принимаем.
+  const httpHost = env.HTTP_HOST ?? '127.0.0.1';
+  if (!isIP(httpHost)) throw new Error('Invalid HTTP_HOST: expected IP address');
+  const devActorEnabled = env.DEV_ACTOR_ENABLED ?? 'false';
+  if (!['true', 'false'].includes(devActorEnabled)) throw new Error('Invalid DEV_ACTOR_ENABLED: expected true or false');
+  // Проверяется исходный NODE_ENV, а не default nodeEnv: dev actor требует явного opt-in среды.
+  // UUID/адрес/режим проверяем до создания приложения, error не включает полученные значения.
+  if (devActorEnabled === 'true' && (!['development', 'test'].includes(env.NODE_ENV ?? '')
+    || !['127.0.0.1', '::1'].includes(httpHost) || !isUuid(env.DEV_ACTOR_ID))) {
+    throw new Error('Invalid DEV_ACTOR configuration: require explicit dev/test, loopback HTTP_HOST and UUID DEV_ACTOR_ID');
+  }
   return Object.freeze({
     nodeEnv: nodeEnv as RuntimeConfig['nodeEnv'],
     port: Number(rawPort),
     databaseUrl: databaseUrl!,
+    httpHost,
+    ...(devActorEnabled === 'true' ? { devActorId: env.DEV_ACTOR_ID!.toLowerCase() } : {}),
   });
 }
 

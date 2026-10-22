@@ -6,14 +6,18 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { loadEnvironment } from './infrastructure/config/environment';
+import { configureHttp } from './infrastructure/http/configure-http';
 
 /** Запускает HTTP listener; ошибки создания и bind передаются вызывающему коду. */
 async function bootstrap(): Promise<void> {
   const config = loadEnvironment();
   const app = await NestFactory.create(AppModule, { abortOnError: false });
+  // Единая настройка с harness/generator: prefix и correlation не должны различаться по способу запуска.
+  configureHttp(app);
   app.enableShutdownHooks();
   try {
-    await app.listen(config.port);
+    // Bind использует validated IP; при включённом dev actor config разрешает только loopback.
+    await app.listen(config.port, config.httpHost);
   } catch {
     await app.close();
     throw new Error('Application startup failed');

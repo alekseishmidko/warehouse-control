@@ -1,0 +1,290 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "AppController_getHello",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Имя технического API без бизнес-эффектов.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "Warehouse Controller API"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "App"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "AppController_getHealth",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liveness процесса, не readiness БД.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "App"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Warehouse Controller API",
+    "description": "Технические endpoints реализованы. Приёмка и бизнес-команды появятся в WMS-108.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "schemas": {
+      "Problem": {
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "instance",
+          "code",
+          "correlationId"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "VALIDATION_FAILED",
+              "INVALID_CORRELATION_ID",
+              "IDEMPOTENCY_KEY_REQUIRED",
+              "INVALID_IDEMPOTENCY_KEY",
+              "DEV_ACTOR_UNAVAILABLE",
+              "IDEMPOTENCY_CONFLICT",
+              "REQUEST_TOO_LARGE",
+              "NOT_FOUND",
+              "UNAUTHORIZED",
+              "FORBIDDEN",
+              "CONFLICT",
+              "OPERATION_REJECTED",
+              "SERVICE_UNAVAILABLE",
+              "INTERNAL_ERROR"
+            ]
+          },
+          "correlationId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    "parameters": {
+      "IdempotencyKey": {
+        "in": "header",
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Правило будущих команд: scope actor/operation/key, изменённый нормализованный запрос с тем же ключом → 409. Бизнес-endpoints ещё не реализованы."
+      }
+    }
+  }
+}

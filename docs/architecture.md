@@ -150,3 +150,10 @@ Writer использует shared EventContracts и borrowed transactionClient,
 pool/run/commit. Четыре PostgreSQL таблицы включают transactional aggregate counter;
 каждый receipt event получает pending inventory.putaway delivery и stream. Это запись
 в durable storage, worker/handler остаются будущими процессами. [ADR-0012](adr/0012-outbox-writer.md).
+
+
+WMS-107: infrastructure/http задаёт transport boundaries, infrastructure/idempotency —
+HttpCommandsService → private repository с http_idempotency storage. Один run охватывает
+command callback и saved result, общие JSON/errors contracts остаются в shared.
+Бизнес-routes будут /api/v1, технические / и /health public. Dev identity только локально
+по opt-in; production auth ещё нет. [ADR-0013](adr/0013-http-idempotency.md).

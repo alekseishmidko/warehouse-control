@@ -1,6 +1,6 @@
 # Backend Warehouse Controller
 
-Документация корневого NestJS-модуля и конфигурации backend после WMS-101–106.
+Документация корневого NestJS-модуля и конфигурации backend после WMS-101–107.
 
 ## Для менеджера
 
@@ -93,3 +93,20 @@ UUID/version генерирует writer, prepareForOutbox проверяет ф
 Atomic counter/events/deliveries/streams, immutable/retention grants/triggers:
 новые migrations 0005/0006, dev Compose мигрируется явно через pnpm db:migrate.
 Документ приёмки/worker/handler ещё не подключены. Подробности — [ADR-0012](../../docs/adr/0012-outbox-writer.md).
+
+
+## WMS-107
+
+[HTTP module](src/infrastructure/http/README.md): /api/v1 prefix кроме технических GET,
+DTO validation без coercion, problem mapper и correlationId. DEV_ACTOR_ENABLED=false
+по умолчанию; opt-in только explicit dev/test и loopback HTTP_HOST с server actor UUID.
+[Idempotency](src/infrastructure/idempotency/README.md) экспортирует HttpCommandsService:
+controller передаёт trusted scope/normalized target+body, callback использует один context
+для business/audit/outbox, ответ сохраняется до commit. Key — UUID, result 200/201/202 JSON
+с relative Location. Настоящих business controllers пока нет; fixture только в tests.
+
+scripts/generate-openapi.cjs создаёт docs/contracts/openapi.json из production graph без
+app.init/DB, с @nestjs/testing config override и finally close. Артефакт generated,
+ручное редактирование запрещено. `pnpm openapi:generate` / `pnpm openapi:check` делают build
+и generate/diff. Test prepare: event contracts check → build → OpenAPI check → compile tests.
+Swagger UI не добавлен. Новые migrations 0007/0008, source API не привязан к DB schema.

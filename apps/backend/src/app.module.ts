@@ -8,10 +8,12 @@ import { CatalogModule } from './modules/catalog/catalog.module';
 import { WarehousesModule } from './modules/warehouses/warehouses.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { OutboxModule } from './infrastructure/outbox/outbox.module';
+import { HttpModule } from './infrastructure/http/http.module';
+import { IdempotencyModule } from './infrastructure/idempotency/idempotency.module';
 
 /** Регистрирует HTTP-каркас, PostgreSQL, складские модули и outbox writer; бизнес HTTP/worker ещё нет. */
 @Module({
-  imports: [DatabaseModule, AuditModule, CatalogModule, WarehousesModule, InventoryModule, OutboxModule],
+  imports: [DatabaseModule, AuditModule, CatalogModule, WarehousesModule, InventoryModule, OutboxModule, HttpModule, IdempotencyModule],
   controllers: [AppController],
   providers: [AppService],
 })
