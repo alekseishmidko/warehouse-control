@@ -7,7 +7,7 @@
 Складской сценарий может сохранить бизнес-изменение, movement, audit и событие
 одной транзакцией. При ошибке ничего из нового не остаётся, включая выделенную
 версию события. Успешная запись означает готовность к будущей доставке, а не
-выполненное задание размещения. Документ приёмки и его HTTP-команды ещё отсутствуют;
+выполненное задание размещения. Документ приёмки и HTTP-команды подключены WMS-108;
 совместная запись с InventoryService пока демонстрируется integration-тестом.
 
 Для каждого события приёмки создаются pending delivery на `inventory.putaway`
@@ -74,7 +74,7 @@ ReceivingPosted v1. После появления других типов handle
 
 Envelope не меняется при повторной доставке. Writer повторно вызванный с той же
 командой создаёт **новое** событие с новым eventId/версией: это не command dedup.
-WMS-107 реализует HTTP idempotency framework, WMS-108 добавит запрет повторного posting. Future delivery
+WMS-107 реализует HTTP idempotency framework, WMS-108 реализует запрет повторного posting через parent lock/state. Future delivery
 retries должны использовать уже сохранённый eventId и envelope, не вызывать append.
 TTL/cleanup/архивации нет до утверждения replay/retention policy. Не удаляются
 completed/dead deliveries, streams и counters; строки потребуют ёмкости на диске.

@@ -92,7 +92,7 @@ seed-dev.ts — development-only CLI с транзакцией и finally app.cl
 Команда pnpm db:seed сначала собирает backend, выдаёт только IDs, каждый раз
 создаёт новый demo set, stock не начисляет. Guard срабатывает до подключения
 при NODE_ENV=test/production. Нужны текущие migrations.
-Schema.ts агрегирует 7 таблиц; owner-specific models описаны в
+Schema.ts агрегирует 14 таблиц (включая receiving WMS-108); owner-specific models описаны в
 [stock baseline](../../../../../docs/stock-baseline.md).
 
 

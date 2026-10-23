@@ -17,9 +17,9 @@
 - [Подробный план разработки](docs/development-plan.md)
 - [Контекст для агента](AGENTS.md)
 
-Реализованы WMS-101–107: PostgreSQL/Drizzle, runtime config, test harness,
-транзакции/audit, минимальные catalog/warehouses/inventory, event contracts, outbox writer и HTTP/idempotency foundation.
-Документы приёмки, worker, backend Docker image и Kubernetes ещё запланированы.
+Реализованы WMS-101–108: PostgreSQL/Drizzle, runtime config, test harness,
+транзакции/audit, минимальные catalog/warehouses/inventory, event contracts, outbox writer, HTTP/idempotency и приёмка draft/posted.
+Worker, backend Docker image и Kubernetes ещё запланированы.
 
 ## Запуск
 
@@ -111,7 +111,7 @@ Dev Compose остаётся admin-стендом, runtime login внешнег�
 ## Минимальные складские данные WMS-104
 
 Внутренние catalog/warehouses/inventory сервисы, quantity int4, атомарный приход
-с audit/immutable movement. Публичного складского CRUD и документа приёмки пока нет.
+с audit/immutable movement. Документ приёмки реализован WMS-108; публичного CRUD справочников нет.
 
 ```sh
 pnpm db:migrate # новые migrations, локально выполняется явно
@@ -120,3 +120,11 @@ pnpm db:seed    # только development, создаёт новый товар
 
 Повтор db:seed создаёт новый demo set, не обновляет существующие записи.
 [Модели и сценарий](docs/stock-baseline.md), [проверки WMS-104](docs/reports/wms-104.md).
+
+
+## Приёмка WMS-108
+
+[Локальный запуск, HTTP request/response и SQL proof](docs/receiving.md).
+Доступны создание draft, GET документа и posting с обязательным Idempotency-Key;
+бизнес-routes только для isolated dev/test actor. Остаток/movement/audit/outbox/HTTP result
+атомарны, повтор posted с новым key даёт 409. Worker/putaway task пока отсутствуют.

@@ -1,4 +1,4 @@
-/** @file OpenAPI только реальных controllers; Problem/header components описывают общие правила будущих команд. */
+/** @file OpenAPI реальных controllers, включая receiving; Problem/header components описывают общие правила команд. */
 import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { PROBLEMS } from './problem.filter';
@@ -10,12 +10,12 @@ import { PROBLEMS } from './problem.filter';
  */
 export function createOpenApiDocument(app: INestApplication) {
   const document = SwaggerModule.createDocument(app, new DocumentBuilder().setTitle('Warehouse Controller API')
-    .setVersion('1.0.0').setDescription('Технические endpoints реализованы. Приёмка и бизнес-команды появятся в WMS-108.').build());
+    .setVersion('1.0.0').setDescription('Технические endpoints и приёмка draft → posted. Бизнес-routes доступны только с изолированным server-side dev/test actor; production authentication ещё нет.').build());
   document.components ??= {}; document.components.schemas ??= {};
   // Component описывает header contract, но сам по себе не создаёт business path.
   document.components.parameters = { ...document.components.parameters, IdempotencyKey: {
     in: 'header', name: 'Idempotency-Key', required: true, schema: { type: 'string', format: 'uuid' },
-    description: 'Правило будущих команд: scope actor/operation/key, изменённый нормализованный запрос с тем же ключом → 409. Бизнес-endpoints ещё не реализованы.',
+    description: 'Scope actor/operation/key: изменённый нормализованный запрос с тем же ключом → 409. Повтор возвращает сохранённый status/body/Location.',
   } };
   document.components.schemas.Problem = { type: 'object', required: ['type', 'title', 'status', 'detail', 'instance', 'code', 'correlationId'],
     properties: { type: { type: 'string', format: 'uri' }, title: { type: 'string' }, status: { type: 'integer' },

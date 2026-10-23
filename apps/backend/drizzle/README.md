@@ -61,3 +61,17 @@ meta/0007_snapshot.json, meta/0008_snapshot.json и journal generated Kit; вр�
 triggers/grants не представлены snapshot. Старые SQL migrations не менялись.
 Dev БД мигрировать явно через pnpm db:migrate, disposable test cleanup не трогает её volume.
 Storage protocol/ретенция — [idempotency README](../src/infrastructure/idempotency/README.md).
+
+
+## WMS-108
+
+0009_windy_hairball.sql — generated receipts/receipt_lines: state/int4/position CHECK,
+unique line product/position, composite location ownership FK, posted event FK.
+0010_receiving-guards.sql — custom runtime grants, единственный draft → posted UPDATE,
+immutable content/lines, parent lock при INSERT строки и retained DELETE/TRUNCATE guards.
+Scaffold: `pnpm --filter @warehouse/backend exec drizzle-kit generate --custom --name=receiving-guards`.
+meta/0009_snapshot.json, meta/0010_snapshot.json и _journal.json генерирует Kit,
+вручную не менять; triggers/grants не представлены snapshot. Старые migrations не менялись.
+Новые таблицы не меняют старые данные; dev volume требует явного pnpm db:migrate.
+Test cleanup отключает retained triggers только в disposable admin harness.
+[Модель/границы](../src/modules/receiving/README.md).

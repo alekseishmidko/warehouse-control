@@ -116,8 +116,13 @@ export async function createDatabaseHarness(): Promise<DatabaseHarness> {
           // Сохранённые HTTP results в обычной эксплуатации retained; только disposable
           // admin cleanup снимает этот guard на время truncate, без удаления migration journal.
           await tx.execute(sql`alter table http_idempotency disable trigger http_idempotency_retained`);
+          // Receiving удерживает историю; обход разрешён только admin disposable suite.
+          await tx.execute(sql`alter table receipts disable trigger receipts_retained`);
+          await tx.execute(sql`alter table receipt_lines disable trigger receipt_lines_retained`);
           await tx.execute(sql`truncate table application_metadata, audit_entries, stock_movements, stock_balances,
-            locations, products, warehouses, outbox_deliveries, outbox_events, delivery_streams, outbox_aggregate_sequences, http_idempotency`);
+            locations, products, warehouses, outbox_deliveries, outbox_events, delivery_streams, outbox_aggregate_sequences, http_idempotency, receipts, receipt_lines`);
+          await tx.execute(sql`alter table receipts enable trigger receipts_retained`);
+          await tx.execute(sql`alter table receipt_lines enable trigger receipt_lines_retained`);
           await tx.execute(sql`alter table outbox_aggregate_sequences enable trigger outbox_aggregate_sequences_retained`);
           await tx.execute(sql`alter table http_idempotency enable trigger http_idempotency_retained`);
           await tx.execute(sql`alter table delivery_streams enable trigger delivery_streams_retained`);

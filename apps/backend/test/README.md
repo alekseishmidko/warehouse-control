@@ -163,3 +163,18 @@ Reset отключает http_idempotency_retained только в disposable DB
 OpenAPI diff добавлен test:prepare после build, offline generation работает без Docker/БД.
 Client timeout не закрывает listener suite (Supertest ephemeral server здесь не подходит).
 Команда pnpm test, unit отдельно pnpm test:unit; no Docker integration skip/fallback.
+
+
+## WMS-108
+
+integration/receiving.spec.ts проверяет реальные production create/get/post routes:
+10 принято = одно movement/event, replay/target conflict, quantity/limits/refs,
+реальные parent/unique lock waits, winner rollback, разные документы, две строки,
+overflow, SQL constraints/grants и отсутствие task table. SQL AFTER fault triggers
+прерывают draft, balance, inventory audit/movement, receipt audit, counter/event/stream/
+delivery, final status и HTTP result; каждый раз проверяются полный rollback и retry.
+Triggers удаляются finally, harness сбрасывает receiving history только в disposable DB.
+Документированный docs/examples/receiving-result.sql выполняется на happy path.
+unit/receiving-examples.spec.ts валидирует HTTP fixture реальным DTO validator и
+согласованность response/event examples. support/database-lock.ts переиспользуется
+receiving и HTTP dedup suites: ожидание pg_blocking_pids с deadline 5 секунд.

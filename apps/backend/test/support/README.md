@@ -23,3 +23,10 @@ Config содержит случайный тестовый пароль и не
 WMS-103: reset audit/movements выполняется владельцем disposable БД с временным отключением
 обоих triggers в одной транзакции. Runtime не имеет этой возможности; production cleanup
 журнала не реализован. Очистка после неуспешного test не ослабляет persisted DB grants.
+
+
+WMS-108: database-lock.ts экспортирует waitForDatabaseLock(harness, relation),
+параметризованно наблюдает pg_stat_activity/pg_blocking_pids, deadline 5 секунд;
+helper не реализует бизнес-логику и не заменяет PostgreSQL mocks. Его используют
+receiving.spec.ts и http-commands.spec.ts. Receiving reset отключает только retained
+triggers в disposable admin transaction; штатные constraints/guards остаются активны.

@@ -2,7 +2,7 @@
 
 Документ превращает [roadmap](roadmap.md) в последовательный backlog для разработчика,
 менеджера и агента: задачи, зависимости, проверяемый результат и демонстрация этапа.
-Это план, не отчёт о выполнении. WMS-101–WMS-107 выполнены; остальные задачи запланированы.
+Это план, не отчёт о выполнении. WMS-101–WMS-108 выполнены; остальные задачи запланированы.
 Реализованы каркас NestJS, PostgreSQL/Drizzle, harness, transaction port и audit; статус — в [карте документации](README.md).
 
 ## Как работать с планом
@@ -149,14 +149,17 @@ prepareForOutbox/parseForHandler; writer подключён в WMS-106,
 - [x] **WMS-107.5** — Подключить OpenAPI generation с documented error codes и заголовками; не описывать ещё отсутствующие endpoints как готовые.
 - [x] **WMS-107.6** — Проверить одинаковый повтор, другой payload с прежним ключом, rollback первого запроса и повтор после сетевого timeout.
 
-### WMS-108. Вертикальный сценарий приёмки
+### WMS-108. Вертикальный сценарий приёмки — выполнено
 
-- [ ] **WMS-108.1** — Описать draft/posted, строки и правила quantity; определить schema/API документа и migrations receiving.
-- [ ] **WMS-108.2** — Реализовать создание draft с проверкой товара, склада, ячейки и лимитов документа.
-- [ ] **WMS-108.3** — Реализовать posting application service: блокировка документа, проверка состояния, вызов inventory, audit и outbox в одном context.
-- [ ] **WMS-108.4** — Добавить HTTP-команды создания/проведения и чтение результата с идемпотентностью из WMS-107.
-- [ ] **WMS-108.5** — Проверить конкурирующие posting, неверные строки и сбой после каждого существенного шага транзакции.
-- [ ] **WMS-108.6** — Сохранить пример запроса/ответа и SQL-проверку результата: 10 принято, одно движение и одно событие без задания до worker.
+Результат: [отчёт](reports/wms-108.md), [модуль](../apps/backend/src/modules/receiving/README.md),
+[HTTP/SQL демонстрация](receiving.md), [ADR-0014](adr/0014-receiving-vertical-slice.md).
+
+- [x] **WMS-108.1** — Описать draft/posted, строки и правила quantity; определить schema/API документа и migrations receiving.
+- [x] **WMS-108.2** — Реализовать создание draft с проверкой товара, склада, ячейки и лимитов документа.
+- [x] **WMS-108.3** — Реализовать posting application service: блокировка документа, проверка состояния, вызов inventory, audit и outbox в одном context.
+- [x] **WMS-108.4** — Добавить HTTP-команды создания/проведения и чтение результата с идемпотентностью из WMS-107.
+- [x] **WMS-108.5** — Проверить конкурирующие posting, неверные строки и сбой после каждого существенного шага транзакции.
+- [x] **WMS-108.6** — Сохранить пример запроса/ответа и SQL-проверку результата: 10 принято, одно движение и одно событие без задания до worker.
 
 ### WMS-109. Протокол worker
 
@@ -538,11 +541,9 @@ rollback приложения не выдаётся за rollback данных �
 
 ## Следующая задача для агента
 
-WMS-101–WMS-107 завершены. Следующая задача — **WMS-108**: документ приёмки,
-создание/проведение и реальные HTTP controllers/DTO в receiving. Использовать HttpCommand,
-CommandContext, HttpCommandsService.execute и нормализованные target/body; проверять
-доступ до dedup на каждой попытке, состояние документа — внутри callback. Inventory,
-audit и OutboxService получают тот же context, nested run запрещён. Сохранять
-int4/1000 строк/256 КиБ limits и regenerate/check OpenAPI. Worker/handler остаются WMS-109/110.
-Dev actor только explicit isolated dev/test; production identity ещё нет. Не добавлять
-test fixture endpoint в production, не менять старые migrations/immutable envelopes.
+WMS-101–WMS-108 завершены. Следующая задача — **WMS-109**: PostgreSQL outbox worker,
+lease/claim потоков, обработка доставки и восстановление после сбоя. Сохранить eventId,
+at least once, порядок внутри aggregate/destination, idempotency handler и quarantine
+без обещаний exactly once. Receiving HTTP/scenario уже реализован: не начислять товар
+повторно в worker. Handler размещения — WMS-110. Dev actor остаётся isolated dev/test,
+production identity ещё нет; старые migrations/envelopes не менять.

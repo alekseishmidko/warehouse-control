@@ -1,5 +1,6 @@
 /** @file Публичный CatalogService: нормализация товара, обязательный audit и lookup для inventory. */
 import { Injectable } from '@nestjs/common';
+import { CommandError } from '../../../shared/errors/command-error';
 import type { TransactionContext } from '../../../shared/transactions/transaction.port';
 import { requireUuid } from '../../../shared/validation/identifiers';
 import { normalizeCode, normalizeName } from '../../../shared/validation/resource-fields';
@@ -17,9 +18,9 @@ export class CatalogService {
     await this.audit.write(context, { ...input, action: 'catalog.product-created', entityType: 'product', entityId: row.id });
     return row;
   }
-  /** Проверяет UUID/наличие товара без прямого доступа вызывающего к чужой таблице. */
+  /** Проверяет UUID/наличие товара; PRODUCT_NOT_FOUND — безопасный отказ, SQL ошибки не подавляются. */
   async requireProduct(context: TransactionContext, id: string): Promise<ProductDto> {
     requireUuid(id, 'productId'); const row = await this.repository.findById(context, id);
-    if (!row) throw new Error('Product not found'); return row;
+    if (!row) throw new CommandError('PRODUCT_NOT_FOUND'); return row;
   }
 }

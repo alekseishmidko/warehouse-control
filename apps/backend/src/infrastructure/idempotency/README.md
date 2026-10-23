@@ -92,7 +92,7 @@ JSONB null, не SQL NULL. created_at/completed_at используют transact
 `{name:" Demo ",quantity:2}` нормализуется в `{body:{name:"Demo",quantity:2}}`.
 Первый ответ 201 с id=A и Location `/api/v1/commands/A`; такой же повтор возвращает A,
 quantity=3 с тем же key → 409 IDEMPOTENCY_CONFLICT; после rollback новый вызов получает
-собственный успешный ответ. Include `{target:{receiptId},body:...}` в будущих командах,
+собственный успешный ответ. ReceivingController включает `{target:{receiptId},body:{}}` в posting,
 чтобы тот же key для другого документа конфликтовал, а не возвращал чужой результат.
 
 ## Хранение, ошибки и эксплуатация

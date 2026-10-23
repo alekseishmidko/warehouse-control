@@ -2,8 +2,8 @@
 import request from 'supertest';
 import type { INestApplication } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { setTimeout as delay } from 'node:timers/promises';
 import { useDatabaseSuite } from '../support/database-harness';
+import { waitForDatabaseLock } from '../support/database-lock';
 import { CommandProbe, ProbeCommandController } from '../support/http-command.fixture';
 import { validateEnvironment } from '@backend/infrastructure/config/environment';
 import { IdempotencyModule } from '@backend/infrastructure/idempotency/idempotency.module';
@@ -37,20 +37,6 @@ const body = { name: 'Demo', quantity: 2 };
 /** Отправляет настоящий POST; helper не повторяет normalization/hash/business rules. */
 const post = (key: string = randomUUID(), payload: unknown = body) => request(app.getHttpServer()).post('/api/v1/commands').set('Idempotency-Key', key).send(payload as object);
 
-/** Доказывает фактическое ожидание PostgreSQL unique lock, а не только случайно последовательное выполнение HTTP. */
-async function expectClaimBlocked(): Promise<void> {
-  // Проверяем server-side wait, а не вводим фиксированный sleep, который мог бы скрыть отсутствие конкуренции.
-  const deadline = Date.now() + 5000;
-  while (Date.now() < deadline) {
-    const result = await database().connection.pool.query(`select exists(select 1 from pg_stat_activity
-      where datname=current_database() and wait_event_type='Lock' and query like '%http_idempotency%'
-      and cardinality(pg_blocking_pids(pid))>0) as blocked`);
-    if (result.rows[0].blocked) return;
-    await delay(10);
-  }
-  throw new Error('Concurrent idempotency claim did not wait on unique lock');
-}
-
 test('normalized repeat returns original status/body/Location and current request correlationId without effects', async () => {
   const key = randomUUID(); const correlationId = randomUUID();
   const first = await post(key, { quantity: 2, name: ' Demo ' }).expect(201);
@@ -80,7 +66,7 @@ test('concurrent equal keys execute callback once and return the same response',
   const first = post(key).expect(201).then(response => response); let second: Promise<request.Response> | undefined;
   try {
     await started; second = post(key).expect(201).then(response => response);
-    await expectClaimBlocked(); release();
+    await waitForDatabaseLock(database(), 'http_idempotency'); release();
     expect((await second).body).toEqual((await first).body); expect(probe.calls).toBe(1);
   } finally { release(); await first; if (second) await second.catch(() => undefined); }
 });
@@ -110,7 +96,7 @@ test('a concurrent waiter takes over after first request rolls back', async () =
   try {
     await started;
     second = post(key).expect(201).then(response => response);
-    await expectClaimBlocked();
+    await waitForDatabaseLock(database(), 'http_idempotency');
     // Первая транзакция видит fail=true; waiter после rollback выполнится с обновлённым флагом.
     release(); await first; probe.fail = false;
     await second;
@@ -205,7 +191,7 @@ test('production OpenAPI includes only actual routes, technical exclusions and P
   const plain = await database().createHttpApplication();
   try {
     const document = createOpenApiDocument(plain);
-    expect(Object.keys(document.paths).sort()).toEqual(['/', '/health']);
+    expect(Object.keys(document.paths).sort()).toEqual(['/', '/api/v1/receipts', '/api/v1/receipts/{receiptId}', '/api/v1/receipts/{receiptId}/post', '/health']);
     expect(document.components?.schemas?.Problem).toBeDefined();
     expect(document.paths['/health'].get?.parameters).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'X-Correlation-Id' })]));
     await request(plain.getHttpServer()).get('/api/v1/health').expect(404);

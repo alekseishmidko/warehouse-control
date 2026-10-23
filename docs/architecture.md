@@ -13,8 +13,8 @@
 | Слой | Решение | Статус |
 |---|---|---|
 | Workspace | pnpm + TypeScript | Реализован |
-| Backend | NestJS | Каркас реализован |
-| Данные | PostgreSQL + Drizzle + SQL | WMS-101: подключение и технический baseline |
+| Backend | NestJS | WMS-108: приёмка draft/posted и HTTP-команды |
+| Данные | PostgreSQL + Drizzle + SQL | WMS-101–108: stock/audit/outbox/idempotency/receiving |
 | Надёжные события | PostgreSQL transactional outbox | WMS-106 writer готов, worker ещё предстоит |
 | Event transport | Kafka, затем Schema Registry | Последующий этап |
 | UI | React, Vite, TanStack Query, Tailwind, shadcn/ui | Целевой стек |
@@ -135,7 +135,7 @@ AuditService → AuditRepository используют транзакцию вы�
 
 WMS-104 реализует [минимальный складской baseline](stock-baseline.md).
 Сервисы справочников/начисления внутренние, без публичного CRUD. Сквозной сценарий
-документа приёмки пока не подключён; outbox writer доступен отдельно с WMS-106. Quantity int4 и immutable movement
+приёмки подключён WMS-108; outbox writer доступен с WMS-106. Quantity int4 и immutable movement
 зафиксированы [ADR-0010](adr/0010-minimal-stock.md).
 
 WMS-105: shared/events проверяет JSON Schema 2020-12 по локальному type/version
@@ -155,5 +155,13 @@ pool/run/commit. Четыре PostgreSQL таблицы включают transac
 WMS-107: infrastructure/http задаёт transport boundaries, infrastructure/idempotency —
 HttpCommandsService → private repository с http_idempotency storage. Один run охватывает
 command callback и saved result, общие JSON/errors contracts остаются в shared.
-Бизнес-routes будут /api/v1, технические / и /health public. Dev identity только локально
+Бизнес-routes используют /api/v1, технические / и /health public. Dev identity только локально
 по opt-in; production auth ещё нет. [ADR-0013](adr/0013-http-idempotency.md).
+
+
+WMS-108: ReceivingController → HttpCommandsService.execute → ReceivingService →
+ReceivingRepository. Командный сервис владеет общим run; receiving передаёт context
+в InventoryService/AuditService/OutboxService. Parent row lock до проверки draft
+сериализует posting разных ключей. GET владеет отдельным read run; DTO и SQL schema
+разделены. [Схема движения данных](../apps/backend/src/modules/receiving/README.md),
+[ADR-0014](adr/0014-receiving-vertical-slice.md). Worker остаётся следующим этапом.

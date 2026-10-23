@@ -1,5 +1,6 @@
 /** @file WarehousesService: создание с audit и проверка принадлежности/назначения ячейки для inventory. */
 import { Injectable } from '@nestjs/common';
+import { CommandError } from '../../../shared/errors/command-error';
 import type { TransactionContext } from '../../../shared/transactions/transaction.port';
 import { requireUuid } from '../../../shared/validation/identifiers';
 import { normalizeCode, normalizeName } from '../../../shared/validation/resource-fields';
@@ -24,10 +25,10 @@ export class WarehousesService {
     await this.audit.write(context, { ...input, action: 'warehouses.location-created', entityType: 'location', entityId: row.id,
       changes: { warehouseId: { after: row.warehouseId }, locationId: { after: row.id } } }); return row;
   }
-  /** Возвращает ячейку только указанного склада; auth ещё не реализована, caller доверенный. */
+  /** Возвращает ячейку только существующего указанного склада, иначе LOCATION_NOT_FOUND; caller доверенный. */
   async requireLocation(context: TransactionContext, warehouseId: string, locationId: string): Promise<LocationDto> {
     requireUuid(warehouseId, 'warehouseId'); requireUuid(locationId, 'locationId');
     const location = await this.repository.findLocation(context, locationId);
-    if (!location || location.warehouseId !== warehouseId) throw new Error('Location does not belong to warehouse'); return location;
+    if (!location || location.warehouseId !== warehouseId) throw new CommandError('LOCATION_NOT_FOUND'); return location;
   }
 }

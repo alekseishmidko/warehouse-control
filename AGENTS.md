@@ -28,7 +28,8 @@ WMS-105: Ajv 2020-12/formats, code registry, shared EventContracts producer/hand
 validation entrypoints, generated types/schema bundle и contract fixtures/limits.
 WMS-106: OutboxService/Repository, migrations с aggregate counter, deliveries/streams,
 immutable envelope и retention guards. WMS-107: HTTP boundaries, isolated dev actor,
-idempotency storage и OpenAPI generation/diff. Документы приёмки, frontend, worker, Kafka,
+idempotency storage и OpenAPI generation/diff. WMS-108: receiving draft/posted, HTTP create/post/get, parent lock и атомарное проведение.
+Frontend, worker, Kafka,
 образ backend и Kubernetes ещё не реализованы.
 Не считать наличие документации доказательством реализации.
 
@@ -81,7 +82,7 @@ Test support — `apps/backend/test/support/`; отдельный контейн
 Не запускать два test:prepare одновременно в одном checkout; suites одного Jest
 прогона работают параллельно и имеют независимые БД.
 Контрактные fixtures и generation diff проверяются локально в test:prepare/unit.
-CI compatibility comparison ещё нет. Следующая задача — WMS-108 (документ приёмки).
+CI compatibility comparison ещё нет. Следующая задача — WMS-109 (PostgreSQL outbox worker).
 При добавлении функциональности нужны проверки её бизнес-инвариантов.
 Для outbox обязательны реальные PostgreSQL integration tests: rollback,
 повторная доставка, конкуренция workers, восстановление после сбоя.
@@ -146,7 +147,7 @@ Test cleanup вправе обходить trigger только внутри dis
 Только InventoryService.receive изменяет stock, только в receiving location.
 Guarded upsert, audit и immutable movement обязаны использовать один context.
 OperationId уникален на одно движение: повтор отклоняется; HTTP dedup framework готов,
-но складские HTTP-команды появятся в WMS-108.
+складские HTTP-команды подключены WMS-108.
 Справочники вызываются через CatalogService/WarehousesService, не чужие repositories.
 Dev fixtures: pnpm db:seed только development, новый набор без stock на каждый запуск.
 Stock SQL/direct writes в tests допустимы только для проверки constraints;
@@ -163,10 +164,10 @@ prepareForOutbox возвращает проверенный message snapshot: O
 не считаются успешной обработкой. Writer реализован; worker/quarantine пока отсутствуют.
 ReceivingPosted: 1..1000 строк, quantity int4, <=262144 UTF-8 bytes с envelope/unknown fields.
 MAX_RECEIPT_LINES берётся из generated schema, payload DTO — generated type alias;
-будущий receiving HTTP DTO обязан использовать эти limits. Unknown optional fields
+receiving HTTP DTO использует эти limits. Unknown optional fields
 сохраняются; coercion/defaults/field removal выключены. UTC требует Z, UUID — format.
 Контракт не проверяет DB refs, права, duplicate lines или aggregateId=receiptId:
-это ответственность будущего receiving service. Подробности — shared/events/README и ADR-0011.
+это ответственность ReceivingService WMS-108. Подробности — shared/events/README и ADR-0011.
 
 
 ## Outbox WMS-106
@@ -189,13 +190,14 @@ Workers/claim/dedup/quarantine/Kafka ещё нет; append повторно со
 
 ## HTTP/idempotency WMS-107
 
-Production routes пока только GET / и /health без prefix. configureHttp до init
+Production graph включает public GET / и /health без prefix и receiving routes
+/api/v1/receipts (create/get/post) под isolated dev actor; production auth нет. configureHttp до init
 настраивает middleware/prefix api/v1/body limit; APP_PIPE/GUARD/FILTER — HttpModule.
 Ошибки application/problem+json безопасны, correlation UUID валидируется/генерируется.
 Dev actor default off: explicit NODE_ENV dev/test + DEV_ACTOR_ENABLED=true + server
 DEV_ACTOR_ID UUID + loopback HTTP_HOST/peer, без proxy. Не доверять actor в body/headers.
 
-Будущий controller использует HttpCommand(operation), CommandContext, class DTO validation
+ReceivingController использует HttpCommand(operation), CommandContext, class DTO validation
 и HttpCommandsService.execute(scope,normalizedTargetAndBody,callback). Авторизацию проверить
 до dedup на каждой попытке, state/business правила — внутри callback с общим context.
 Сервис владеет одним run, nested run запрещён; callback без внешнего I/O. Scope PK
@@ -208,4 +210,25 @@ Source OpenAPI — production controllers/DTO/decorators; docs/contracts/openapi
 через pnpm openapi:generate, pnpm openapi:check сравнивает. Offline CLI не вызывает app.init,
 не читает .env/БД. Test prepare включает diff после build. Swagger UI/CI comparison ещё нет.
 Тестовый /api/v1/commands существует только в support fixture, не добавлять в production.
-Новые migrations 0007/0008 не переписывать после применения. Следующий этап WMS-108.
+Новые migrations 0007/0008 не переписывать после применения. Следующий этап WMS-109.
+
+
+## Receiving WMS-108
+
+ReceivingModule экспортирует только ReceivingService; controller/services/repositories/dto.
+Create draft: 1..MAX_RECEIPT_LINES, разные productId, int4 > 0, существующие товары и
+receiving location своего склада. Состав неизменяем через API, edit/delete/cancel нет.
+HTTP create/post используют HttpCommandsService.execute (один run), borrowed context
+обязателен для receiving.create/post, inventory, audit, outbox. ReceivingService.get
+открывает отдельный read run, не вызывать его в command callback.
+Posting: SELECT receipt FOR UPDATE до проверки draft, строки inventory по productId,
+operationId=line.id, receipt audit, один ReceivingPosted v1, финальный status и HTTP result.
+Event aggregateId=payload.receiptId=receipt.id, postedAt=occurredAt, version=1.
+Прежний key возвращает исходный response (create остаётся draft snapshot), новый key
+на posted → 409. GET возвращает текущее состояние; post body отсутствует/{}.
+Все routes требуют isolated dev actor, кроме технических GET; production auth/ACL нет.
+Migrations 0009/0010 новые, после применения не менять. SQL guards/retention защищают
+историю от runtime роли, DBA может обойти их. Не начислять stock в будущем worker:
+доставка pending/stream cursor=0, putaway_tasks пока нет. SQL/HTTP proof — docs/receiving.md.
+Receiving integration проверяет real locks и AFTER SQL fault injection каждого шага;
+cleanup только disposable harness. Следующий этап WMS-109, handler WMS-110.
