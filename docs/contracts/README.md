@@ -37,7 +37,8 @@ JSON использует camelCase, идентификаторы — UUID, вр
 возвращает прежний результат. Политика хранения определяется перед реализацией;
 первоначально записи не удаляем. Идемпотентность HTTP и consumer — разные механизмы.
 
-Запись защищается проверкой ролей и доступа к складу на backend.
+Целевая production запись защищается проверкой ролей и доступа к складу на backend.
+Сейчас business routes доступны только isolated dev/test actor одной dev-организации; ACL ещё нет.
 `actorId` берётся из доверенного auth context, а не из пользовательского body.
 Входящие correlation IDs проверяем по формату и длине либо создаём новые.
 
@@ -151,7 +152,7 @@ SQL, stack и payload не выдаются. Старые plain service errors �
 новые бизнес-ошибки отображаются явно, не по error.message.
 
 X-Correlation-Id — optional UUID: отсутствует → server UUID, некорректен → 400 и новый
-UUID ответа. Для будущих команд Idempotency-Key обязателен и является UUID. Нормализованный
+UUID ответа. Для команд Idempotency-Key обязателен и является UUID. Нормализованный
 request включает target/path params и body, исключает correlationId/технические headers.
 Scope уточнён до actorType/actorId/operation/key; operation и actor задаются сервером.
 Один нормализованный hash → сохранённый 200/201/202 JSON body и relative Location;
@@ -166,8 +167,21 @@ Production auth ещё нет, business routes по умолчанию закр�
 [openapi.json](openapi.json) — generated из production controllers, не править вручную.
 Команды `pnpm openapi:generate` / `pnpm openapi:check` выполняют build, затем offline CLI
 без .env/DB init/listener; test:prepare включает diff check после build. В paths только
-`/` и `/health`; schemas Problem/header metadata не означают готовность business endpoints.
+реальные технические routes и три receiving операции; примеры — [receiving](../receiving.md).
 Swagger UI и frontend api-client пока не добавлены. Подробности/ограничения:
 [HTTP](../../apps/backend/src/infrastructure/http/README.md),
 [idempotency](../../apps/backend/src/infrastructure/idempotency/README.md),
 [ADR-0013](../adr/0013-http-idempotency.md).
+
+
+## Receiving HTTP WMS-108
+
+[OpenAPI](openapi.json) содержит POST /api/v1/receipts (201 + Location),
+POST /api/v1/receipts/{receiptId}/post (200), GET /api/v1/receipts/{receiptId} (200).
+Commands: UUID Idempotency-Key; post body отсутствует либо {}. Actor только server-side.
+Create DTO: warehouseId/receivingLocationId UUID, lines 1..1000, productId UUID,
+quantity integer 1..2147483647, без неизвестных полей. Duplicate product — 422.
+ReceiptDto отделён от Drizzle: id, склад/ячейка, status draft/posted, UTC createdAt,
+nullable postedAt/postedEventId, lines с id/position/productId/quantity.
+Прежний create key возвращает первоначальный draft snapshot; текущее состояние — GET.
+[Примеры и коды отказа](../receiving.md), [ADR-0014](../adr/0014-receiving-vertical-slice.md).

@@ -1,5 +1,6 @@
 /** @file Inventory SQL: атомарный guarded upsert без lost update и INSERT immutable movement. */
 import { Injectable } from '@nestjs/common';
+import { CommandError } from '../../../shared/errors/command-error';
 import { and, eq, sql } from 'drizzle-orm';
 import { transactionClient } from '../../../infrastructure/database/postgres-transaction-runner';
 import type { TransactionContext } from '../../../shared/transactions/transaction.port';
@@ -18,7 +19,7 @@ export class InventoryRepository {
       set: { onHand: sql`${stockBalances.onHand} + ${input.quantity}` },
       setWhere: sql`${stockBalances.onHand} <= ${MAX_STOCK_QUANTITY - input.quantity}`,
     }).returning();
-    if (!row) throw new Error('Stock quantity limit exceeded'); return row;
+    if (!row) throw new CommandError('STOCK_LIMIT_EXCEEDED'); return row;
   }
   /** Movement и balance принадлежат тому же context; повтор operationId отклоняется unique constraint. */
   async appendMovement(context: TransactionContext, input: ReceiveStockDto, auditId: string): Promise<string> {

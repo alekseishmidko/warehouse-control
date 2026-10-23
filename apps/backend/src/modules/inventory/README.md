@@ -10,8 +10,8 @@ Inventory — единственный владелец изменения ос�
 Два одновременных прихода не теряют количество. Повтор того же operationId
 отклоняется без дополнительного начисления; прежний результат автоматически не возвращается.
 
-Нет публичного CRUD, документа приёмки, размещения, резервирования, отгрузки,
-HTTP idempotency или outbox. Dev fixtures создают только справочники, не остатки.
+Нет публичного stock CRUD, размещения, резервирования и отгрузки.
+Receiving WMS-108 оркестрирует документ/HTTP idempotency/outbox, вызывая InventoryService. Dev fixtures создают только справочники, не остатки.
 DBA способен менять БД: append-only не является криптографической защитой.
 
 ## Файлы и интерфейсы
@@ -109,3 +109,10 @@ pnpm db:migrate. Fixture CLI pnpm db:seed не начисляет stock. Runbook
 не применим к восстановлению balance; исправлять journal прямым UPDATE нельзя.
 [Модели/контракт](../../../../../docs/stock-baseline.md),
 [транзакции](../../../../../docs/transactions.md), [ADR-0010](../../../../../docs/adr/0010-minimal-stock.md).
+
+
+WMS-108: ReceivingService.post вызывает receive с UUID строки как operationId и общим
+command context; receiving владеет документом и ReceivingPosted, inventory не создаёт
+событие второй раз. Invalid receiving kind/overflow — typed INVALID_RECEIVING_LOCATION /
+STOCK_LIMIT_EXCEEDED, HTTP 422. Внешние repos не импортируются.
+[Оркестрация/тесты](../receiving/README.md).

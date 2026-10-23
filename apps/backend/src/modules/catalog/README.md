@@ -67,3 +67,8 @@ pnpm test:unit / test:integration / typecheck. Реальные tests:
 Runtime group получает SELECT/INSERT; owner/admin не является защищённой стороной.
 Migrations 0003/0004 применяются pnpm db:migrate, dev fixtures — pnpm db:seed.
 [Складской baseline](../../../../../docs/stock-baseline.md), [план](../../../../../docs/development-plan.md).
+
+
+WMS-108: ReceivingService вызывает requireProduct при draft и через inventory при posting.
+Missing product — typed CommandError PRODUCT_NOT_FOUND (HTTP 422); неожиданные SQL ошибки
+не превращаются в отсутствие товара. Публичный CRUD не добавлен.

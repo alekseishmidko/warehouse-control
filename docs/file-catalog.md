@@ -15,7 +15,7 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [apps/backend/nest-cli.json](../apps/backend/nest-cli.json) | Nest CLI: sourceRoot src и deleteOutDir перед сборкой. |
 | [apps/backend/package.json](../apps/backend/package.json) | Зависимости и команды backend; подробнее в apps/backend/README.md. |
 | [apps/backend/src/app.controller.ts](../apps/backend/src/app.controller.ts) | Технические GET / и GET /health; проверка процесса без проверки БД. |
-| [apps/backend/src/app.module.ts](../apps/backend/src/app.module.ts) | Корневой Nest module: технический HTTP, Database/Audit/Catalog/Warehouses/Inventory modules. |
+| [apps/backend/src/app.module.ts](../apps/backend/src/app.module.ts) | Корневой Nest module: технический HTTP, data/stock/outbox/idempotency и ReceivingModule. |
 | [apps/backend/src/app.service.ts](../apps/backend/src/app.service.ts) | Статическое приветствие API без I/O. |
 | [apps/backend/src/main.ts](../apps/backend/src/main.ts) | HTTP bootstrap, validated config, shutdown hooks и безопасная ошибка запуска. |
 | [apps/backend/tsconfig.build.json](../apps/backend/tsconfig.build.json) | Build-настройки: исключение тестов, зависимостей и dist. |
@@ -199,3 +199,23 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [docs/contracts/openapi.json](../docs/contracts/openapi.json) | Generated production OpenAPI: pnpm openapi:generate, bytes diff openapi:check; вручную не менять, paths только / и /health. |
 | [docs/adr/0013-http-idempotency.md](../docs/adr/0013-http-idempotency.md) | Принятое решение HTTP boundaries, UUID keys, isolated dev actor и atomic command responses. |
 | [docs/reports/wms-107.md](../docs/reports/wms-107.md) | Результат и evidence WMS-107, тестовый controller/timeout, ограничения и следующий WMS-108. |
+| [apps/backend/drizzle/0009_windy_hairball.sql](../apps/backend/drizzle/0009_windy_hairball.sql) | Generated receiving schema/FK/unique/CHECK от Drizzle Kit, pnpm db:generate; вручную не менять. |
+| [apps/backend/drizzle/0010_receiving-guards.sql](../apps/backend/drizzle/0010_receiving-guards.sql) | Custom receiving grants, state/line locks/immutable и retained triggers; после применения не менять. |
+| [apps/backend/drizzle/meta/0009_snapshot.json](../apps/backend/drizzle/meta/0009_snapshot.json) | Generated snapshot receiving SQL schema для diff Kit; pnpm db:generate, ручное редактирование запрещено. |
+| [apps/backend/drizzle/meta/0010_snapshot.json](../apps/backend/drizzle/meta/0010_snapshot.json) | Generated snapshot custom receiving migration; grants/triggers описаны в drizzle/README, вручную не менять. |
+| [apps/backend/src/modules/receiving/README.md](../apps/backend/src/modules/receiving/README.md) | Контракт receiving для менеджера/разработчика, sequence, DTO/ошибки/транзакции и проверки. |
+| [apps/backend/src/modules/receiving/dto/receipt.dto.ts](../apps/backend/src/modules/receiving/dto/receipt.dto.ts) | HTTP class validation DTO и JSON output ReceiptDto; int4/1000 строк, без ORM. |
+| [apps/backend/src/modules/receiving/receiving.controller.ts](../apps/backend/src/modules/receiving/receiving.controller.ts) | HTTP create/post/get, normalized fingerprint и отправка committed command response. |
+| [apps/backend/src/modules/receiving/receiving.module.ts](../apps/backend/src/modules/receiving/receiving.module.ts) | Composition receiving и публичные зависимости владельцев, экспорт только ReceivingService. |
+| [apps/backend/src/modules/receiving/receiving.schema.ts](../apps/backend/src/modules/receiving/receiving.schema.ts) | Drizzle source receipts/receipt_lines; immutable guards в custom migration. |
+| [apps/backend/src/modules/receiving/repositories/receiving.repository.ts](../apps/backend/src/modules/receiving/repositories/receiving.repository.ts) | Private receiving SQL: draft INSERT, parent SELECT FOR UPDATE и posted UPDATE без своего commit. |
+| [apps/backend/src/modules/receiving/services/receiving.service.ts](../apps/backend/src/modules/receiving/services/receiving.service.ts) | Draft/posting orchestration, refs/limits, shared transaction context, отдельный read run для GET. |
+| [apps/backend/test/integration/receiving.spec.ts](../apps/backend/test/integration/receiving.spec.ts) | WMS-108 HTTP/SQL happy path, races, rollback faults, constraints/role, SQL proof и отсутствие task. |
+| [apps/backend/test/support/database-lock.ts](../apps/backend/test/support/database-lock.ts) | Общий bounded PostgreSQL lock observation helper для HTTP/receiving races, без бизнес-логики. |
+| [apps/backend/test/unit/receiving-examples.spec.ts](../apps/backend/test/unit/receiving-examples.spec.ts) | Валидация сохранённого HTTP input и согласованности response с ReceivingPosted fixture без Docker. |
+| [docs/adr/0014-receiving-vertical-slice.md](../docs/adr/0014-receiving-vertical-slice.md) | Принятое решение о составе приёмки, parent lock и атомарном posting. |
+| [docs/contracts/examples/receipt-create.request.json](../docs/contracts/examples/receipt-create.request.json) | Синтетический HTTP create body, UUID заменить на seed IDs; поля описаны docs/receiving.md, проверяется actual DTO. |
+| [docs/contracts/examples/receipt-posted.response.json](../docs/contracts/examples/receipt-posted.response.json) | Синтетический полный posted HTTP response, согласован с ReceivingPosted; поля/использование docs/receiving.md. |
+| [docs/examples/receiving-result.sql](../docs/examples/receiving-result.sql) | Read-only psql proof по receipt_id: 10 принято, movement/event/audit/pending и отсутствие task, выполняется integration. |
+| [docs/receiving.md](../docs/receiving.md) | Запуск локальной приёмки, HTTP requests/responses, key retry и SQL доказательство результата. |
+| [docs/reports/wms-108.md](../docs/reports/wms-108.md) | Evidence WMS-108, 277 tests, rollback/concurrency и фактические ограничения/следующий этап. |

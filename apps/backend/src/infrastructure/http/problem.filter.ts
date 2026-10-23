@@ -5,6 +5,10 @@ import { CommandError } from '../../shared/errors/command-error';
 import { correlationIdOf } from './request-context';
 /** Статические публичные коды/статусы — allowlist, arbitrary error.message не сериализуется. */
 export const PROBLEMS = {
+  RECEIPT_NOT_FOUND: [404, 'Receipt not found'], RECEIPT_ALREADY_POSTED: [409, 'Receipt already posted'],
+  INVALID_RECEIPT: [422, 'Invalid receipt lines'], PRODUCT_NOT_FOUND: [422, 'Product not found'],
+  LOCATION_NOT_FOUND: [422, 'Location does not belong to warehouse'], INVALID_RECEIVING_LOCATION: [422, 'Receiving location required'],
+  STOCK_LIMIT_EXCEEDED: [422, 'Stock quantity limit exceeded'],
   VALIDATION_FAILED: [400, 'Invalid request'], INVALID_CORRELATION_ID: [400, 'Invalid correlation identifier'],
   IDEMPOTENCY_KEY_REQUIRED: [400, 'Idempotency key required'], INVALID_IDEMPOTENCY_KEY: [400, 'Invalid idempotency key'],
   DEV_ACTOR_UNAVAILABLE: [403, 'Isolated development actor unavailable'], IDEMPOTENCY_CONFLICT: [409, 'Idempotency key conflicts with request'],

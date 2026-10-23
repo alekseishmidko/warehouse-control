@@ -1,12 +1,12 @@
 # HTTP-основа WMS-107
 
 Единые HTTP boundaries для Nest API: prefix, DTO validation, request context,
-безопасные ошибки и OpenAPI. Приёмки и других бизнес-endpoints пока нет.
+безопасные ошибки и OpenAPI. WMS-108 подключает ReceivingController; прочие бизнес-endpoints ещё отсутствуют.
 
 ## Для менеджера
 
-Работают только `GET /` и `GET /health`; оба доступны без dev actor и не меняют склад.
-Будущие бизнес-маршруты будут `/api/v1/...`. Неизвестные/некорректные поля команды
+`GET /` и `GET /health` доступны без dev actor и не меняют склад.
+Receiving create/post/get работают под `/api/v1/receipts` и требуют isolated dev actor. Неизвестные/некорректные поля команды
 отклоняются, ошибка не показывает пароль, SQL или stack trace. Каждый ответ получает
 X-Correlation-Id, позволяющий связать запрос со сценарием; централизованные логи ещё
 запланированы WMS-401/402. Операционные ошибки не заменяют бизнес-аудит.
@@ -74,7 +74,7 @@ sequenceDiagram
   Note over Filter: Ошибки любого этапа → безопасный problem JSON
 ```
 
-Сегодня командный путь проверяется только test/support/http-command.fixture.ts;
+Командный путь используется ReceivingController и test/support/http-command.fixture.ts;
 production graph содержит два технических GET и не содержит пробного POST.
 HTTP adapter не открывает транзакцию: ей владеет HttpCommandsService, который
 передаёт opaque context бизнес-сервисам. Не начинать дополнительный run в callback.
@@ -114,8 +114,8 @@ Dev actor недоступен → 403 DEV_ACTOR_UNAVAILABLE, другой hash 
 выполняет check после build. CLI использует @nestjs/testing с config override,
 не читает .env, не вызывает app.init/listen/DB startup и закрывает созданный pool.
 Generated JSON не править вручную. HTTP endpoint Swagger UI не добавлен.
-В документе только `/`, `/health`, Problem codes и header rules; command decorator
-добавит Idempotency-Key к появившимся commands. CI breaking comparison ещё нет.
+В документе `/`, `/health` и три операции receiving; command decorator
+добавляет Idempotency-Key к create/post. CI breaking comparison ещё нет.
 
 Зависимости закреплены: Swagger 11.4.7 для Nest 11, class-validator 0.15.1,
 class-transformer 0.5.1. Команды: pnpm typecheck/test:unit/test:integration/test.

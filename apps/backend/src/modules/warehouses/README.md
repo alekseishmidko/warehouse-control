@@ -67,3 +67,9 @@ DATABASE_URL общий; специальных переменных, events, co
 [stock.spec.ts](../../../test/integration/stock.spec.ts).
 Миграции: pnpm db:migrate; примеры: pnpm db:seed, только development.
 [Правила и модели](../../../../../docs/stock-baseline.md).
+
+
+WMS-108: ReceivingService.requireReceivingLocation вызывает requireLocation;
+возвращённая location/FK доказывает наличие склада и ownership. Missing/wrong warehouse
+или location → typed LOCATION_NOT_FOUND (HTTP 422). Kind receiving проверяет receiving/inventory.
+Production ACL пока не реализован; local dev actor имеет доступ к складам одной организации.

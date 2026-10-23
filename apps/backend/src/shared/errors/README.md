@@ -25,3 +25,8 @@ infrastructure/http/problem.filter.ts; shared не зависит от adapter.
 эти классы не объединяются только по похожему синтаксису.
 Проверки: unit/http-foundation.spec.ts и integration/http-commands.spec.ts,
 команды pnpm test:unit/test. HTTP failure scenarios не подменяются только mocks.
+
+WMS-108 добавляет typed receipt/ref/stock коды. Receiving, catalog, warehouses и inventory
+выбирают безопасный code; статические сообщения внутренних lookup сохранены для
+диагностики, mapper не анализирует error.message. 404 документа, 409 posted/conflict
+и 422 неверных строк/refs/overflow проверены integration/receiving.spec.ts.

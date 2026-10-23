@@ -1,21 +1,22 @@
 # Backend Warehouse Controller
 
-Документация корневого NestJS-модуля и конфигурации backend после WMS-101–107.
+Документация корневого NestJS-модуля и конфигурации backend после WMS-101–108.
 
 ## Для менеджера
 
 API отвечает на технические маршруты и подключается к PostgreSQL.
-Документы приёмки и отгрузка ещё не реализованы; есть внутреннее начисление stock. Критерий текущего результата:
-повторяемая миграция, сохранность технических данных после restart и закрытие соединений.
+Приёмка draft/posted реализована: 10 штук, одно движение/событие, атомарность при сбоях.
+Отгрузка, worker и UI ещё не реализованы.
 Будущие сценарии — в [описании продукта](../../docs/product.md).
 
 ## Для разработчика
 
 AppModule связывает AppController/AppService, DatabaseModule, AuditModule,
-CatalogModule, WarehousesModule, InventoryModule и OutboxModule.
-Transaction runner и AuditService/AuditRepository реализованы; catalog/warehouses/inventory baseline есть, но документов приёмки,
-авторизации, бизнес producer документа и consumers ещё нет; outbox writer подключён отдельно.
-Стартовые маршруты открыты; это не политика будущих бизнес-endpoints.
+CatalogModule, WarehousesModule, InventoryModule, OutboxModule, HttpModule,
+IdempotencyModule и ReceivingModule.
+Transaction runner и AuditService/AuditRepository реализованы; catalog/warehouses/inventory baseline и документ приёмки есть,
+production авторизации/consumers ещё нет; producer документа использует outbox writer.
+Технические маршруты открыты; receiving закрыт guard, opt-in только isolated dev/test.
 
 | Маршрут | Ответ | Ограничение |
 |---|---|---|
@@ -92,7 +93,7 @@ OutboxService.append(context,command); private repository не открывае�
 UUID/version генерирует writer, prepareForOutbox проверяет финальный snapshot до SQL.
 Atomic counter/events/deliveries/streams, immutable/retention grants/triggers:
 новые migrations 0005/0006, dev Compose мигрируется явно через pnpm db:migrate.
-Документ приёмки/worker/handler ещё не подключены. Подробности — [ADR-0012](../../docs/adr/0012-outbox-writer.md).
+Документ приёмки подключён WMS-108; worker/handler ещё отсутствуют. Подробности — [ADR-0012](../../docs/adr/0012-outbox-writer.md).
 
 
 ## WMS-107
@@ -103,10 +104,21 @@ DTO validation без coercion, problem mapper и correlationId. DEV_ACTOR_ENABL
 [Idempotency](src/infrastructure/idempotency/README.md) экспортирует HttpCommandsService:
 controller передаёт trusted scope/normalized target+body, callback использует один context
 для business/audit/outbox, ответ сохраняется до commit. Key — UUID, result 200/201/202 JSON
-с relative Location. Настоящих business controllers пока нет; fixture только в tests.
+с relative Location. ReceivingController подключён WMS-108; тестовый /commands остаётся только в tests.
 
 scripts/generate-openapi.cjs создаёт docs/contracts/openapi.json из production graph без
 app.init/DB, с @nestjs/testing config override и finally close. Артефакт generated,
 ручное редактирование запрещено. `pnpm openapi:generate` / `pnpm openapi:check` делают build
 и generate/diff. Test prepare: event contracts check → build → OpenAPI check → compile tests.
 Swagger UI не добавлен. Новые migrations 0007/0008, source API не привязан к DB schema.
+
+
+## WMS-108
+
+[Receiving module](src/modules/receiving/README.md) экспортирует ReceivingService,
+controller/repository/DTO разделены. POST /api/v1/receipts → 201 draft/Location,
+POST /api/v1/receipts/:receiptId/post → 200 posted, GET того же документа → 200.
+Guard проверяет dev actor до каждого replay; production identity/warehouse ACL ещё нет.
+Миграции 0009/0010 создают header/строки, constraints и immutable guards.
+Приёмка 10 штук оставляет один balance, movement, ReceivingPosted v1 и pending delivery;
+задания размещения ещё нет. [Примеры/SQL](../../docs/receiving.md), [отчёт](../../docs/reports/wms-108.md).

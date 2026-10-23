@@ -8,7 +8,7 @@ WMS-104: количество — SQL integer и JavaScript number в целых
 WMS-105: первый документ приёмки ограничен 1..1000 строками, каждое фактическое
 количество — 1..2147483647. Событие вместе с envelope/расширениями — до 256 КиБ
 JSON UTF-8. Большую приёмку разделяют на документы до проведения; автоматического
-дробления событий нет. Runtime contract реализован, документы/HTTP DTO ещё предстоят.
+дробления событий нет. Runtime contract и документ/HTTP DTO реализованы WMS-105/108.
 SKU уникален в организации. Ячейка принадлежит ровно одному складу.
 Системные зоны: приёмка, хранение, отгрузка. Только разрешённые для резервирования
 остатки хранения участвуют в автоматическом выборе под заказ.
@@ -76,7 +76,7 @@ rollback без движения и события; перемещение бе�
 Write interface и append-only таблица реализованы; user/system actorId и entityId — UUID,
 основание — reasonCode, время — transaction timestamp PostgreSQL. Допустимые changes
 и политика redaction/ролей: [transactions](transactions.md). Произвольные комментарии
-вместо кода основания не сохраняются. Складские сценарии пока не реализованы.
+вместо кода основания не сохраняются. Приёмка с аудитом реализована WMS-108; прочие складские сценарии предстоят.
 
 ## Реализованный складской baseline WMS-104
 
@@ -92,7 +92,19 @@ composite FK. Повтор operationId отклоняется с rollback, не 
 
 OutboxService принимает факт с общим context после бизнес-изменения, сам выделяет
 UUID/непрерывную event version в транзакции и пишет immutable envelope, pending delivery
-и stream. Атомарность с stock/movement/audit доказана integration-тестом, но документ
-приёмки/проведение ещё не реализованы. Повтор append создаёт новый факт: запрет
-повторного posting/idempotency должны обеспечить будущие receiving/HTTP-сервисы.
+и stream. Атомарность с stock/movement/audit доказана integration-тестом, документ
+приёмки/проведение реализованы WMS-108. Повтор append создаёт новый факт: запрет
+повторного posting обеспечивает receiving parent lock/state, HTTP replay — idempotency storage.
 [Физическая модель и ограничения](../apps/backend/src/infrastructure/outbox/README.md).
+
+
+## Приёмка WMS-108
+
+Draft и строки создаются атомарно; HTTP редактирования/удаления нет. Один документ —
+одна receiving location склада, 1..1000 строк с разными productId, quantity int4 > 0.
+Posting сначала блокирует header, повторно проверяет refs/состояние и вызывает inventory
+по productId. UUID строки = operationId движения. Receipt audit, stock/audit/movements,
+ReceivingPosted, delivery/stream и результат HTTP атомарны. postedAt = occurredAt события;
+aggregateId = payload.receiptId. Новый ключ на posted — 409, прежний — saved replay.
+Документ не моделирует ожидаемую поставку/частичную приёмку/коррекцию.
+[Полный контракт](../apps/backend/src/modules/receiving/README.md).

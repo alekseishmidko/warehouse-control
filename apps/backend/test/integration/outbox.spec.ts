@@ -325,5 +325,6 @@ test('owner cannot update envelope or truncate retained outbox graph', async () 
   await runner.run(context => outbox.append(context, outboxFixture()));
   const { pool } = database().connection;
   await expect(pool.query("update outbox_events set envelope='{}'::jsonb")).rejects.toMatchObject({ code: '42501' });
-  await expect(pool.query('truncate outbox_deliveries, outbox_events, delivery_streams, outbox_aggregate_sequences')).rejects.toMatchObject({ code: '42501' });
+  // Receipt теперь ссылается на event: CASCADE включает новый граф FK, но retained trigger всё равно запрещает удаление.
+  await expect(pool.query('truncate outbox_deliveries, outbox_events, delivery_streams, outbox_aggregate_sequences cascade')).rejects.toMatchObject({ code: '42501' });
 });

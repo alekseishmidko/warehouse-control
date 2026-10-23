@@ -1,0 +1,5 @@
+{
+  "warehouseId": "708c21f2-652e-45a0-b910-f4db41fca885",
+  "receivingLocationId": "b01e0ef6-e01e-472d-891f-e7d219a21e42",
+  "lines": [{ "productId": "801c9003-42c2-48f5-af04-ae26f106ea46", "quantity": 10 }]
+}

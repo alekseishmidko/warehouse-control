@@ -64,6 +64,20 @@
       "when": 1792685955551,
       "tag": "0008_idempotency-retention",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792755846670,
+      "tag": "0009_windy_hairball",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792755853819,
+      "tag": "0010_receiving-guards",
+      "breakpoints": true
     }
   ]
 }

@@ -10,10 +10,11 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { OutboxModule } from './infrastructure/outbox/outbox.module';
 import { HttpModule } from './infrastructure/http/http.module';
 import { IdempotencyModule } from './infrastructure/idempotency/idempotency.module';
+import { ReceivingModule } from './modules/receiving/receiving.module';
 
-/** Регистрирует HTTP-каркас, PostgreSQL, складские модули и outbox writer; бизнес HTTP/worker ещё нет. */
+/** Регистрирует HTTP-каркас, PostgreSQL и вертикальный receiving; worker ещё не реализован. */
 @Module({
-  imports: [DatabaseModule, AuditModule, CatalogModule, WarehousesModule, InventoryModule, OutboxModule, HttpModule, IdempotencyModule],
+  imports: [DatabaseModule, AuditModule, CatalogModule, WarehousesModule, InventoryModule, OutboxModule, HttpModule, IdempotencyModule, ReceivingModule],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -1,5 +1,6 @@
 /** @file InventoryService — единственный владелец начисления: validation, справочники, balance+audit+movement. */
 import { Injectable } from '@nestjs/common';
+import { CommandError } from '../../../shared/errors/command-error';
 import type { TransactionContext } from '../../../shared/transactions/transaction.port';
 import { requirePositiveQuantity } from '../../../shared/quantities/quantity';
 import { requireUuid } from '../../../shared/validation/identifiers';
@@ -8,7 +9,7 @@ import { CatalogService } from '../../catalog/services/catalog.service';
 import { WarehousesService } from '../../warehouses/services/warehouses.service';
 import { InventoryRepository } from '../repositories/inventory.repository';
 import type { ReceiveStockDto, ReceiveStockResultDto, StockKeyDto, StockBalanceDto } from '../dto/stock.dto';
-/** Внутренний service, не HTTP CRUD; outbox и reservations ещё не реализованы. */
+/** Внутренний service, не HTTP CRUD; событие документа пишет receiving, reservations ещё нет. */
 @Injectable()
 export class InventoryService {
   /** Внедряет свой repository и публичные сервисы catalog/warehouses/audit для одной транзакции. */
@@ -19,7 +20,7 @@ export class InventoryService {
     requirePositiveQuantity(input.quantity); requireUuid(input.operationId, 'operationId');
     await this.catalog.requireProduct(context, input.productId);
     const location = await this.warehouses.requireLocation(context, input.warehouseId, input.locationId);
-    if (location.kind !== 'receiving') throw new Error('Receipt requires receiving location');
+    if (location.kind !== 'receiving') throw new CommandError('INVALID_RECEIVING_LOCATION');
     const balance = await this.repository.credit(context, input);
     const auditId = await this.audit.write(context, { ...input, action: 'inventory.stock-received', entityType: 'stock-balance', entityId: balance.id,
       changes: { onHand: { before: balance.onHand - input.quantity, after: balance.onHand }, quantity: { after: input.quantity },
