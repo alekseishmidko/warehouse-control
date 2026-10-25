@@ -20,7 +20,8 @@
     "contracts:generate": "node scripts/generate-event-contracts.cjs",
     "contracts:check": "node scripts/generate-event-contracts.cjs --check",
     "openapi:generate": "pnpm build && node scripts/generate-openapi.cjs",
-    "openapi:check": "pnpm build && node scripts/generate-openapi.cjs --check"
+    "openapi:check": "pnpm build && node scripts/generate-openapi.cjs --check",
+    "worker": "node dist/worker.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",

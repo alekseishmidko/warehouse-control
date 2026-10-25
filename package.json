@@ -26,7 +26,8 @@
     "contracts:generate": "pnpm --filter @warehouse/backend contracts:generate",
     "contracts:check": "pnpm --filter @warehouse/backend contracts:check",
     "openapi:generate": "pnpm --filter @warehouse/backend openapi:generate",
-    "openapi:check": "pnpm --filter @warehouse/backend openapi:check"
+    "openapi:check": "pnpm --filter @warehouse/backend openapi:check",
+    "worker": "pnpm --filter @warehouse/backend worker"
   },
   "private": true
 }

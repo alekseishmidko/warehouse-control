@@ -49,3 +49,19 @@ Lease не сбрасывать вручную, пока старый обраб
 проверить эффекты/markers/cursors → открыть запись.
 При ошибке не включать два пути одновременно. После новых эффектов rollback
 требует явного нового boundary, а не простого переключения env variable.
+
+
+## Реализованный baseline WMS-109
+
+Автоматически восстанавливается истёкший lease processing delivery, если её stream
+не заблокирован активной transaction. Token меняется; stale process не может ack/fail
+нового владельца. Ошибка rollback-ит effect/marker/cursors, отдельный run ставит retry/dead.
+Expired claim с исчерпанным budget тоже dead; следующий event того же потока заблокирован.
+Permanent code/attempts/DB deadline — durable evidence; raw payload/credentials не логируются.
+
+Production registry пока без handler inventory.putaway (WMS-110), поэтому pending сейчас
+ожидаем. Сам запуск worker ещё не создаёт PutawayTask и не изменяет приёмочный stock.
+Разница с инцидентом: сначала проверить, зарегистрирован ли настоящий handler.
+SIGTERM drain/deadline и SIGKILL recovery проверены child-process integration tests;
+ручной reset/replay/admin CLI по-прежнему не реализован и этим runbook не разрешён.
+[Конфигурация/протокол](../../apps/backend/src/infrastructure/worker/README.md).

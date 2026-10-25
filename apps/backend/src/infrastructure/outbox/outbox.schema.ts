@@ -56,7 +56,7 @@ export const deliveryStreams = pgTable('delivery_streams', {
   index('delivery_streams_lease_idx').on(t.leaseUntil),
 ]);
 
-/** Pending delivery создаётся с событием; поля claim/retry зарезервированы схемой, worker ещё не реализован. */
+/** Pending delivery создаётся writer; поля claim/retry/completion использует отдельный worker WMS-109. */
 export const outboxDeliveries = pgTable('outbox_deliveries', {
   eventId: uuid('event_id').notNull().references(() => outboxEvents.eventId),
   destination: text('destination').notNull(),

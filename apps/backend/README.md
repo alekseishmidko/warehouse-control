@@ -1,12 +1,12 @@
 # Backend Warehouse Controller
 
-Документация корневого NestJS-модуля и конфигурации backend после WMS-101–108.
+Документация корневого NestJS-модуля и конфигурации backend после WMS-101–109.
 
 ## Для менеджера
 
 API отвечает на технические маршруты и подключается к PostgreSQL.
 Приёмка draft/posted реализована: 10 штук, одно движение/событие, атомарность при сбоях.
-Отгрузка, worker и UI ещё не реализованы.
+Worker protocol готов WMS-109; отгрузка, business handler и UI ещё не реализованы.
 Будущие сценарии — в [описании продукта](../../docs/product.md).
 
 ## Для разработчика
@@ -93,7 +93,7 @@ OutboxService.append(context,command); private repository не открывае�
 UUID/version генерирует writer, prepareForOutbox проверяет финальный snapshot до SQL.
 Atomic counter/events/deliveries/streams, immutable/retention grants/triggers:
 новые migrations 0005/0006, dev Compose мигрируется явно через pnpm db:migrate.
-Документ приёмки подключён WMS-108; worker/handler ещё отсутствуют. Подробности — [ADR-0012](../../docs/adr/0012-outbox-writer.md).
+Документ приёмки подключён WMS-108; worker protocol готов WMS-109, handler — WMS-110. Подробности — [ADR-0012](../../docs/adr/0012-outbox-writer.md).
 
 
 ## WMS-107
@@ -122,3 +122,13 @@ Guard проверяет dev actor до каждого replay; production identi
 Миграции 0009/0010 создают header/строки, constraints и immutable guards.
 Приёмка 10 штук оставляет один balance, movement, ReceivingPosted v1 и pending delivery;
 задания размещения ещё нет. [Примеры/SQL](../../docs/receiving.md), [отчёт](../../docs/reports/wms-108.md).
+
+
+## WMS-109
+
+[WorkerModule](src/infrastructure/worker/README.md) запускается отдельным src/worker.ts:
+`pnpm build`, `pnpm worker`. AppModule его не импортирует, HTTP listener не создаётся.
+Миграции 0011/0012: processed markers/consumer cursors, runtime grants/retention guards.
+Worker-only env/defaults — в .env.example и module README. Production handlers пока
+не зарегистрированы (WMS-110), pending delivery не подтверждается автоматически.
+[Отчёт/проверки](../../docs/reports/wms-109.md), [ADR-0015](../../docs/adr/0015-postgres-worker.md).

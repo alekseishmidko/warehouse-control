@@ -160,3 +160,14 @@ HttpCommandsService.execute владеет transaction для HTTP сценар�
 кешируются; сетевой timeout не означает отменённую DB транзакцию. После неизвестного
 исхода commit повтор с исходным key разрешает replay, новый key может повторить эффект.
 Подробнее — [storage protocol](../apps/backend/src/infrastructure/idempotency/README.md).
+
+
+## Worker owner WMS-109
+
+WorkerService владеет отдельными короткими claim и failure runs и run обработки.
+Локальный handler заимствует processing context, все эффекты awaited, без внешнего I/O.
+Effect/marker/consumer cursor/transport cursor/completion фиксируются одной transaction.
+Повтор доставки после rollback — явный backoff/budget протокол, не изменение runner
+и не automatic retry HTTP command. Потеря commit ack разрешается состоянием delivery
+и marker; stale token не имеет права переписать результат. Worker-only transaction_timeout
+PostgreSQL 17 ограничивает весь processing run. [Контракт](../apps/backend/src/infrastructure/worker/README.md).

@@ -11,7 +11,7 @@
 совместная запись с InventoryService пока демонстрируется integration-тестом.
 
 Для каждого события приёмки создаются pending delivery на `inventory.putaway`
-и stream с cursor=0. Worker не запущен: pending сохраняется до WMS-109/110.
+и stream с cursor=0. Worker protocol готов WMS-109, handler не зарегистрирован: pending сохраняется до WMS-110.
 История не очищается по расписанию, immutable envelope не редактируется.
 Исправление факта потребует нового события/бизнес-операции. Роль `warehouse_app`
 не может изменять/удалять события; DBA способен обойти triggers — защиты от DBA нет.
@@ -55,7 +55,7 @@ JSON Schema. `INSERT ... ON CONFLICT DO UPDATE last_version=last_version+1`
 SQL проверяет совпадение индексируемой identity с envelope (UUID case-insensitive),
 но не повторяет всю JSON Schema. Прямой INSERT вне сервиса обходит contract validation
 и не является поддерживаемым write interface. На production runtime запрещён UPDATE
-outbox_events. Остальным трём таблицам разрешён UPDATE для counter/будущего worker,
+outbox_events. Остальным трём таблицам разрешён UPDATE для counter/worker WMS-109,
 но DELETE/TRUNCATE запрещены grants и retention triggers. У owner обычный
 UPDATE/DELETE/TRUNCATE событий также отклоняется trigger, который DBA может отключить.
 
@@ -124,7 +124,7 @@ sequenceDiagram
    транзакции запрещён, особенно после уже выполненного counter update.
 5. Сохраняется проверенный message через параметризованный `::jsonb`, без повторной
    сборки из input. JSONB может менять порядок ключей/пробелы; гарантируется смысл,
-   а не побайтовая идентичность transport JSON. Будущий worker должен сериализовать
+   а не побайтовая идентичность transport JSON. Worker WMS-109 сериализует
    JSONB компактно и использовать parseForHandler, не измерять pretty `jsonb::text` как wire JSON.
 6. Stream создаётся лишь при отсутствии, существующие cursor/lease сохраняются.
    Delivery всегда новая pending с attempts=0. Ошибка её INSERT откатывает event,
@@ -163,7 +163,7 @@ const event = await runner.run(context => outbox.append(context, command));
 Новые migrations: 0005_bitter_prism.sql (generated schema), 0006_outbox-retention.sql
 (custom triggers/grants); snapshots/journal создаёт Drizzle Kit, старые migrations
 не меняются. Dev Compose требует явного db:migrate, тесты его volume не трогают.
-Конфигурационных env у outbox пока нет; poll/batch/lease config появится с worker.
+Writer собственных env не имеет; poll/batch/lease/retry config описана в ../worker/README.md.
 
 [outbox.spec.ts](../../../test/integration/outbox.spec.ts) использует реальные migrations
 Testcontainers PostgreSQL той же версии, что Compose. Покрыты commit/rollback,
@@ -171,8 +171,8 @@ Testcontainers PostgreSQL той же версии, что Compose. Покрыт
 независимый агрегат, UUID case, max version, final byte growth, PK/FK/CHECK и права.
 Fault triggers/direct SQL нужны только для проверки constraints/сбоя и живут в
 disposable DB. Reset отключает retention triggers только в admin test cleanup.
-Worker redelivery, обработка crash после claim и конкуренция workers здесь не проверены:
-реализации worker ещё нет. Отдельных logs/metrics/inspect/retry CLI пока нет.
+Worker redelivery, crash после claim и конкуренция проверяются WMS-109
+в worker.spec.ts/worker-process.spec.ts, см. [worker](../worker/README.md). Отдельных logs/metrics/inspect/retry CLI пока нет.
 
 Связанные документы: [ADR-0012](../../../../../docs/adr/0012-outbox-writer.md),
 [outbox protocol](../../../../../docs/outbox.md),

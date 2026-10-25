@@ -87,7 +87,7 @@ SQL поддерживает psql подстановку, не является 
 
 Если stock существовал до сценария, баланс увеличится на 10, абсолютное значение
 будет иным. Не умножать строки JOIN для подсчёта событий: script считает их отдельным
-подзапросом по документу. После WMS-109/110 ожидания delivery/task потребуют обновления.
+подзапросом по документу. Worker WMS-109 пока без handlers; после WMS-110 ожидания delivery/task потребуют обновления.
 
 ## Проверка и диагностика
 
@@ -97,4 +97,4 @@ SQL поддерживает psql подстановку, не является 
 happy path, конкуренцию и SQL fault injection. Docker обязателен; skip/fallback нет.
 При отказе сохраните receiptId/correlationId и безопасный problem code;
 сырой SQL/credentials не выдаются. Автоматического retry нет; [transactions](transactions.md).
-Логи/метрики/tracing — будущие WMS-401/402, worker — WMS-109, handler — WMS-110.
+Логи/метрики/tracing — будущие WMS-401/402, worker protocol готов WMS-109, handler — WMS-110.

@@ -20,6 +20,7 @@ ADR фиксирует причину решения и его последст�
 | [0012](0012-outbox-writer.md) | Outbox writer, транзакционный counter и первоначальный destination | Accepted |
 | [0013](0013-http-idempotency.md) | HTTP boundaries, isolated dev actor и atomic command response | Accepted |
 | [0014](0014-receiving-vertical-slice.md) | Immutable состав приёмки, parent lock и атомарное проведение | Accepted |
+| [0015](0015-postgres-worker.md) | PostgreSQL worker: lease/token, атомарные markers/cursors и shutdown | Accepted |
 
 Шаблон нового ADR: [template.md](template.md). Нумерация последовательная.
 Рутинный implementation detail не требует ADR; изменение границ, гарантий,

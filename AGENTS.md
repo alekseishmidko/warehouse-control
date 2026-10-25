@@ -29,7 +29,8 @@ validation entrypoints, generated types/schema bundle и contract fixtures/limit
 WMS-106: OutboxService/Repository, migrations с aggregate counter, deliveries/streams,
 immutable envelope и retention guards. WMS-107: HTTP boundaries, isolated dev actor,
 idempotency storage и OpenAPI generation/diff. WMS-108: receiving draft/posted, HTTP create/post/get, parent lock и атомарное проведение.
-Frontend, worker, Kafka,
+WMS-109: worker entrypoint/claim/token/markers/cursors/retry/dead/shutdown protocol.
+Production handlers пока не подключены. Frontend, Kafka,
 образ backend и Kubernetes ещё не реализованы.
 Не считать наличие документации доказательством реализации.
 
@@ -82,7 +83,7 @@ Test support — `apps/backend/test/support/`; отдельный контейн
 Не запускать два test:prepare одновременно в одном checkout; suites одного Jest
 прогона работают параллельно и имеют независимые БД.
 Контрактные fixtures и generation diff проверяются локально в test:prepare/unit.
-CI compatibility comparison ещё нет. Следующая задача — WMS-109 (PostgreSQL outbox worker).
+CI compatibility comparison ещё нет. Следующая задача — WMS-110 (durable putaway handler).
 При добавлении функциональности нужны проверки её бизнес-инвариантов.
 Для outbox обязательны реальные PostgreSQL integration tests: rollback,
 повторная доставка, конкуренция workers, восстановление после сбоя.
@@ -161,7 +162,7 @@ Source schemas — docs/contracts/events; generated TS/schema bundle в shared/e
 Registry известного type/version и KnownEvent расширяются вместе со schema/fixtures.
 prepareForOutbox возвращает проверенный message snapshot: OutboxService проверяет его
 до INSERT в общей транзакции. parseForHandler вызывается до handler; неизвестные версии
-не считаются успешной обработкой. Writer реализован; worker/quarantine пока отсутствуют.
+не считаются успешной обработкой. Writer и worker protocol реализованы; invalid contract паркуется в dead, отдельной quarantine table нет.
 ReceivingPosted: 1..1000 строк, quantity int4, <=262144 UTF-8 bytes с envelope/unknown fields.
 MAX_RECEIPT_LINES берётся из generated schema, payload DTO — generated type alias;
 receiving HTTP DTO использует эти limits. Unknown optional fields
@@ -184,7 +185,7 @@ Stream создаётся cursor=0, существующие cursor/lease не �
 Migrations 0005/0006 новые; events immutable, удаления всех четырёх outbox таблиц запрещены
 до retention policy. Runtime events только SELECT/INSERT, остальным разрешён UPDATE;
 DBA может обойти triggers. Test reset отключает их только в disposable container.
-Workers/claim/dedup/quarantine/Kafka ещё нет; append повторно создаёт новый факт,
+Worker/claim/dedup/retry/dead реализованы WMS-109, Kafka ещё нет; append повторно создаёт новый факт,
 будущая повторная доставка использует сохранённый eventId, а не новый append.
 
 
@@ -210,7 +211,7 @@ Source OpenAPI — production controllers/DTO/decorators; docs/contracts/openapi
 через pnpm openapi:generate, pnpm openapi:check сравнивает. Offline CLI не вызывает app.init,
 не читает .env/БД. Test prepare включает diff после build. Swagger UI/CI comparison ещё нет.
 Тестовый /api/v1/commands существует только в support fixture, не добавлять в production.
-Новые migrations 0007/0008 не переписывать после применения. Следующий этап WMS-109.
+Новые migrations 0007/0008 не переписывать после применения. Следующий этап WMS-110.
 
 
 ## Receiving WMS-108
@@ -228,7 +229,31 @@ Event aggregateId=payload.receiptId=receipt.id, postedAt=occurredAt, version=1.
 на posted → 409. GET возвращает текущее состояние; post body отсутствует/{}.
 Все routes требуют isolated dev actor, кроме технических GET; production auth/ACL нет.
 Migrations 0009/0010 новые, после применения не менять. SQL guards/retention защищают
-историю от runtime роли, DBA может обойти их. Не начислять stock в будущем worker:
+историю от runtime роли, DBA может обойти их. Не начислять stock в worker:
 доставка pending/stream cursor=0, putaway_tasks пока нет. SQL/HTTP proof — docs/receiving.md.
 Receiving integration проверяет real locks и AFTER SQL fault injection каждого шага;
-cleanup только disposable harness. Следующий этап WMS-109, handler WMS-110.
+cleanup только disposable harness. Следующий этап WMS-110 — business handler, worker registry пока пуст.
+
+
+## Worker WMS-109
+
+WorkerModule отдельный graph без AppModule/HTTP, entrypoint src/worker.ts, pnpm worker
+после build/migrations. Registry production пуст до WMS-110: не добавлять fake no-op,
+не claim/ack inventory.putaway без настоящего handler. WorkerService экспортируется,
+WorkerRepository внутренний, config/DTO/services/repositories документированы.
+Claim отдельным коротким run: только next version, stream/delivery SKIP LOCKED,
+одинаковый UUID token/DB lease, attempts+1. Processing повторно lock/check token,
+live lease/status/cursor, parseForHandler до handler, consumer cursor/marker validation.
+Handler только awaited DB effects через владельцев, borrowed context, без nested run/I/O.
+Effect/marker/consumer cursor/delivery cursor/completion — один commit. Активные locks
+не дают reclaim после expiry; stale token не вправе ack/fail чужого claim.
+После rollback отдельный token-checked failure run: safe error code, equal-jitter retry
+или dead. Dead блокирует только свой поток, expired crash восстанавливается до budget.
+MaxAttempts включает claim перед crash. Unknown contract permanent dead, без success marker.
+Processed markers retained immutable, consumer cursor retained monotonic; DBA может обойти.
+SIGTERM запрещает новый claim, interrupt poll, drain/close в общем deadline; hard exit=1.
+PostgreSQL 17 transaction_timeout bound; CPU-blocking JS не прерывается timer и запрещён.
+Config/defaults в worker README/.env.example, batch<=4 при pool=5. Migrations 0011/0012
+после применения не менять. SIGTERM/SIGKILL и SQL faults проверять реальной БД/child processes.
+Recovery CLI ещё нет. Следующий этап WMS-110: настоящий handler inventory.putaway,
+не повторять receiving stock credit, использовать worker context/atomic markers.
