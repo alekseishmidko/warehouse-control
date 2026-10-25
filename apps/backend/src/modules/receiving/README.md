@@ -17,7 +17,7 @@ WMS-108 реализована: локальный оператор создаё
 Доступ — только временный изолированный server-side dev/test actor по
 [ADR-0013](../../../../../docs/adr/0013-http-idempotency.md). Все склады этой dev-организации
 доступны одному локальному оператору; пользовательских ролей и warehouse ACL ещё нет.
-Production routes закрыты. UI, worker, автоматическое размещение и компенсирующие
+Production routes закрыты. UI, business handler, автоматическое размещение и компенсирующие
 операции не реализованы. Pending delivery не является готовым заданием.
 
 ## Для разработчика
@@ -139,7 +139,7 @@ sequenceDiagram
    audit и idempotency, возвращает JSON timestamps, чужой run ему передавать нельзя.
 
 Автоматического retry deadlock/serialization нет: [правила](../../../../../docs/transactions.md).
-Обработчик event пока отсутствует; stream lastCompletedVersion=0, lease пустой,
+Worker protocol готов WMS-109, обработчик event пока отсутствует; stream lastCompletedVersion=0, lease пустой,
 delivery pending/attempts=0. Причины решений — [ADR-0014](../../../../../docs/adr/0014-receiving-vertical-slice.md).
 
 ### Пример, запуск и диагностика

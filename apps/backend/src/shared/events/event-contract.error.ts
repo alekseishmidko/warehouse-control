@@ -1,14 +1,14 @@
 /** @file Безопасные коды отказа контракта; payload, credentials и Ajv input не включаются в диагностику. */
 
 /**
- * Стабильные коды ошибок контракта для будущей классификации worker:
+ * Стабильные коды ошибок контракта для классификации worker WMS-109:
  * - INVALID_JSON — сообщение нельзя разобрать или input нельзя сериализовать;
  * - INVALID_EVENT — известный контракт нарушен либо заголовок некорректен;
  * - UNSUPPORTED_EVENT — корректная пара type/version отсутствует в registry;
  * - MESSAGE_TOO_LARGE — превышен лимит JSON UTF-8 bytes.
  *
  * Повтор без изменения данных или обновления поддерживаемых версий не поможет.
- * Отправка в durable quarantine будет реализована вместе с worker.
+ * Worker сохраняет permanent code в dead delivery; отдельной quarantine table нет.
  */
 export type EventContractErrorCode = 'INVALID_JSON' | 'INVALID_EVENT' | 'UNSUPPORTED_EVENT' | 'MESSAGE_TOO_LARGE';
 

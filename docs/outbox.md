@@ -9,8 +9,9 @@ Outbox — надёжная очередь фактов; бизнес-код н�
 Глобальный порядок и exactly once между PostgreSQL и Kafka не гарантируются.
 
 WMS-106 реализует запись события/delivery/stream и транзакционный счётчик.
-Worker, обработчики, claim/retries/processed markers и Kafka ниже пока описывают
-целевой протокол. WMS-108 подключает документ приёмки и HTTP-команды; атомарность
+WMS-109 реализует worker claim/lease/token, retries/dead и processed markers/cursors.
+Business handler WMS-110 и Kafka ниже пока целевые; production registry пуст,
+inventory.putaway остаётся pending без fake no-op. WMS-108 подключает документ приёмки и HTTP-команды; атомарность
 inventory/audit/outbox/HTTP result подтверждена integration-тестами.
 
 ## Логическая модель хранения
@@ -30,9 +31,9 @@ inventory/audit/outbox/HTTP result подтверждена integration-тест
 - `outbox_aggregate_sequences`: PK `(aggregate_type, aggregate_id)`, last_version
   bigint 1..9007199254740991. Guarded upsert выделяет версию под row lock в общей
   транзакции; rollback отменяет изменение counter, nextval не используется.
-- Будущая `processed_events`: consumer_name, event_id, processed_at;
+- WMS-109 `processed_events`: consumer_name, event_id, processed_at;
   unique `(consumer_name, event_id)`.
-- Будущая `consumer_streams`: consumer_name, aggregate_type/id, last_processed_version.
+- WMS-109 `consumer_streams`: consumer_name, aggregate_type/id, last_processed_version.
   Нужен обработчикам, которым важен последовательный полный поток.
 
 Новая запись outbox и необходимые delivery rows создаются в бизнес-транзакции.
@@ -50,15 +51,15 @@ inventory/audit/outbox/HTTP result подтверждена integration-тест
    заблокированное/ошибочное событие не позволяет более поздним обогнать его.
 2. Записывает lease и случайный token, увеличивает attempts, фиксирует claim.
 3. Для локального DB handler в новой транзакции блокирует delivery и stream,
-   проверяет token/lease и cursor. Вставляет processed_events через unique constraint.
+   проверяет token/lease и cursor. Блокирует consumer cursor и проверяет unique processed marker.
 4. Если событие уже обработано, не повторяет эффект. Иначе выполняет доменную
    операцию, записывает при необходимости новые outbox events и аудит.
-5. Результат, processed marker, продвижение cursor и delivery completed
+5. После awaited handler вставляет marker. Результат, processed marker, продвижение cursors и delivery completed
    фиксируются вместе. Во время этой транзакции delivery lock блокирует reclaim.
 6. Ошибка откатывает весь эффект; отдельная короткая транзакция с проверкой token
    назначает retry или dead. Зависший lease допускает повторный claim.
 
-Начальная политика retry: exponential backoff с jitter, база 1 секунда,
+Начальная политика retry: exponential backoff с equal jitter, база 1 секунда,
 предел 60 секунд, максимум 10 попыток. Значения конфигурируемы и не являются SLO.
 Долгие обработчики требуют продления lease или разбиения работы.
 Worker не должен держать долгую транзакцию во время сетевого I/O.
@@ -129,10 +130,22 @@ Writer делает preflight snapshot до SQL, выделяет версию �
 проверяет финальные bytes перед INSERT. Проверенный message сохраняется через
 параметризованный JSONB cast в одной транзакции с бизнес-изменением; input не
 пересобирается после await. Любая ошибка append обязана выйти до runner для rollback.
-Для WMS-109 подготовлен parseForHandler(message), вызываемый до допуска handler.
-Отказ — permanent error, не успешный marker/ack; durable quarantine появится с worker.
+WMS-109 вызывает parseForHandler(message) до допуска handler.
+Отказ — permanent error, durable dead без успешного marker/ack; отдельной quarantine table нет.
 [Настройка и ошибки](../apps/backend/src/shared/events/README.md),
 [контракт и пределы](contracts/README.md).
 Реальный writer/SQL/ошибки: [README outbox](../apps/backend/src/infrastructure/outbox/README.md).
 Immutable/retention triggers защищают обычный DML, не DBA. Автоматического удаления
 events/deliveries/streams/counters нет, включая completed/dead, до replay policy.
+
+
+## Реализация worker WMS-109
+
+[Worker README](../apps/backend/src/infrastructure/worker/README.md) — фактические
+SQL locks, token/expiry checks, consumer marker/cursor и batch/shutdown конфигурация.
+Worker process отдельный, API его не запускает. До WMS-110 registry пуст: pending
+не становится completed без бизнес-handler. Equal jitter: cap=min(max,base*2^(attempt-1)),
+задержка cap/2..cap. MaxAttempts учитывает и crash после claim; exhausted expired claim
+становится dead. Dead блокирует следующую версию только своего потока.
+Process run ограничен PostgreSQL 17 transaction_timeout, SIGTERM drain — общим deadline.
+Durable dead parking реализован; отдельной quarantine table/retry CLI ещё нет.

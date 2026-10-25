@@ -14,6 +14,11 @@ import { validateEnvironment, RuntimeConfig } from '@backend/infrastructure/conf
 import { createDatabaseConnection } from '@backend/infrastructure/database/connection';
 import { DATABASE_CONFIG } from '@backend/infrastructure/database/database.module';
 import { configureHttp } from '@backend/infrastructure/http/configure-http';
+import { WorkerModule } from '@backend/infrastructure/worker/worker.module';
+import { WORKER_CONFIG, validateWorkerEnvironment, WorkerConfig } from '@backend/infrastructure/worker/worker.config';
+import { WORKER_HANDLERS } from '@backend/infrastructure/worker/services/handler-registry';
+import type { LocalEventHandler } from '@backend/infrastructure/worker/dto/delivery.dto';
+import type { INestApplicationContext } from '@nestjs/common';
 
 const STARTUP_TIMEOUT_MS = 60000;
 const CLEANUP_TIMEOUT_MS = 15000;
@@ -26,6 +31,8 @@ export interface DatabaseHarness {
   readonly closed: boolean;
   /** Запускает настоящий AppModule с config override; env/Compose и исходный startup не меняются. */
   createHttpApplication(options?: ModuleMetadata & { config?: RuntimeConfig }): Promise<INestApplication>;
+  /** Создаёт отдельный настоящий worker graph без HTTP/env и регистрирует его закрытие в cleanup harness. */
+  createWorkerApplication(handlers?: LocalEventHandler[], config?: WorkerConfig): Promise<INestApplicationContext>;
   /** Очищает только fixture data этой suite; migration journal остаётся. Не для concurrent tests одной suite. */
   reset(): Promise<void>;
   /** Идемпотентно закрывает все зарегистрированные ресурсы; ошибка cleanup не скрывается. */
@@ -92,6 +99,14 @@ export async function createDatabaseHarness(): Promise<DatabaseHarness> {
     return {
       connection: database, config, containerId: started.getId(),
       get closed() { return closed; },
+      async createWorkerApplication(handlers = [], workerConfig = validateWorkerEnvironment({})) {
+        const moduleRef = await Test.createTestingModule({ imports: [WorkerModule] })
+          .overrideProvider(DATABASE_CONFIG).useValue(config)
+          .overrideProvider(WORKER_CONFIG).useValue(workerConfig)
+          .overrideProvider(WORKER_HANDLERS).useValue(handlers).compile();
+        cleanups.push(() => moduleRef.close());
+        await moduleRef.init(); return moduleRef;
+      },
       // Дополнительные controllers/providers существуют только в конкретном test graph.
       // Production AppModule не изменяется, config override не пишет process.env.
       async createHttpApplication(options = {}) {
@@ -119,8 +134,13 @@ export async function createDatabaseHarness(): Promise<DatabaseHarness> {
           // Receiving удерживает историю; обход разрешён только admin disposable suite.
           await tx.execute(sql`alter table receipts disable trigger receipts_retained`);
           await tx.execute(sql`alter table receipt_lines disable trigger receipt_lines_retained`);
+          // Только disposable admin cleanup может забыть processed marker/consumer history.
+          await tx.execute(sql`alter table processed_events disable trigger processed_events_immutable`);
+          await tx.execute(sql`alter table consumer_streams disable trigger consumer_streams_retained`);
           await tx.execute(sql`truncate table application_metadata, audit_entries, stock_movements, stock_balances,
-            locations, products, warehouses, outbox_deliveries, outbox_events, delivery_streams, outbox_aggregate_sequences, http_idempotency, receipts, receipt_lines`);
+            locations, products, warehouses, outbox_deliveries, outbox_events, delivery_streams, outbox_aggregate_sequences, http_idempotency, receipts, receipt_lines, processed_events, consumer_streams`);
+          await tx.execute(sql`alter table processed_events enable trigger processed_events_immutable`);
+          await tx.execute(sql`alter table consumer_streams enable trigger consumer_streams_retained`);
           await tx.execute(sql`alter table receipts enable trigger receipts_retained`);
           await tx.execute(sql`alter table receipt_lines enable trigger receipt_lines_retained`);
           await tx.execute(sql`alter table outbox_aggregate_sequences enable trigger outbox_aggregate_sequences_retained`);

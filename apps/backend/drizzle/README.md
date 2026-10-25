@@ -75,3 +75,16 @@ meta/0009_snapshot.json, meta/0010_snapshot.json и _journal.json генерир
 Новые таблицы не меняют старые данные; dev volume требует явного pnpm db:migrate.
 Test cleanup отключает retained triggers только в disposable admin harness.
 [Модель/границы](../src/modules/receiving/README.md).
+
+
+## WMS-109
+
+0011_spooky_epoch.sql — generated processed_events/consumer_streams, PK/FK/cursor CHECK.
+0012_worker-retention.sql — custom runtime grants, append-only markers, retained
+consumer streams и monotonic identity/cursor trigger. Scaffold создан через
+`pnpm --filter @warehouse/backend exec drizzle-kit generate --custom --name=worker-retention`.
+meta/0011_snapshot.json, meta/0012_snapshot.json и journal генерирует Kit; не править
+вручную. Triggers/grants не представлены schema snapshot. Старые applied SQL не менялись.
+Миграции не удаляют старые данные, dev volume требует явного pnpm db:migrate.
+Disposable test cleanup отключает retained/immutable guards только в admin harness.
+[Worker модель и границы](../src/infrastructure/worker/README.md).

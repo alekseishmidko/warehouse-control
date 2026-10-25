@@ -17,9 +17,9 @@
 - [Подробный план разработки](docs/development-plan.md)
 - [Контекст для агента](AGENTS.md)
 
-Реализованы WMS-101–108: PostgreSQL/Drizzle, runtime config, test harness,
+Реализованы WMS-101–109: PostgreSQL/Drizzle, runtime config, test harness,
 транзакции/audit, минимальные catalog/warehouses/inventory, event contracts, outbox writer, HTTP/idempotency и приёмка draft/posted.
-Worker, backend Docker image и Kubernetes ещё запланированы.
+Worker protocol готов WMS-109; business handler, backend Docker image и Kubernetes запланированы.
 
 ## Запуск
 
@@ -127,4 +127,12 @@ pnpm db:seed    # только development, создаёт новый товар
 [Локальный запуск, HTTP request/response и SQL proof](docs/receiving.md).
 Доступны создание draft, GET документа и posting с обязательным Idempotency-Key;
 бизнес-routes только для isolated dev/test actor. Остаток/movement/audit/outbox/HTTP result
-атомарны, повтор posted с новым key даёт 409. Worker/putaway task пока отсутствуют.
+атомарны, повтор posted с новым key даёт 409. Worker protocol готов; business handler и putaway task — WMS-110.
+
+
+## Worker WMS-109
+
+`pnpm db:migrate`, `pnpm build`, затем отдельный `pnpm worker` без HTTP listener.
+[Конфигурация и протокол](apps/backend/src/infrastructure/worker/README.md).
+Claim/lease/token, durable markers/cursors, retry/dead и SIGTERM готовы. До WMS-110
+registry пуст: inventory.putaway pending, заданий и фиктивного successful no-op нет.

@@ -28,5 +28,14 @@ WMS-103: reset audit/movements выполняется владельцем dispo
 WMS-108: database-lock.ts экспортирует waitForDatabaseLock(harness, relation),
 параметризованно наблюдает pg_stat_activity/pg_blocking_pids, deadline 5 секунд;
 helper не реализует бизнес-логику и не заменяет PostgreSQL mocks. Его используют
-receiving.spec.ts и http-commands.spec.ts. Receiving reset отключает только retained
+receiving.spec.ts, http-commands.spec.ts и worker.spec.ts. Receiving reset отключает только retained
 triggers в disposable admin transaction; штатные constraints/guards остаются активны.
+
+
+WMS-109: createWorkerApplication(handlers,config) создаёт отдельный настоящий WorkerModule
+без HTTP и регистрирует закрытие graph/pool в harness cleanup. Config providers заменяются
+DI, process.env parent не меняется. Reset выключает processed_events_immutable и
+consumer_streams_retained только на время disposable admin TRUNCATE; journal сохраняется.
+worker-process.fixture.ts загружает production dist без Jest mapper, использует только
+технический metadata effect и IPC barriers/commit notification для process failure tests.
+IPC ожидание внутри handler допустимо здесь только как явно тестовая fault injection.

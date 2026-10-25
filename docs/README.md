@@ -22,6 +22,8 @@
 | [Отчёт WMS-104](reports/wms-104.md) | Складские модели, гонки, ограничения и проверки |
 | [Приёмка WMS-108](receiving.md) | HTTP-команды draft/posted, пример 10 штук и SQL proof |
 | [Отчёт WMS-108](reports/wms-108.md) | Конкурентное проведение и rollback на каждом шаге |
+| [Worker WMS-109](../apps/backend/src/infrastructure/worker/README.md) | Протокол, конфигурация, движение данных и ограничения |
+| [Отчёт WMS-109](reports/wms-109.md) | Реальные PostgreSQL races/faults и child-process shutdown/crash |
 | [Отчёт WMS-107](reports/wms-107.md) | HTTP foundation, OpenAPI и транзакционная идемпотентность |
 | [Отчёт WMS-106](reports/wms-106.md) | Атомарная запись outbox, counter races, migrations и retention |
 | [Отчёт WMS-105](reports/wms-105.md) | Runtime contracts, generation, fixtures и пределы сообщений |
@@ -56,11 +58,13 @@
 - Готово WMS-105: Ajv 2020-12/formats, code registry, producer/handler validation
   entrypoints, TS/schema generation и diff gate, контрактные fixtures и limits.
 - Готово WMS-106: PostgreSQL outbox writer, транзакционные aggregate counters, pending
-  deliveries/streams, immutable envelope и retention guards. Worker ещё отсутствует.
+  deliveries/streams, immutable envelope и retention guards. Worker protocol добавлен WMS-109.
 - Готово WMS-107: prefix/validation/problem responses/correlationId, isolated dev actor,
   command idempotency storage и OpenAPI generation/diff.
 - Готово WMS-108: receiving draft/posted, три business routes под isolated dev actor,
   атомарные stock/movement/audit/outbox/HTTP result и concurrency/fault tests.
+- Готово WMS-109: отдельный worker, SKIP LOCKED/token/lease, markers/cursors,
+  retry/dead и bounded SIGTERM. Production handler отсутствует до WMS-110: deliveries pending.
 - Описано, но не реализовано: остальные складские операции,
   обработчики, авторизация, frontend, Docker image backend, Kubernetes и CI/CD.
 - Пример контракта `ReceivingPosted` — проектный образец, не опубликованный API.

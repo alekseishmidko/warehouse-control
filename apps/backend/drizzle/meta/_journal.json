@@ -78,6 +78,20 @@
       "when": 1792755853819,
       "tag": "0010_receiving-guards",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792944468723,
+      "tag": "0011_spooky_epoch",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792944469181,
+      "tag": "0012_worker-retention",
+      "breakpoints": true
     }
   ]
 }

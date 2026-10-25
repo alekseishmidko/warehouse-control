@@ -178,3 +178,17 @@ Triggers удаляются finally, harness сбрасывает receiving hist
 unit/receiving-examples.spec.ts валидирует HTTP fixture реальным DTO validator и
 согласованность response/event examples. support/database-lock.ts переиспользуется
 receiving и HTTP dedup suites: ожидание pg_blocking_pids с deadline 5 секунд.
+
+
+## WMS-109
+
+unit/worker-policy.spec.ts: validated config, equal jitter/caps, safe error allowlist,
+permanent/transient classification и explicit registry. integration/worker.spec.ts:
+реальные worker Nest/pg graphs, SKIP LOCKED, следующие версии, independent aggregates,
+stale token, processing locks после expiry, marker redelivery, SQL AFTER faults каждого
+существенного шага, budget/dead, неизвестный контракт, connection crash и runtime grants.
+worker-process.spec.ts запускает actual child/production dist lifecycle: SIGTERM drain,
+hard deadline, SIGKILL до/после commit, отсутствие новых claims/idle transactions.
+Support worker-process.fixture.ts — test-only technical effect и IPC barriers, не бизнес-handler.
+Harness createWorkerApplication регистрирует cleanup, config/handlers заменяются DI,
+parent process.env не меняется. Child env изолирован, credentials не передаются в args/logs.

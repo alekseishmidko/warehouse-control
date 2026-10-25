@@ -2,7 +2,7 @@
 
 Документ превращает [roadmap](roadmap.md) в последовательный backlog для разработчика,
 менеджера и агента: задачи, зависимости, проверяемый результат и демонстрация этапа.
-Это план, не отчёт о выполнении. WMS-101–WMS-108 выполнены; остальные задачи запланированы.
+Это план, не отчёт о выполнении. WMS-101–WMS-109 выполнены; остальные задачи запланированы.
 Реализованы каркас NestJS, PostgreSQL/Drizzle, harness, transaction port и audit; статус — в [карте документации](README.md).
 
 ## Как работать с планом
@@ -161,15 +161,19 @@ prepareForOutbox/parseForHandler; writer подключён в WMS-106,
 - [x] **WMS-108.5** — Проверить конкурирующие posting, неверные строки и сбой после каждого существенного шага транзакции.
 - [x] **WMS-108.6** — Сохранить пример запроса/ответа и SQL-проверку результата: 10 принято, одно движение и одно событие без задания до worker.
 
-### WMS-109. Протокол worker
+### WMS-109. Протокол worker — выполнено
 
-- [ ] **WMS-109.1** — Создать отдельный worker entrypoint и конфигурацию batch size, poll interval, lease и retry.
-- [ ] **WMS-109.2** — Реализовать claim stream через SKIP LOCKED только для следующей версии; выдавать lease token в короткой транзакции.
-- [ ] **WMS-109.3** — Реализовать проверку token и блокировку stream/delivery в обработке; stale worker не может подтвердить чужой claim.
-- [ ] **WMS-109.4** — Добавить processed_events и consumer cursor; эффект, marker, cursor и completion фиксируются атомарно.
-- [ ] **WMS-109.5** — Реализовать backoff/jitter, классификацию permanent/transient ошибок, dead и восстановление истёкшего lease.
-- [ ] **WMS-109.6** — На SIGTERM прекратить claim, ограниченно дождаться обработки и закрыть ресурсы.
-- [ ] **WMS-109.7** — Проверить два workers, порядок, независимые агрегаты, stale token, crash до/после commit и блокировку потока на dead.
+[Worker module](../apps/backend/src/infrastructure/worker/README.md),
+[отчёт WMS-109](reports/wms-109.md), [ADR-0015](adr/0015-postgres-worker.md).
+Production handler — WMS-110; pending delivery не подтверждается пустым no-op.
+
+- [x] **WMS-109.1** — Создать отдельный worker entrypoint и конфигурацию batch size, poll interval, lease и retry.
+- [x] **WMS-109.2** — Реализовать claim stream через SKIP LOCKED только для следующей версии; выдавать lease token в короткой транзакции.
+- [x] **WMS-109.3** — Реализовать проверку token и блокировку stream/delivery в обработке; stale worker не может подтвердить чужой claim.
+- [x] **WMS-109.4** — Добавить processed_events и consumer cursor; эффект, marker, cursor и completion фиксируются атомарно.
+- [x] **WMS-109.5** — Реализовать backoff/jitter, классификацию permanent/transient ошибок, dead и восстановление истёкшего lease.
+- [x] **WMS-109.6** — На SIGTERM прекратить claim, ограниченно дождаться обработки и закрыть ресурсы.
+- [x] **WMS-109.7** — Проверить два workers, порядок, независимые агрегаты, stale token, crash до/после commit и блокировку потока на dead.
 
 ### WMS-110. Первый durable handler
 
@@ -541,9 +545,10 @@ rollback приложения не выдаётся за rollback данных �
 
 ## Следующая задача для агента
 
-WMS-101–WMS-108 завершены. Следующая задача — **WMS-109**: PostgreSQL outbox worker,
-lease/claim потоков, обработка доставки и восстановление после сбоя. Сохранить eventId,
-at least once, порядок внутри aggregate/destination, idempotency handler и quarantine
-без обещаний exactly once. Receiving HTTP/scenario уже реализован: не начислять товар
-повторно в worker. Handler размещения — WMS-110. Dev actor остаётся isolated dev/test,
-production identity ещё нет; старые migrations/envelopes не менять.
+WMS-101–WMS-109 завершены. Следующая задача — **WMS-110**: durable handler ReceivingPosted,
+создание PutawayTask через InventoryService без повторного начисления. Worker protocol готов,
+но production registry пуст: зарегистрировать настоящий handler inventory.putaway явно.
+Handler использует переданный TransactionContext, не открывает nested run/внешнее I/O;
+эффект/marker/cursors/completion фиксируются общей transaction worker. Проверить
+повторы/crash/unique event-line связь и отсутствие изменения stock. WMS-111 — inspect/retry.
+Сохранять старые migrations/envelopes, local dev actor и документацию/JSDoc всех изменений.

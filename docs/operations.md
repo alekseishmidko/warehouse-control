@@ -78,3 +78,14 @@ Audit migrations создают NOLOGIN permission group warehouse_app и append
 Для внешнего стенда нужны отдельные migration owner и непривилегированный runtime login;
 credential provisioning не включён в schema migration. Текущий dev Compose admin URL
 не становится runtime login автоматически. Правила: [transactions](transactions.md).
+
+
+## Локальный worker WMS-109
+
+После явных migrations/build запуск `pnpm worker` отдельным процессом, API отдельно.
+Worker HTTP-порт/readiness endpoint не открывает. Registry production пуст до WMS-110:
+startup предупреждает, что доставки остаются pending. SIGTERM/SIGINT stop claim,
+bounded drain/close; exit=1 при hard deadline, после crash ждём expiry PostgreSQL lease.
+Config/defaults, DB timeout, диагностика и ограничения —
+[worker README](../apps/backend/src/infrastructure/worker/README.md).
+Не сбрасывать markers/cursors/lease вручную; управляемый recovery CLI ещё не реализован.
