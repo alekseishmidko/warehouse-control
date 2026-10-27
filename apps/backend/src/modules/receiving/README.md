@@ -139,8 +139,10 @@ sequenceDiagram
    audit и idempotency, возвращает JSON timestamps, чужой run ему передавать нельзя.
 
 Автоматического retry deadlock/serialization нет: [правила](../../../../../docs/transactions.md).
-Worker protocol готов WMS-109, обработчик event пока отсутствует; stream lastCompletedVersion=0, lease пустой,
-delivery pending/attempts=0. Причины решений — [ADR-0014](../../../../../docs/adr/0014-receiving-vertical-slice.md).
+До обработки stream lastCompletedVersion=0, lease пустой, delivery pending/attempts=0.
+WMS-110 handler создаёт pending PutawayTask, затем delivery completed/cursor=1; stock/movement
+прежние. [Подробный consumer flow](../../../../../docs/flows/putaway.md).
+Причины posting решений — [ADR-0014](../../../../../docs/adr/0014-receiving-vertical-slice.md).
 
 ### Пример, запуск и диагностика
 

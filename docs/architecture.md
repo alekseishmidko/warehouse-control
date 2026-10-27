@@ -14,8 +14,8 @@
 |---|---|---|
 | Workspace | pnpm + TypeScript | Реализован |
 | Backend | NestJS | WMS-108: приёмка draft/posted и HTTP-команды |
-| Данные | PostgreSQL + Drizzle + SQL | WMS-101–109: stock/audit/outbox/idempotency/receiving |
-| Надёжные события | PostgreSQL transactional outbox | WMS-109 writer/worker protocol готовы; handler WMS-110 |
+| Данные | PostgreSQL + Drizzle + SQL | WMS-101–110: stock/audit/outbox/idempotency/receiving |
+| Надёжные события | PostgreSQL transactional outbox | WMS-110 writer/worker/putaway handler готовы |
 | Event transport | Kafka, затем Schema Registry | Последующий этап |
 | UI | React, Vite, TanStack Query, Tailwind, shadcn/ui | Целевой стек |
 | Контейнеры | Docker, Compose | PostgreSQL Compose готов; образ backend предстоит |
@@ -141,7 +141,7 @@ WMS-104 реализует [минимальный складской baseline](
 WMS-105: shared/events проверяет JSON Schema 2020-12 по локальному type/version
 registry. Generated TS и runtime schema bundle создаются из docs/contracts/events;
 runtime не читает дерево docs. Общая проверка producer/handler готова к подключению
-в WMS-106/109 (готово); business handler — WMS-110. Ограничения первой приёмки и причины
+в WMS-106/109 (готово); business handler готов WMS-110. Ограничения первой приёмки и причины
 выбора — [ADR-0011](adr/0011-event-contract-validation.md).
 
 
@@ -149,7 +149,7 @@ WMS-106: infrastructure/outbox предоставляет OutboxService → priv
 Writer использует shared EventContracts и borrowed transactionClient, без собственного
 pool/run/commit. Четыре PostgreSQL таблицы включают transactional aggregate counter;
 каждый receipt event получает pending inventory.putaway delivery и stream. Это запись
-в durable storage, worker protocol готов WMS-109, business handler — WMS-110. [ADR-0012](adr/0012-outbox-writer.md).
+в durable storage, worker protocol готов WMS-109, business handler готов WMS-110. [ADR-0012](adr/0012-outbox-writer.md).
 
 
 WMS-107: infrastructure/http задаёт transport boundaries, infrastructure/idempotency —
@@ -164,13 +164,14 @@ ReceivingRepository. Командный сервис владеет общим r
 в InventoryService/AuditService/OutboxService. Parent row lock до проверки draft
 сериализует posting разных ключей. GET владеет отдельным read run; DTO и SQL schema
 разделены. [Схема движения данных](../apps/backend/src/modules/receiving/README.md),
-[ADR-0014](adr/0014-receiving-vertical-slice.md). Worker protocol готов WMS-109; handler остаётся следующим этапом.
+[ADR-0014](adr/0014-receiving-vertical-slice.md). Worker protocol готов WMS-109; handler подключён WMS-110.
 
 
 WMS-109: отдельный WorkerModule/entrypoint, WorkerLoop → WorkerService → внутренний
 WorkerRepository. Claim/process/failure имеют отдельные run; processing включает
 handler effect, processed marker, consumer cursor и delivery/transport cursor атомарно.
-Handler registry пуст до WMS-110, поэтому production delivery остаётся pending.
+Handler registry WMS-110 содержит inventory.putaway: создаёт pending task без stock credit.
+Task/audit/marker/cursors/completion коммитятся атомарно.
 [Подробное движение данных](../apps/backend/src/infrastructure/worker/README.md),
 [ADR-0015](adr/0015-postgres-worker.md). Общий transaction runner всё ещё без auto retry;
 повтор доставки происходит отдельно после rollback с backoff/dead budget.

@@ -1,0 +1,2 @@
+ALTER TABLE "receipt_lines" ADD CONSTRAINT "receipt_line_putaway_source_unique" UNIQUE("receipt_id","id","product_id","quantity");--> statement-breakpoint
+ALTER TABLE "receipts" ADD CONSTRAINT "receipt_putaway_source_unique" UNIQUE("id","warehouse_id","receiving_location_id","posted_event_id");

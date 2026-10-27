@@ -92,6 +92,27 @@
       "when": 1792944469181,
       "tag": "0012_worker-retention",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793009105285,
+      "tag": "0013_glamorous_big_bertha",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793009106206,
+      "tag": "0014_clean_abomination",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1793009106764,
+      "tag": "0015_putaway-retention",
+      "breakpoints": true
     }
   ]
 }

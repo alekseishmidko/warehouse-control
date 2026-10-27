@@ -192,3 +192,20 @@ hard deadline, SIGKILL до/после commit, отсутствие новых c
 Support worker-process.fixture.ts — test-only technical effect и IPC barriers, не бизнес-handler.
 Harness createWorkerApplication регистрирует cleanup, config/handlers заменяются DI,
 parent process.env не меняется. Child env изолирован, credentials не передаются в args/logs.
+
+
+## WMS-110
+
+putaway.spec.ts использует production registry без подмены handler: одна pending task/
+audit/marker, cursors/completion и прежний stock/movement/event. Проверены worker same-token
+locks, direct absent-key INSERT race, exact repeat/marker replay, malformed source/conflicting
+new fact, multi-line rollback, SQL AFTER failures каждого существенного шага и warehouse_app.
+worker-process.spec.ts дополнен actual production putaway SIGKILL до и после commit.
+worker-process.fixture.ts в child mode TEST_PUTAWAY_HANDLER=true сохраняет production
+registry и оборачивает реальный InventoryService только IPC barrier/commit notification.
+Это test-only hook, не разрешение production I/O в handler. Старый technical handler mode
+сохраняется для protocol tests. posted-receipt.fixture.ts вызывает реальные owners для refs/
+draft/post без прямого stock SQL. Parent env не меняется, child config изолирован.
+receiving-posted.handler.spec.ts проверяет server metadata/permanent mapping и будущую
+known-uninteresting routing ветку; surrogate не добавлен в runtime registry.
+Документированный putaway-result.sql выполняется в happy path.

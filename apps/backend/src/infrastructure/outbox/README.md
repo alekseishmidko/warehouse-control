@@ -11,7 +11,7 @@
 совместная запись с InventoryService пока демонстрируется integration-тестом.
 
 Для каждого события приёмки создаются pending delivery на `inventory.putaway`
-и stream с cursor=0. Worker protocol готов WMS-109, handler не зарегистрирован: pending сохраняется до WMS-110.
+и stream с cursor=0. Worker protocol готов WMS-109, handler зарегистрирован WMS-110: pending обрабатывается в task + marker/cursors/ack.
 История не очищается по расписанию, immutable envelope не редактируется.
 Исправление факта потребует нового события/бизнес-операции. Роль `warehouse_app`
 не может изменять/удалять события; DBA способен обойти triggers — защиты от DBA нет.

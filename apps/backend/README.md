@@ -1,12 +1,12 @@
 # Backend Warehouse Controller
 
-Документация корневого NestJS-модуля и конфигурации backend после WMS-101–109.
+Документация корневого NestJS-модуля и конфигурации backend после WMS-101–110.
 
 ## Для менеджера
 
 API отвечает на технические маршруты и подключается к PostgreSQL.
 Приёмка draft/posted реализована: 10 штук, одно движение/событие, атомарность при сбоях.
-Worker protocol готов WMS-109; отгрузка, business handler и UI ещё не реализованы.
+Worker и durable putaway handler готовы; физическое размещение, отгрузка и UI ещё не реализованы.
 Будущие сценарии — в [описании продукта](../../docs/product.md).
 
 ## Для разработчика
@@ -15,7 +15,7 @@ AppModule связывает AppController/AppService, DatabaseModule, AuditModu
 CatalogModule, WarehousesModule, InventoryModule, OutboxModule, HttpModule,
 IdempotencyModule и ReceivingModule.
 Transaction runner и AuditService/AuditRepository реализованы; catalog/warehouses/inventory baseline и документ приёмки есть,
-production авторизации/consumers ещё нет; producer документа использует outbox writer.
+production авторизации ещё нет; consumer inventory.putaway подключён WMS-110; producer документа использует outbox writer.
 Технические маршруты открыты; receiving закрыт guard, opt-in только isolated dev/test.
 
 | Маршрут | Ответ | Ограничение |
@@ -84,7 +84,7 @@ producer/handler validation entrypoints и generated DTO. `pnpm contracts:genera
 проверяет generation diff без записи. Artifacts включены в Git; test:prepare запускает
 check. Runtime dist не читает docs/JSON. Дополнительных env/DB migrations нет.
 ReceivingPosted ограничен 1000 строками и 256 КиБ UTF-8; quantity int4.
-Outbox write подключён в WMS-106; handler, HTTP receiving DTO и CI compatibility gate ещё предстоят.
+Outbox write подключён в WMS-106; handler/HTTP receiving DTO подключены WMS-108/110, CI compatibility gate ещё предстоит.
 
 ## WMS-106
 
@@ -93,7 +93,7 @@ OutboxService.append(context,command); private repository не открывае�
 UUID/version генерирует writer, prepareForOutbox проверяет финальный snapshot до SQL.
 Atomic counter/events/deliveries/streams, immutable/retention grants/triggers:
 новые migrations 0005/0006, dev Compose мигрируется явно через pnpm db:migrate.
-Документ приёмки подключён WMS-108; worker protocol готов WMS-109, handler — WMS-110. Подробности — [ADR-0012](../../docs/adr/0012-outbox-writer.md).
+Документ приёмки подключён WMS-108; worker protocol готов WMS-109, handler подключён WMS-110. Подробности — [ADR-0012](../../docs/adr/0012-outbox-writer.md).
 
 
 ## WMS-107
@@ -121,7 +121,7 @@ POST /api/v1/receipts/:receiptId/post → 200 posted, GET того же доку
 Guard проверяет dev actor до каждого replay; production identity/warehouse ACL ещё нет.
 Миграции 0009/0010 создают header/строки, constraints и immutable guards.
 Приёмка 10 штук оставляет один balance, movement, ReceivingPosted v1 и pending delivery;
-задания размещения ещё нет. [Примеры/SQL](../../docs/receiving.md), [отчёт](../../docs/reports/wms-108.md).
+до обработки consumer задания нет; после WMS-110 worker создаёт pending task. [Примеры/SQL](../../docs/receiving.md), [отчёт](../../docs/reports/wms-108.md).
 
 
 ## WMS-109
@@ -129,6 +129,15 @@ Guard проверяет dev actor до каждого replay; production identi
 [WorkerModule](src/infrastructure/worker/README.md) запускается отдельным src/worker.ts:
 `pnpm build`, `pnpm worker`. AppModule его не импортирует, HTTP listener не создаётся.
 Миграции 0011/0012: processed markers/consumer cursors, runtime grants/retention guards.
-Worker-only env/defaults — в .env.example и module README. Production handlers пока
-не зарегистрированы (WMS-110), pending delivery не подтверждается автоматически.
+Worker-only env/defaults — в .env.example и module README. Production ReceivingPostedHandler зарегистрирован WMS-110; создаёт task/audit в общем processing context.
 [Отчёт/проверки](../../docs/reports/wms-109.md), [ADR-0015](../../docs/adr/0015-postgres-worker.md).
+
+
+## WMS-110
+
+ReceivingPostedHandler в worker вызывает публичный InventoryService.createPutawayTasks.
+PutawayService/Repository/DTO/schema внутри inventory, экспорт по-прежнему только InventoryService.
+Migrations 0013/0014/0015, pending tasks с immutable provenance и source FK. Task/audit/marker/
+cursors/ack атомарны; новых stock movements/outbox events при создании task нет.
+No-op для будущих известных неинтересных типов не означает принятие unknown schema/version.
+[Флоу/диагностика](../../docs/flows/putaway.md), [ADR-0016](../../docs/adr/0016-durable-putaway-handler.md).

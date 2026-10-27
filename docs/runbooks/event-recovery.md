@@ -59,9 +59,15 @@ Lease не сбрасывать вручную, пока старый обраб
 Expired claim с исчерпанным budget тоже dead; следующий event того же потока заблокирован.
 Permanent code/attempts/DB deadline — durable evidence; raw payload/credentials не логируются.
 
-Production registry пока без handler inventory.putaway (WMS-110), поэтому pending сейчас
-ожидаем. Сам запуск worker ещё не создаёт PutawayTask и не изменяет приёмочный stock.
-Разница с инцидентом: сначала проверить, зарегистрирован ли настоящий handler.
+Production registry содержит inventory.putaway WMS-110. Долго pending delivery без task
+требует проверки worker, lease, last_error и DB health. Completed delivery с pending task —
+успешное создание задания, а не отказ очереди: физическое размещение ещё не реализовано.
+Сам handler не меняет приёмочный stock; проверьте receipt → event → task по read-only SQL.
 SIGTERM drain/deadline и SIGKILL recovery проверены child-process integration tests;
 ручной reset/replay/admin CLI по-прежнему не реализован и этим runbook не разрешён.
 [Конфигурация/протокол](../../apps/backend/src/infrastructure/worker/README.md).
+
+WMS-110 диагностика: [putaway-result.sql](../examples/putaway-result.sql),
+[состояния/сбои](../flows/putaway.md). Unknown source FK и conflicting event для существующей
+line — permanent dead, не повод менять stock или генерировать новый eventId. API inspect/retry
+ещё не реализован; этот документ не разрешает manual reset markers/cursors/tasks.

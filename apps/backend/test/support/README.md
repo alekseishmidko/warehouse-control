@@ -39,3 +39,12 @@ consumer_streams_retained только на время disposable admin TRUNCATE
 worker-process.fixture.ts загружает production dist без Jest mapper, использует только
 технический metadata effect и IPC barriers/commit notification для process failure tests.
 IPC ожидание внутри handler допустимо здесь только как явно тестовая fault injection.
+
+
+WMS-110: createWorkerApplication() теперь сохраняет production ReceivingPostedHandler;
+явный handlers=[] отключает registry, список handlers заменяет его для protocol tests.
+posted-receipt.fixture.ts создаёт production fixture/draft/post в общем контексте, не копирует
+бизнес-правила и не пишет stock/task напрямую. putaway_tasks_immutable отключается только
+при disposable admin cleanup; business audit/marker/task constraints остаются активны в tests.
+Child fixture имеет isolated TEST_PUTAWAY_HANDLER mode с реальными task/audit эффектами
+и IPC barrier до commit; затем отправляет notification только после production commit.

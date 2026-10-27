@@ -16,3 +16,4 @@ export { outboxAggregateSequences, outboxEvents, outboxDeliveries, deliveryStrea
 export { httpIdempotency } from '../idempotency/idempotency.schema';
 export { receipts, receiptLines } from '../../modules/receiving/receiving.schema';
 export { processedEvents, consumerStreams } from '../worker/worker.schema';
+export { putawayTasks } from '../../modules/inventory/putaway-task.schema';

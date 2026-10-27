@@ -1,4 +1,4 @@
-/** @file Явная регистрация DB handlers; production без WMS-110 не имеет фиктивного успешного consumer. */
+/** @file Явная регистрация DB handlers; WMS-110 подключает настоящий inventory.putaway consumer без автоматического no-op. */
 import { Inject, Injectable } from '@nestjs/common';
 import type { LocalEventHandler } from '../dto/delivery.dto';
 import { PUTAWAY_DESTINATION } from '../../outbox/outbox-destinations';

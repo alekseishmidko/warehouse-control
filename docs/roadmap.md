@@ -1,7 +1,7 @@
 # Этапы реализации
 
 Не начинать следующий инфраструктурный этап до рабочего вертикального сценария.
-Этап 1 начат: WMS-101–WMS-109 выполнены; остальные задачи пока не реализованы.
+Этап 1 начат: WMS-101–WMS-110 выполнены; остальные задачи пока не реализованы.
 
 Подробный backlog с ID задач, зависимостями, демонстрациями и критериями перехода:
 [план разработки](development-plan.md): 38 задач, разбитых на 217 шагов с чекбоксами.
@@ -20,7 +20,8 @@ WMS-106 завершена: outbox writer/counter/delivery/stream в одном 
 WMS-107 завершена: HTTP validation/problems/dev context, command dedup и offline OpenAPI.
 WMS-108 завершена: draft/posted, HTTP-команды и атомарное проведение.
 WMS-109 завершена: worker protocol, lease fencing, atomic markers/cursors, retry/dead и SIGTERM.
-Следующая задача: WMS-110, durable handler размещения. Registry пока пуст, доставки pending.
+WMS-110 завершена: production handler создаёт pending task и audit атомарно с marker/cursors/ack.
+Следующая задача: WMS-111, административное inspect/retry восстановление.
 
 Отчёты: [окружение WMS-101](reports/wms-101.md),
 [тестовая инфраструктура WMS-102](reports/wms-102.md),
@@ -30,7 +31,8 @@ WMS-109 завершена: worker protocol, lease fencing, atomic markers/curso
 [outbox writer WMS-106](reports/wms-106.md),
 [HTTP/idempotency WMS-107](reports/wms-107.md),
 [приёмка WMS-108](reports/wms-108.md),
-[worker WMS-109](reports/wms-109.md).
+[worker WMS-109](reports/wms-109.md),
+[durable handler WMS-110](reports/wms-110.md).
 
 ## 1. Приёмка + outbox + Docker
 

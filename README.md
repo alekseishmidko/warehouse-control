@@ -17,9 +17,9 @@
 - [Подробный план разработки](docs/development-plan.md)
 - [Контекст для агента](AGENTS.md)
 
-Реализованы WMS-101–109: PostgreSQL/Drizzle, runtime config, test harness,
+Реализованы WMS-101–110: PostgreSQL/Drizzle, runtime config, test harness,
 транзакции/audit, минимальные catalog/warehouses/inventory, event contracts, outbox writer, HTTP/idempotency и приёмка draft/posted.
-Worker protocol готов WMS-109; business handler, backend Docker image и Kubernetes запланированы.
+Worker/putaway handler готовы WMS-109/110; backend Docker image и Kubernetes запланированы.
 
 ## Запуск
 
@@ -127,12 +127,20 @@ pnpm db:seed    # только development, создаёт новый товар
 [Локальный запуск, HTTP request/response и SQL proof](docs/receiving.md).
 Доступны создание draft, GET документа и posting с обязательным Idempotency-Key;
 бизнес-routes только для isolated dev/test actor. Остаток/movement/audit/outbox/HTTP result
-атомарны, повтор posted с новым key даёт 409. Worker protocol готов; business handler и putaway task — WMS-110.
+атомарны, повтор posted с новым key даёт 409. Worker protocol готов; business handler и pending PutawayTask готовы WMS-110.
 
 
 ## Worker WMS-109
 
 `pnpm db:migrate`, `pnpm build`, затем отдельный `pnpm worker` без HTTP listener.
 [Конфигурация и протокол](apps/backend/src/infrastructure/worker/README.md).
-Claim/lease/token, durable markers/cursors, retry/dead и SIGTERM готовы. До WMS-110
-registry пуст: inventory.putaway pending, заданий и фиктивного successful no-op нет.
+Claim/lease/token, durable markers/cursors, retry/dead и SIGTERM готовы. WMS-110
+регистрирует inventory.putaway: delivery completed, task pending, stock не начисляется повторно.
+
+
+## Durable putaway WMS-110
+
+`pnpm db:migrate`, `pnpm build`, затем API и отдельный `pnpm worker` с одной БД.
+Production inventory.putaway создаёт pending task на строку posted receipt; stock и movement
+приёмки не повторяются. Delivery completed означает, что task создана; физическое размещение
+ещё не реализовано. [Подробный flow/SQL](docs/flows/putaway.md), [отчёт](docs/reports/wms-110.md).

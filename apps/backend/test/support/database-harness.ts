@@ -99,11 +99,14 @@ export async function createDatabaseHarness(): Promise<DatabaseHarness> {
     return {
       connection: database, config, containerId: started.getId(),
       get closed() { return closed; },
-      async createWorkerApplication(handlers = [], workerConfig = validateWorkerEnvironment({})) {
-        const moduleRef = await Test.createTestingModule({ imports: [WorkerModule] })
+      async createWorkerApplication(handlers, workerConfig = validateWorkerEnvironment({})) {
+        const builder = Test.createTestingModule({ imports: [WorkerModule] })
           .overrideProvider(DATABASE_CONFIG).useValue(config)
-          .overrideProvider(WORKER_CONFIG).useValue(workerConfig)
-          .overrideProvider(WORKER_HANDLERS).useValue(handlers).compile();
+          .overrideProvider(WORKER_CONFIG).useValue(workerConfig);
+        // undefined сохраняет настоящий production handler; [] явно отключает handlers
+        // для protocol boundary test. Никаких глобальных env mutations.
+        if (handlers !== undefined) builder.overrideProvider(WORKER_HANDLERS).useValue(handlers);
+        const moduleRef = await builder.compile();
         cleanups.push(() => moduleRef.close());
         await moduleRef.init(); return moduleRef;
       },
@@ -137,8 +140,10 @@ export async function createDatabaseHarness(): Promise<DatabaseHarness> {
           // Только disposable admin cleanup может забыть processed marker/consumer history.
           await tx.execute(sql`alter table processed_events disable trigger processed_events_immutable`);
           await tx.execute(sql`alter table consumer_streams disable trigger consumer_streams_retained`);
+          await tx.execute(sql`alter table putaway_tasks disable trigger putaway_tasks_immutable`);
           await tx.execute(sql`truncate table application_metadata, audit_entries, stock_movements, stock_balances,
-            locations, products, warehouses, outbox_deliveries, outbox_events, delivery_streams, outbox_aggregate_sequences, http_idempotency, receipts, receipt_lines, processed_events, consumer_streams`);
+            locations, products, warehouses, outbox_deliveries, outbox_events, delivery_streams, outbox_aggregate_sequences, http_idempotency, receipts, receipt_lines, processed_events, consumer_streams, putaway_tasks`);
+          await tx.execute(sql`alter table putaway_tasks enable trigger putaway_tasks_immutable`);
           await tx.execute(sql`alter table processed_events enable trigger processed_events_immutable`);
           await tx.execute(sql`alter table consumer_streams enable trigger consumer_streams_retained`);
           await tx.execute(sql`alter table receipts enable trigger receipts_retained`);

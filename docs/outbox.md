@@ -10,8 +10,8 @@ Outbox — надёжная очередь фактов; бизнес-код н�
 
 WMS-106 реализует запись события/delivery/stream и транзакционный счётчик.
 WMS-109 реализует worker claim/lease/token, retries/dead и processed markers/cursors.
-Business handler WMS-110 и Kafka ниже пока целевые; production registry пуст,
-inventory.putaway остаётся pending без fake no-op. WMS-108 подключает документ приёмки и HTTP-команды; атомарность
+Business handler inventory.putaway подключён WMS-110: создаёт pending tasks, не повтор stock.
+Kafka ниже остаётся целевым транспортом. WMS-108 подключает документ приёмки и HTTP-команды; атомарность
 inventory/audit/outbox/HTTP result подтверждена integration-тестами.
 
 ## Логическая модель хранения
@@ -143,8 +143,8 @@ events/deliveries/streams/counters нет, включая completed/dead, до r
 
 [Worker README](../apps/backend/src/infrastructure/worker/README.md) — фактические
 SQL locks, token/expiry checks, consumer marker/cursor и batch/shutdown конфигурация.
-Worker process отдельный, API его не запускает. До WMS-110 registry пуст: pending
-не становится completed без бизнес-handler. Equal jitter: cap=min(max,base*2^(attempt-1)),
+Worker process отдельный, API его не запускает. WMS-110 registry содержит ReceivingPostedHandler: task/audit/marker/cursors/ack
+атомарны, pending task означает ожидание физического размещения. Equal jitter: cap=min(max,base*2^(attempt-1)),
 задержка cap/2..cap. MaxAttempts учитывает и crash после claim; exhausted expired claim
 становится dead. Dead блокирует следующую версию только своего потока.
 Process run ограничен PostgreSQL 17 transaction_timeout, SIGTERM drain — общим deadline.

@@ -2,7 +2,7 @@
 
 Документ превращает [roadmap](roadmap.md) в последовательный backlog для разработчика,
 менеджера и агента: задачи, зависимости, проверяемый результат и демонстрация этапа.
-Это план, не отчёт о выполнении. WMS-101–WMS-109 выполнены; остальные задачи запланированы.
+Это план, не отчёт о выполнении. WMS-101–WMS-110 выполнены; остальные задачи запланированы.
 Реализованы каркас NestJS, PostgreSQL/Drizzle, harness, transaction port и audit; статус — в [карте документации](README.md).
 
 ## Как работать с планом
@@ -41,6 +41,17 @@
 - Миграции и конфигурация описаны; секреты и реальные данные не добавлены.
 - Пройдены существующие build/typecheck и необходимые новые проверки.
 - В результате задачи указаны выполненные проверки, ограничения и фактический статус.
+- Подробно описан флоу: триггер, вход/DTO/context, шаги реальных методов, проверки,
+  преобразования, SQL/события, выход, commit/rollback и отрицательные ветви.
+- Флоу показан графически в Mermaid: обзор, sequence исполнения и необходимые
+  состояния/сбои/гонки. Синтетический пример показывает промежуточное и итоговое
+  состояние; существенные ветви связаны с проверками. README содержит описание
+  либо обзор и ссылку на единый подробный разбор в docs/flows.
+
+Формат обязателен для добавляемых/изменяемых сценариев каждой задачи, включая
+инфраструктурные. Одна схема зависимостей не заменяет флоу исполнения.
+[Стандарт детализации](documentation-standard.md#подробный-флоу-сценария),
+[готовый подробный флоу worker WMS-109](flows/worker.md).
 
 Автоматические gates вводятся постепенно; запланированная проверка не считается работающей.
 Тесты outbox и конкуренции выполняются на реальной PostgreSQL, не только на моках.
@@ -167,6 +178,12 @@ prepareForOutbox/parseForHandler; writer подключён в WMS-106,
 [отчёт WMS-109](reports/wms-109.md), [ADR-0015](adr/0015-postgres-worker.md).
 Production handler — WMS-110; pending delivery не подтверждается пустым no-op.
 
+Подробный флоу реализации: [схемы и пошаговый разбор](flows/worker.md) — источники
+данных, claim A / processing B / failure C, locks и состояние до/после commit,
+дубликат, retry/dead, два workers, crash recovery и SIGTERM. При WMS-110 обновить
+ветку регистрации handler и связь event → бизнес-эффект; не выдавать текущий
+test-only handler за готовое создание PutawayTask.
+
 - [x] **WMS-109.1** — Создать отдельный worker entrypoint и конфигурацию batch size, poll interval, lease и retry.
 - [x] **WMS-109.2** — Реализовать claim stream через SKIP LOCKED только для следующей версии; выдавать lease token в короткой транзакции.
 - [x] **WMS-109.3** — Реализовать проверку token и блокировку stream/delivery в обработке; stale worker не может подтвердить чужой claim.
@@ -175,14 +192,20 @@ Production handler — WMS-110; pending delivery не подтверждаетс
 - [x] **WMS-109.6** — На SIGTERM прекратить claim, ограниченно дождаться обработки и закрыть ресурсы.
 - [x] **WMS-109.7** — Проверить два workers, порядок, независимые агрегаты, stale token, crash до/после commit и блокировку потока на dead.
 
-### WMS-110. Первый durable handler
+### WMS-110. Первый durable handler — выполнено
 
-- [ ] **WMS-110.1** — Описать PutawayTask внутри inventory и unique связь с исходной строкой/событием приёмки.
-- [ ] **WMS-110.2** — Реализовать handler ReceivingPosted через публичный inventory interface, без повторного начисления остатков.
-- [ ] **WMS-110.3** — Подключить stable consumer name и полный поток агрегата; для неинтересных событий реализовать безопасный no-op с cursor.
-- [ ] **WMS-110.4** — Обеспечить создание задания и processed marker в одной транзакции worker.
-- [ ] **WMS-110.5** — Проверить дубликат, повтор после crash и конфликт одновременной обработки; задание одно, количество не меняется.
-- [ ] **WMS-110.6** — Документировать состояние ожидающего размещения и диагностическую связь receipt → event → task.
+[Подробный флоу с Mermaid](flows/putaway.md), [ADR-0016](adr/0016-durable-putaway-handler.md),
+[отчёт](reports/wms-110.md), [read-only SQL receipt → event → task](examples/putaway-result.sql).
+Task pending ожидает физического размещения; delivery completed означает создание task.
+No-op ветка предусмотрена для будущих известных неинтересных типов; текущий registry
+знает только ReceivingPosted v1, unknown type/version по-прежнему dead до handler.
+
+- [x] **WMS-110.1** — Описать PutawayTask внутри inventory и unique связь с исходной строкой/событием приёмки.
+- [x] **WMS-110.2** — Реализовать handler ReceivingPosted через публичный inventory interface, без повторного начисления остатков.
+- [x] **WMS-110.3** — Подключить stable consumer name и полный поток агрегата; для неинтересных событий реализовать безопасный no-op с cursor.
+- [x] **WMS-110.4** — Обеспечить создание задания и processed marker в одной транзакции worker.
+- [x] **WMS-110.5** — Проверить дубликат, повтор после crash и конфликт одновременной обработки; задание одно, количество не меняется.
+- [x] **WMS-110.6** — Документировать состояние ожидающего размещения и диагностическую связь receipt → event → task.
 
 ### WMS-111. Административное восстановление
 
@@ -545,10 +568,10 @@ rollback приложения не выдаётся за rollback данных �
 
 ## Следующая задача для агента
 
-WMS-101–WMS-109 завершены. Следующая задача — **WMS-110**: durable handler ReceivingPosted,
-создание PutawayTask через InventoryService без повторного начисления. Worker protocol готов,
-но production registry пуст: зарегистрировать настоящий handler inventory.putaway явно.
-Handler использует переданный TransactionContext, не открывает nested run/внешнее I/O;
-эффект/marker/cursors/completion фиксируются общей transaction worker. Проверить
-повторы/crash/unique event-line связь и отсутствие изменения stock. WMS-111 — inspect/retry.
-Сохранять старые migrations/envelopes, local dev actor и документацию/JSDoc всех изменений.
+WMS-101–WMS-110 завершены. Следующая задача — **WMS-111**: административная диагностика
+и управляемый retry dead/зависших deliveries с проверкой marker, токена, cursor и причиной
+вмешательства. Production inventory.putaway уже зарегистрирован: task/audit/marker/cursors/
+completion атомарны, повтор stock credit запрещён. Сохранять eventId, существующие tasks
+и markers; не делать неявный replay/reset истории. Полномочия административной команды,
+безопасный вывод, audit вмешательства и ограничения dev actor согласовать в рамках задачи.
+Обновлять README, подробный flow, Mermaid, SQL proof и tests вместе с поведением.

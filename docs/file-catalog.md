@@ -1,5 +1,7 @@
 # Каталог файлов
 
+Подробные сквозные сценарии и графические схемы размещаются в docs/flows и связаны с README владельца.
+
 Назначение каждого собственного файла проекта. Каталог обновляется вместе с добавлением,
 перемещением или удалением файла. Подробности конфигурации backend — в
 [README backend](../apps/backend/README.md), правила — в [стандарте](documentation-standard.md).
@@ -75,7 +77,7 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [apps/backend/test/integration/lifecycle.spec.ts](../apps/backend/test/integration/lifecycle.spec.ts) | Проверка cleanup после assertion failure и изоляция двух одновременно живых harnesses. |
 | [apps/backend/test/integration.setup.cjs](../apps/backend/test/integration.setup.cjs) | Устанавливает 120 секунд на integration tests/hooks. |
 | [apps/backend/test/support/README.md](../apps/backend/test/support/README.md) | Test support. |
-| [apps/backend/test/support/database-harness.ts](../apps/backend/test/support/database-harness.ts) | Общий lifecycle Testcontainers PostgreSQL, migrations, Nest config override и cleanup ресурсов. |
+| [apps/backend/test/support/database-harness.ts](../apps/backend/test/support/database-harness.ts) | Disposable HTTP/worker harness, DI config/handlers overrides и cleanup всех ресурсов; undefined handlers сохраняет production registry, [] отключает. |
 | [apps/backend/test/support/metadata.fixture.ts](../apps/backend/test/support/metadata.fixture.ts) | Fixture технических metadata с уникальными значениями; без бизнес-логики. |
 | [apps/backend/test/unit/environment.spec.ts](../apps/backend/test/unit/environment.spec.ts) | Jest unit: конфигурация, defaults, redaction и безопасный startup failure без Docker. |
 | [apps/backend/tsconfig.test.json](../apps/backend/tsconfig.test.json) | TS types/aliases для tests, строгая компиляция в ignored .test-dist. |
@@ -120,7 +122,7 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [apps/backend/src/modules/inventory/inventory.module.ts](../apps/backend/src/modules/inventory/inventory.module.ts) | InventoryModule: единственный экспорт InventoryService; repositories других модулей не импортируются. |
 | [apps/backend/src/modules/inventory/inventory.schema.ts](../apps/backend/src/modules/inventory/inventory.schema.ts) | Inventory-owned balances/movements: int4 checks, unique stock key и composite location ownership FK. |
 | [apps/backend/src/modules/inventory/repositories/inventory.repository.ts](../apps/backend/src/modules/inventory/repositories/inventory.repository.ts) | Inventory SQL: атомарный guarded upsert без lost update и INSERT immutable movement. |
-| [apps/backend/src/modules/inventory/services/inventory.service.ts](../apps/backend/src/modules/inventory/services/inventory.service.ts) | InventoryService — единственный владелец начисления: validation, справочники, balance+audit+movement. |
+| [apps/backend/src/modules/inventory/services/inventory.service.ts](../apps/backend/src/modules/inventory/services/inventory.service.ts) | Публичные receive/getBalance/createPutawayTasks с borrowed context, без повторного stock credit при планировании task. |
 | [apps/backend/src/modules/warehouses/README.md](../apps/backend/src/modules/warehouses/README.md) | Warehouses module. |
 | [apps/backend/src/modules/warehouses/dto/warehouse.dto.ts](../apps/backend/src/modules/warehouses/dto/warehouse.dto.ts) | Внутренние DTO склада/ячеек; зона выражена kind ячейки, отдельной Zone entity пока нет. |
 | [apps/backend/src/modules/warehouses/repositories/warehouses.repository.ts](../apps/backend/src/modules/warehouses/repositories/warehouses.repository.ts) | Warehouses SQL: только собственные таблицы, общий transaction context, без commit. |
@@ -207,7 +209,7 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [apps/backend/src/modules/receiving/dto/receipt.dto.ts](../apps/backend/src/modules/receiving/dto/receipt.dto.ts) | HTTP class validation DTO и JSON output ReceiptDto; int4/1000 строк, без ORM. |
 | [apps/backend/src/modules/receiving/receiving.controller.ts](../apps/backend/src/modules/receiving/receiving.controller.ts) | HTTP create/post/get, normalized fingerprint и отправка committed command response. |
 | [apps/backend/src/modules/receiving/receiving.module.ts](../apps/backend/src/modules/receiving/receiving.module.ts) | Composition receiving и публичные зависимости владельцев, экспорт только ReceivingService. |
-| [apps/backend/src/modules/receiving/receiving.schema.ts](../apps/backend/src/modules/receiving/receiving.schema.ts) | Drizzle source receipts/receipt_lines; immutable guards в custom migration. |
+| [apps/backend/src/modules/receiving/receiving.schema.ts](../apps/backend/src/modules/receiving/receiving.schema.ts) | Receiving schema с immutable draft/posted и WMS-110 composite source unique keys для task provenance FK. |
 | [apps/backend/src/modules/receiving/repositories/receiving.repository.ts](../apps/backend/src/modules/receiving/repositories/receiving.repository.ts) | Private receiving SQL: draft INSERT, parent SELECT FOR UPDATE и posted UPDATE без своего commit. |
 | [apps/backend/src/modules/receiving/services/receiving.service.ts](../apps/backend/src/modules/receiving/services/receiving.service.ts) | Draft/posting orchestration, refs/limits, shared transaction context, отдельный read run для GET. |
 | [apps/backend/test/integration/receiving.spec.ts](../apps/backend/test/integration/receiving.spec.ts) | WMS-108 HTTP/SQL happy path, races, rollback faults, constraints/role, SQL proof и отсутствие task. |
@@ -237,7 +239,26 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [apps/backend/src/worker.ts](../apps/backend/src/worker.ts) | Отдельный executable worker: validated config, Nest application context без HTTP и bounded SIGTERM drain. |
 | [apps/backend/test/integration/worker-process.spec.ts](../apps/backend/test/integration/worker-process.spec.ts) | Реальные child processes + PostgreSQL: SIGTERM drain/deadline, no new claim и crash до/после commit. |
 | [apps/backend/test/integration/worker.spec.ts](../apps/backend/test/integration/worker.spec.ts) | WMS-109 PostgreSQL: два worker graphs, real locks, ordering, dedup, faults и lease fencing. |
-| [apps/backend/test/support/worker-process.fixture.ts](../apps/backend/test/support/worker-process.fixture.ts) | Child-only fixture настоящего worker lifecycle: IPC barriers для SIGTERM/crash, никакого production handler. |
+| [apps/backend/test/support/worker-process.fixture.ts](../apps/backend/test/support/worker-process.fixture.ts) | Child fixture technical/production putaway modes с real task/audit SQL, IPC barriers и commit notification; не production I/O пример. |
 | [apps/backend/test/unit/worker-policy.spec.ts](../apps/backend/test/unit/worker-policy.spec.ts) | Worker config/retry/registry contracts без Docker; SQL atomicity проверяется отдельно integration. |
 | [docs/adr/0015-postgres-worker.md](../docs/adr/0015-postgres-worker.md) | 0015. PostgreSQL worker: stream lease, fencing и атомарный DB handler; фактический контракт/статус, ограничения и evidence. |
 | [docs/reports/wms-109.md](../docs/reports/wms-109.md) | WMS-109: протокол PostgreSQL worker; фактический контракт/статус, ограничения и evidence. |
+| [docs/flows/worker.md](../docs/flows/worker.md) | Подробный флоу WMS-109: семь Mermaid-схем, транзакции A/B/C, состояние БД, дубликаты, ошибки, гонки, shutdown и связь с тестами; production/test-only явно разделены. |
+| [apps/backend/drizzle/0013_glamorous_big_bertha.sql](../apps/backend/drizzle/0013_glamorous_big_bertha.sql) | WMS-110 receiving keys перед tasks/FK либо custom permissions/retention; generator/scaffold Kit, после применения не менять, порядок описан drizzle/README. |
+| [apps/backend/drizzle/0014_clean_abomination.sql](../apps/backend/drizzle/0014_clean_abomination.sql) | WMS-110 receiving keys перед tasks/FK либо custom permissions/retention; generator/scaffold Kit, после применения не менять, порядок описан drizzle/README. |
+| [apps/backend/drizzle/0015_putaway-retention.sql](../apps/backend/drizzle/0015_putaway-retention.sql) | WMS-110 receiving keys перед tasks/FK либо custom permissions/retention; generator/scaffold Kit, после применения не менять, порядок описан drizzle/README. |
+| [apps/backend/drizzle/meta/0013_snapshot.json](../apps/backend/drizzle/meta/0013_snapshot.json) | Generated Drizzle WMS-110 snapshot; source keys/task schema/custom retention, генерация Kit, вручную не менять; описание drizzle/README. |
+| [apps/backend/drizzle/meta/0014_snapshot.json](../apps/backend/drizzle/meta/0014_snapshot.json) | Generated Drizzle WMS-110 snapshot; source keys/task schema/custom retention, генерация Kit, вручную не менять; описание drizzle/README. |
+| [apps/backend/drizzle/meta/0015_snapshot.json](../apps/backend/drizzle/meta/0015_snapshot.json) | Generated Drizzle WMS-110 snapshot; source keys/task schema/custom retention, генерация Kit, вручную не менять; описание drizzle/README. |
+| [apps/backend/src/infrastructure/worker/services/receiving-posted.handler.ts](../apps/backend/src/infrastructure/worker/services/receiving-posted.handler.ts) | Production durable consumer inventory.putaway: validated ReceivingPosted → public inventory API, не повтор stock. |
+| [apps/backend/src/modules/inventory/dto/putaway-task.dto.ts](../apps/backend/src/modules/inventory/dto/putaway-task.dto.ts) | Внутренний inventory API планирования: проверенный receipt event и server-side audit metadata, без HTTP/ORM. |
+| [apps/backend/src/modules/inventory/putaway-task.schema.ts](../apps/backend/src/modules/inventory/putaway-task.schema.ts) | Inventory-owned putaway tasks: одна задача на receipt line, immutable provenance и отсутствие stock mutation. |
+| [apps/backend/src/modules/inventory/repositories/putaway.repository.ts](../apps/backend/src/modules/inventory/repositories/putaway.repository.ts) | SQL только inventory.putaway_tasks: lookup для повторов и INSERT, никаких writes в stock/receiving/outbox. |
+| [apps/backend/src/modules/inventory/services/putaway.service.ts](../apps/backend/src/modules/inventory/services/putaway.service.ts) | Внутренний сценарий inventory: из receipt fact создаёт immutable tasks+audit в borrowed context, без stock credit. |
+| [apps/backend/test/integration/putaway.spec.ts](../apps/backend/test/integration/putaway.spec.ts) | WMS-110 реальные production handler/DB: tasks, audit/marker atomicity, unique race и stock invariance. |
+| [apps/backend/test/support/posted-receipt.fixture.ts](../apps/backend/test/support/posted-receipt.fixture.ts) | Синтетическая проведённая приёмка через production owners, без прямого stock/task SQL и копирования правил. |
+| [apps/backend/test/unit/receiving-posted.handler.spec.ts](../apps/backend/test/unit/receiving-posted.handler.spec.ts) | Dispatch/metadata unit contract; реальный task/marker effect и неизвестные schema проверяются integration. |
+| [docs/adr/0016-durable-putaway-handler.md](../docs/adr/0016-durable-putaway-handler.md) | 0016. Durable putaway handler и уникальная связь задания с приёмкой; фактический статус, подробные схемы/контракт/evidence и ограничения. |
+| [docs/examples/putaway-result.sql](../docs/examples/putaway-result.sql) | Read-only psql proof receipt → posted event → task → audit/marker/cursors; source UUID параметр, до/после worker, выполняется integration. |
+| [docs/flows/putaway.md](../docs/flows/putaway.md) | Приёмка → event → PutawayTask: подробный флоу WMS-110; фактический статус, подробные схемы/контракт/evidence и ограничения. |
+| [docs/reports/wms-110.md](../docs/reports/wms-110.md) | WMS-110: первый durable handler размещения; фактический статус, подробные схемы/контракт/evidence и ограничения. |
