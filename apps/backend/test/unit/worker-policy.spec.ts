@@ -29,7 +29,7 @@ test('classification keeps only safe codes; transient errors retry boundedly', (
   const forged = new PermanentDeliveryError('HANDLER_REJECTED'); Object.assign(forged, { code: 'secret' });
   expect(classifyDeliveryError(forged)).toEqual({ permanent: true, code: 'HANDLER_REJECTED' });
 });
-test('empty production registry has no fake consumer; duplicate/unregistered destinations rejected', () => {
+test('explicitly empty registry has no fake consumer; duplicate/unregistered destinations rejected', () => {
   expect(new HandlerRegistry([]).destinations()).toEqual([]);
   const handler = { destination: 'inventory.putaway', handle: async () => {} };
   expect(() => new HandlerRegistry([handler, handler])).toThrow();

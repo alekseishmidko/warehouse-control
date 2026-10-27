@@ -108,3 +108,12 @@ ReceivingPosted, delivery/stream и результат HTTP атомарны. po
 aggregateId = payload.receiptId. Новый ключ на posted — 409, прежний — saved replay.
 Документ не моделирует ожидаемую поставку/частичную приёмку/коррекцию.
 [Полный контракт](../apps/backend/src/modules/receiving/README.md).
+
+## Ожидание размещения WMS-110
+
+PutawayTask pending создаётся worker на каждую строку posted receipt и не начисляет
+stock. Unique source line/event и composite FK сохраняют исходные receipt/product/quantity/
+location/event. Worker effect, task audit, processed marker, consumer/transport cursors и
+completion фиксируются вместе. Delivery completed не означает task completed: физическое
+размещение пока не реализовано. Source task immutable, корректировка/отмена не появились.
+[Подробный flow](flows/putaway.md), [ADR-0016](adr/0016-durable-putaway-handler.md).

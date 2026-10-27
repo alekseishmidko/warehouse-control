@@ -7,10 +7,11 @@
 результат; повтор доставки не повторяет уже сохранённый эффект. Ошибка может задержать
 следующие события одного документа, но другие документы продолжают обрабатываться.
 
-**Бизнес-handler размещения ещё не подключён (WMS-110).** Production registry пуст:
-`pnpm worker` запускает процесс, но оставляет inventory.putaway pending. Успешного
-фиктивного handler нет. Заданий размещения и повторного начисления приёмки нет.
-Тесты используют отдельный технический DB-handler только в disposable PostgreSQL.
+WMS-110 подключает настоящий ReceivingPostedHandler: inventory.putaway создаёт одну
+pending PutawayTask на строку проведённой приёмки. Task/audit/marker/cursors/completion
+фиксируются вместе; stock/movement приёмки не повторяются. Delivery completed означает,
+что task создана, а task pending — что физическое размещение ещё ожидается.
+[Подробный бизнес-флоу и SQL диагностика](../../../../../docs/flows/putaway.md).
 
 At least once, порядок только внутри `(destination, aggregateType, aggregateId)`.
 Нет обещания exactly once или глобального порядка, Kafka и внешние эффекты отсутствуют.
@@ -28,11 +29,12 @@ WorkerModule — отдельный Nest graph, не импортирует AppM
 | Файл | Ответственность |
 |---|---|
 | ../../worker.ts | Executable bootstrap без HTTP, validated config |
-| worker.module.ts | DatabaseModule и явная handler composition, пустой registry до WMS-110 |
+| worker.module.ts | DatabaseModule/InventoryModule и явная регистрация ReceivingPostedHandler |
 | worker.config.ts | Worker-only env validation/defaults, DI token |
 | worker.schema.ts | Source processed_events/consumer_streams для Drizzle |
 | dto/delivery.dto.ts | Frozen scalar claim и LocalEventHandler contract |
 | delivery-policy.ts | Permanent/stale errors, safe classification, equal jitter |
+| services/receiving-posted.handler.ts | Production inventory.putaway, server actor и вызов публичного inventory API |
 | services/handler-registry.ts | Регистрация стабильных destinations, duplicate guard |
 | services/worker.service.ts | Владелец claim/process/failure transactions |
 | repositories/worker.repository.ts | SKIP LOCKED, token locks, markers/cursors/ack SQL |
@@ -61,6 +63,11 @@ policy; DBA может обойти triggers. SQL constraints не доказы�
 это контракт awaited handler и общей транзакции. Обычный Compose остаётся dev admin.
 
 ### Взаимодействие и движение данных
+
+[Подробный флоу с графическими схемами](../../../../../docs/flows/worker.md):
+polling/claim, три транзакционные границы, успешная обработка и дубликат, состояния
+БД до/после commit, retry/dead, два workers/lease/token, crash recovery и SIGTERM.
+Ниже — краткий обзор; подробные ветки имеют одного владельца в этом разборе.
 
 ```mermaid
 sequenceDiagram
@@ -149,7 +156,7 @@ lease recovery, graceful shutdown не гарантируется. Миграц�
 
 ### Конфигурация и запуск
 
-`pnpm db:migrate`, `pnpm build`, затем отдельный `pnpm worker`. API — другой процесс
+`pnpm db:migrate`, `pnpm build`, затем отдельный `pnpm worker`. Production registry содержит inventory.putaway. API — другой процесс
 `pnpm dev`/`pnpm start`; worker HTTP-порт не слушает, runtime credentials не выводит.
 DATABASE_URL чувствителен; root .env optional, env процесса приоритетен. Новые worker-only
 settings проверяются отдельно и не делают API зависимым от конфигурации worker.
@@ -166,8 +173,8 @@ settings проверяются отдельно и не делают API зав
 | WORKER_SHUTDOWN_TIMEOUT_MS | 15000 | 100..300000, больше transaction timeout |
 
 Пример input claim: eventId UUID, destination inventory.putaway, aggregateType receipt,
-aggregateId UUID, version=1, token новый UUID. Без handler claim возвращает []. После
-регистрации тестового DB handler: process(claim) → completed, effects=1, marker=1,
+aggregateId UUID, version=1, token новый UUID. При явно отключённом registry в tests claim возвращает []. При
+зарегистрированном production handler: process(claim) → completed, effects=1, marker=1,
 consumer cursor=delivery cursor=1; повтор process(oldClaim) → stale, effects остаются 1.
 Если handler бросил transient error: effect/marker отсутствуют, delivery retry,
 оба cursors 0; новое подтверждение только после повторной успешной обработки.

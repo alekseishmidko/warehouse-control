@@ -56,3 +56,6 @@ Kubernetes и Kafka ещё предстоят. Обработчик размещ
 
 Источники: [PostgreSQL 17 SELECT / SKIP LOCKED](https://www.postgresql.org/docs/17/sql-select.html),
 [transaction_timeout](https://www.postgresql.org/docs/17/runtime-config-client.html).
+
+Реализация регистрации handler уточнена WMS-110: [ADR-0016](0016-durable-putaway-handler.md).
+Протокол locks/markers/cursors сохраняется, production registry теперь содержит реальный handler.

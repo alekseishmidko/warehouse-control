@@ -71,8 +71,8 @@ test('10 received: draft has no stock; posting commits one movement/event/pendin
   const event = new EventContracts().parseForHandler(JSON.stringify(rows[0].envelope));
   expect(event).toMatchObject({ eventId: posted.postedEventId, aggregateId: document.id, aggregateVersion: 1,
     occurredAt: posted.postedAt, correlationId, payload: { receiptId: document.id, lines: [{ receiptLineId: document.lines[0].id, quantity: 10 }] } });
-  // Worker отсутствует: проверяем реальный schema catalog, а не фиктивный счётчик задач.
-  expect((await database().connection.pool.query("select to_regclass('public.putaway_tasks') task")).rows[0].task).toBeNull();
+  // API не запускает worker: таблица WMS-110 существует, но до обработки задач нет.
+  expect((await database().connection.pool.query('select count(*)::int as tasks from putaway_tasks')).rows[0].tasks).toBe(0);
   await request(app.getHttpServer()).get(`/api/v1/receipts/${document.id}`).expect(200).expect(res => expect(res.body).toEqual(posted));
   await post(document.id, key).expect(200).expect(res => expect(res.body).toEqual(posted));
   await post(document.id).expect(409).expect(res => expect(res.body.code).toBe('RECEIPT_ALREADY_POSTED'));

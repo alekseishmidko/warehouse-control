@@ -1,6 +1,6 @@
 # Inventory module
 
-Минимальный учёт WMS-104: StockBalance и immutable StockMovement, внутреннее начисление.
+WMS-104: StockBalance и immutable StockMovement. WMS-110: pending PutawayTask и durable планирование размещения.
 
 ## Для менеджера
 
@@ -19,7 +19,11 @@ DBA способен менять БД: append-only не является кри
 | Файл | Назначение |
 |---|---|
 | inventory.module.ts | Экспорт InventoryService, imports сервисов catalog/warehouses/audit |
-| services/inventory.service.ts | receive(context,DTO) и getBalance(context,key) |
+| services/inventory.service.ts | Публичные receive/getBalance/createPutawayTasks с borrowed context |
+| services/putaway.service.ts | Source validation, duplicate/conflict и создание task/audit без stock |
+| repositories/putaway.repository.ts | SELECT/INSERT собственной putaway_tasks, SQL unique race защита |
+| dto/putaway-task.dto.ts | Внутренний command и task result без ORM/HTTP |
+| putaway-task.schema.ts | Source provenance FK, unique line/event, pending и int4 constraints |
 | repositories/inventory.repository.ts | Guarded upsert, appendMovement и чтение собственного balance |
 | dto/stock.dto.ts | StockKeyDto, ReceiveStockDto, StockBalanceDto, ReceiveStockResultDto |
 | inventory.schema.ts | int4, unique/FK/CHECK, movement с audit link и operationId unique |
@@ -116,3 +120,56 @@ command context; receiving владеет документом и ReceivingPoste
 событие второй раз. Invalid receiving kind/overflow — typed INVALID_RECEIVING_LOCATION /
 STOCK_LIMIT_EXCEEDED, HTTP 422. Внешние repos не импортируются.
 [Оркестрация/тесты](../receiving/README.md).
+
+## Планирование размещения WMS-110
+
+Для менеджера: поступившие 10 штук остаются в receiving, а worker создаёт pending задание
+на их будущее физическое размещение. Delivery completed и task pending — разные состояния.
+Выполнение/отмена/назначение target location, UI и task HTTP API ещё отсутствуют.
+Одна task на source receipt line; повтор обработки не добавляет task, audit, movement или stock.
+
+Для разработчика: единственный межмодульный вход InventoryService.createPutawayTasks(context,
+CreatePutawayTasksDto). Модуль по-прежнему экспортирует только InventoryService; PutawayService
+и PutawayRepository private. Worker получает тот же context и владеет commit/rollback.
+Код не читает чужие repositories: source consistency защищают composite FK с receiving.
+Входной event snapshot проверяется EventContracts, duplicate line/product и aggregate/payload
+связь — inventory. Identical task возвращается без нового audit, конфликт — semantic permanent
+отказ в handler. При direct absent-key race SQL unique откатывает проигравшего вместе с audit;
+нельзя подавлять исключение до runner. Normal worker дополнительно сериализует delivery/marker.
+
+```mermaid
+sequenceDiagram
+  participant H as ReceivingPostedHandler
+  participant I as InventoryService / PutawayService
+  participant R as PutawayRepository
+  participant A as AuditService
+  participant DB as PostgreSQL
+  H->>I: createPutawayTasks(общий context, event + server metadata)
+  I->>I: Snapshot/schema, unique lines, source identity
+  I->>R: findBySourceLine
+  R->>DB: SELECT inventory task
+  alt Task отсутствует
+    I->>A: Task audit с безопасными refs/quantity
+    A->>DB: INSERT audit
+    I->>R: insert pending task с auditId
+    R->>DB: INSERT + FK/unique checks
+  else Идентичный repeat
+    Note over I,DB: Существующая task, без нового audit
+  end
+  I-->>H: Result до commit
+  Note over H,DB: Worker добавляет marker/cursors/completion и COMMIT всех эффектов
+```
+
+Пример: ReceivingPosted v1 с одной line quantity=10 → task pending quantity=10, sourceEventId/
+ReceiptId/LineId из event, actor system из handler. Stock onHand=10/reserved=0 и movement=1
+остаются прежними. Подробные шаги, состояния/сбои/конкуренция и конкретные тесты:
+[полный флоу](../../../../../docs/flows/putaway.md),
+[SQL proof](../../../../../docs/examples/putaway-result.sql),
+[ADR-0016](../../../../../docs/adr/0016-durable-putaway-handler.md).
+
+Migrations 0013/0014/0015 последовательно добавляют receiving source keys, task schema и
+runtime SELECT/INSERT + immutable/retained task guard. DBA может обойти защиту. Старые
+applied SQL не менять; dev Compose требует явного pnpm db:migrate. Собственных env нет,
+handler actor синтетический server constant, correlationId исходного event сохраняется в audit.
+Проверки: putaway.spec.ts, worker-process.spec.ts production cases и handler unit suite.
+Метрики/централизованные логи/tracing пока WMS-401/402; диагностика через read-only SQL.

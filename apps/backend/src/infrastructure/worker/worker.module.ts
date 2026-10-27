@@ -6,8 +6,11 @@ import { HandlerRegistry, WORKER_HANDLERS } from './services/handler-registry';
 import { WorkerService } from './services/worker.service';
 import { WorkerLoop } from './services/worker-loop';
 import { WorkerRepository } from './repositories/worker.repository';
-/** Без зарегистрированного бизнес-handler нет claim/ack; worker остаётся доступным для инфраструктурной проверки. */
-@Module({ imports: [DatabaseModule], providers: [{ provide: WORKER_CONFIG, useFactory: loadWorkerConfig },
-  { provide: WORKER_HANDLERS, useValue: [] }, HandlerRegistry, WorkerRepository, WorkerService, WorkerLoop],
+import { InventoryModule } from '../../modules/inventory/inventory.module';
+import { ReceivingPostedHandler } from './services/receiving-posted.handler';
+/** Production registry содержит настоящий handler; tests могут явно заменить список, не меняя API graph. */
+@Module({ imports: [DatabaseModule, InventoryModule], providers: [{ provide: WORKER_CONFIG, useFactory: loadWorkerConfig },
+  ReceivingPostedHandler, { provide: WORKER_HANDLERS, useFactory: (handler: ReceivingPostedHandler) => [handler], inject: [ReceivingPostedHandler] },
+  HandlerRegistry, WorkerRepository, WorkerService, WorkerLoop],
   exports: [WorkerService, WorkerLoop] })
 export class WorkerModule {}

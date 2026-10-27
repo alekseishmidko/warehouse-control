@@ -3,7 +3,7 @@
 Для менеджера: draft описывает фактически принятые товары, но не меняет остаток.
 Проведение начисляет товар и оставляет движение, аудит и событие одной транзакцией.
 Повтор не удваивает поступление. Пока реализован только локальный backend без UI,
-production identity и фонового размещения. [Модель/ограничения и движение данных](../apps/backend/src/modules/receiving/README.md).
+production identity и физического размещения; фоновое создание task готово WMS-110. [Модель/ограничения и движение данных](../apps/backend/src/modules/receiving/README.md).
 
 ## Подготовка локального стенда
 
@@ -83,11 +83,11 @@ SQL поддерживает psql подстановку, не является 
 | delivery | inventory.putaway, pending, attempts=0 |
 | stream | lastCompletedVersion=0, lease отсутствует |
 | audit данного документа и его движения | 3 записи: создание, начисление, проведение |
-| putaway_tasks | таблица ещё отсутствует, заданий нет |
+| putaway_tasks | таблица существует; до worker 0, после worker одна pending task на line |
 
 Если stock существовал до сценария, баланс увеличится на 10, абсолютное значение
 будет иным. Не умножать строки JOIN для подсчёта событий: script считает их отдельным
-подзапросом по документу. Worker WMS-109 пока без handlers; после WMS-110 ожидания delivery/task потребуют обновления.
+подзапросом по документу. WMS-110 подключает handler: после worker delivery completed, оба cursors=1, task pending; stock/movement прежние.
 
 ## Проверка и диагностика
 
@@ -97,4 +97,13 @@ SQL поддерживает psql подстановку, не является 
 happy path, конкуренцию и SQL fault injection. Docker обязателен; skip/fallback нет.
 При отказе сохраните receiptId/correlationId и безопасный problem code;
 сырой SQL/credentials не выдаются. Автоматического retry нет; [transactions](transactions.md).
-Логи/метрики/tracing — будущие WMS-401/402, worker protocol готов WMS-109, handler — WMS-110.
+Логи/метрики/tracing — будущие WMS-401/402, worker protocol и handler готовы WMS-109/110; [putaway flow](flows/putaway.md).
+
+## После обработки worker WMS-110
+
+Предыдущие SQL ожидания pending/attempts=0/cursor=0 относятся к моменту до consumer.
+Теперь production worker по умолчанию обрабатывает inventory.putaway: запустить pnpm worker
+отдельно с той же БД. После successful processing delivery completed, marker есть, consumer
+и transport cursor=1, а PutawayTask pending quantity=10. Приёмка остаётся posted, баланс=10,
+movement/event по одному. Task pending ожидает физического размещения, которое ещё не реализовано.
+[Полный SQL receipt → event → task](examples/putaway-result.sql), [подробные схемы](flows/putaway.md).

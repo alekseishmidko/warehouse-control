@@ -30,7 +30,8 @@ WMS-106: OutboxService/Repository, migrations с aggregate counter, deliveries/s
 immutable envelope и retention guards. WMS-107: HTTP boundaries, isolated dev actor,
 idempotency storage и OpenAPI generation/diff. WMS-108: receiving draft/posted, HTTP create/post/get, parent lock и атомарное проведение.
 WMS-109: worker entrypoint/claim/token/markers/cursors/retry/dead/shutdown protocol.
-Production handlers пока не подключены. Frontend, Kafka,
+WMS-110: production inventory.putaway создаёт pending tasks+audit с atomic markers/cursors/ack.
+Frontend, Kafka,
 образ backend и Kubernetes ещё не реализованы.
 Не считать наличие документации доказательством реализации.
 
@@ -83,7 +84,7 @@ Test support — `apps/backend/test/support/`; отдельный контейн
 Не запускать два test:prepare одновременно в одном checkout; suites одного Jest
 прогона работают параллельно и имеют независимые БД.
 Контрактные fixtures и generation diff проверяются локально в test:prepare/unit.
-CI compatibility comparison ещё нет. Следующая задача — WMS-110 (durable putaway handler).
+CI compatibility comparison ещё нет. Следующая задача — WMS-111 (administrative inspect/retry).
 При добавлении функциональности нужны проверки её бизнес-инвариантов.
 Для outbox обязательны реальные PostgreSQL integration tests: rollback,
 повторная доставка, конкуренция workers, восстановление после сбоя.
@@ -121,6 +122,16 @@ barriers, timeouts и проверяемый инвариант. Одного fi
 дублировать общие правила: давать ссылку на владельца контракта. Комментарии должны
 описывать фактическое поведение и обновляться вместе с ним. Для generated code
 править описание исходной схемы/генератора и регенерировать, не комментировать output вручную.
+
+Для каждого добавляемого/изменяемого сценария подробно описывать флоу, в том числе
+графически в Mermaid. Обязательны триггер, DTO/context и доверие входу, реальные
+вызовы/преобразования/SQL, результаты и ошибки, границы процессов/commit/rollback,
+промежуточное и итоговое состояние. Для сложного сценария разделять обзорный flowchart,
+sequence и необходимые схемы состояний/гонок/сбоев/recovery/shutdown. Каждую существенную
+ветку связывать с тестом/evidence; production/test-only/будущее явно подписывать.
+README даёт флоу либо обзор со ссылкой на одного владельца подробностей в docs/flows;
+не заменять исполнение схемой DI и не дублировать большой разбор. Формат —
+docs/documentation-standard.md, пример — docs/flows/worker.md. Обновлять вместе с кодом.
 
 Перед созданием утилиты искать существующий код через `rg`.
 Переиспользуемую техническую логику выносить в `apps/backend/src/shared/<capability>/`;
@@ -211,7 +222,7 @@ Source OpenAPI — production controllers/DTO/decorators; docs/contracts/openapi
 через pnpm openapi:generate, pnpm openapi:check сравнивает. Offline CLI не вызывает app.init,
 не читает .env/БД. Test prepare включает diff после build. Swagger UI/CI comparison ещё нет.
 Тестовый /api/v1/commands существует только в support fixture, не добавлять в production.
-Новые migrations 0007/0008 не переписывать после применения. Следующий этап WMS-110.
+Новые migrations 0007/0008 не переписывать после применения. Следующий этап WMS-111.
 
 
 ## Receiving WMS-108
@@ -230,16 +241,15 @@ Event aggregateId=payload.receiptId=receipt.id, postedAt=occurredAt, version=1.
 Все routes требуют isolated dev actor, кроме технических GET; production auth/ACL нет.
 Migrations 0009/0010 новые, после применения не менять. SQL guards/retention защищают
 историю от runtime роли, DBA может обойти их. Не начислять stock в worker:
-доставка pending/stream cursor=0, putaway_tasks пока нет. SQL/HTTP proof — docs/receiving.md.
+до обработки delivery pending/stream cursor=0/task нет, после WMS-110 task pending и delivery completed. SQL/HTTP proof — docs/receiving.md.
 Receiving integration проверяет real locks и AFTER SQL fault injection каждого шага;
-cleanup только disposable harness. Следующий этап WMS-110 — business handler, worker registry пока пуст.
+cleanup только disposable harness. Следующий этап WMS-111, business handler зарегистрирован WMS-110.
 
 
 ## Worker WMS-109
 
 WorkerModule отдельный graph без AppModule/HTTP, entrypoint src/worker.ts, pnpm worker
-после build/migrations. Registry production пуст до WMS-110: не добавлять fake no-op,
-не claim/ack inventory.putaway без настоящего handler. WorkerService экспортируется,
+после build/migrations. Registry production содержит ReceivingPostedHandler WMS-110: не заменять его fake no-op. WorkerService экспортируется,
 WorkerRepository внутренний, config/DTO/services/repositories документированы.
 Claim отдельным коротким run: только next version, stream/delivery SKIP LOCKED,
 одинаковый UUID token/DB lease, attempts+1. Processing повторно lock/check token,
@@ -255,5 +265,29 @@ SIGTERM запрещает новый claim, interrupt poll, drain/close в об
 PostgreSQL 17 transaction_timeout bound; CPU-blocking JS не прерывается timer и запрещён.
 Config/defaults в worker README/.env.example, batch<=4 при pool=5. Migrations 0011/0012
 после применения не менять. SIGTERM/SIGKILL и SQL faults проверять реальной БД/child processes.
-Recovery CLI ещё нет. Следующий этап WMS-110: настоящий handler inventory.putaway,
-не повторять receiving stock credit, использовать worker context/atomic markers.
+Recovery CLI ещё нет. Следующий этап WMS-111. Handler inventory.putaway использует
+worker context/atomic markers, не повторяет receiving stock credit.
+
+
+## Durable putaway WMS-110
+
+Production ReceivingPostedHandler зарегистрирован как inventory.putaway в WorkerModule.
+Он вызывает только InventoryService.createPutawayTasks(context,input); PutawayService и
+PutawayRepository — private providers inventory. Нельзя снова вызывать receive/stock credit.
+Одна pending task на sourceReceiptLineId, unique(eventId,lineId), composite source FK проверяют
+posted receipt/event, warehouse/location и line/product/quantity. Source receiving keys добавлены
+новыми migrations 0013 перед task schema 0014 и retention/grants 0015; applied SQL не менять.
+Task/audit/marker/consumer cursor/transport cursor/completion — один worker commit. Direct
+inventory repeat identical task возвращает прежнюю без audit; conflict permanent. Absent-key
+INSERT race защищает unique, проигравший callback должен полностью rollback-нуть task audit.
+Handler actorType system + фиксированный синтетический UUID из кода, correlation исходного event;
+payload не выбирает actor. Нового outbox event/movement при планировании нет.
+Consumer получает полный receipt stream. Будущие известные неинтересные type — no-op с marker/
+cursor; сегодня KnownEvent только ReceivingPosted v1. Unit surrogate проверяет routing ветку,
+не регистрирует новый контракт; unknown type/version по-прежнему dead до handler.
+Task pending означает ожидание физического размещения, delivery completed — создание task.
+Task execution/cancel/target location/API/UI ещё нет. Диагностика receipt → event → task:
+docs/flows/putaway.md и docs/examples/putaway-result.sql, новый отчёт docs/reports/wms-110.md.
+Test harness undefined handlers использует production registry, [] явно отключает его;
+cleanup task immutable trigger только disposable admin DB. Source/task/audit/marker/crash
+проверять реальными migrations/SQL/child SIGKILL до/после commit. Следующий этап WMS-111.

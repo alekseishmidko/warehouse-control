@@ -23,6 +23,9 @@
 | [Приёмка WMS-108](receiving.md) | HTTP-команды draft/posted, пример 10 штук и SQL proof |
 | [Отчёт WMS-108](reports/wms-108.md) | Конкурентное проведение и rollback на каждом шаге |
 | [Worker WMS-109](../apps/backend/src/infrastructure/worker/README.md) | Протокол, конфигурация, движение данных и ограничения |
+| [Подробный флоу worker](flows/worker.md) | Графические схемы, пошаговые ветки, состояние БД и границы транзакций |
+| [Putaway WMS-110](flows/putaway.md) | Подробный production flow, состояния, Mermaid и SQL receipt → event → task |
+| [Отчёт WMS-110](reports/wms-110.md) | Tasks/marker atomicity, SQL constraints, duplicate/concurrency и SIGKILL evidence |
 | [Отчёт WMS-109](reports/wms-109.md) | Реальные PostgreSQL races/faults и child-process shutdown/crash |
 | [Отчёт WMS-107](reports/wms-107.md) | HTTP foundation, OpenAPI и транзакционная идемпотентность |
 | [Отчёт WMS-106](reports/wms-106.md) | Атомарная запись outbox, counter races, migrations и retention |
@@ -64,9 +67,11 @@
 - Готово WMS-108: receiving draft/posted, три business routes под isolated dev actor,
   атомарные stock/movement/audit/outbox/HTTP result и concurrency/fault tests.
 - Готово WMS-109: отдельный worker, SKIP LOCKED/token/lease, markers/cursors,
-  retry/dead и bounded SIGTERM. Production handler отсутствует до WMS-110: deliveries pending.
-- Описано, но не реализовано: остальные складские операции,
-  обработчики, авторизация, frontend, Docker image backend, Kubernetes и CI/CD.
+  retry/dead и bounded SIGTERM. Production handler подключён WMS-110.
+- Готово WMS-110: durable inventory.putaway, pending task на source line, task audit,
+  atomic marker/cursors/completion и crash/duplicate tests без повторного stock credit.
+- Описано, но не реализовано: физическое размещение и остальные складские операции,
+  production авторизация, frontend, Docker image backend, Kubernetes и CI/CD.
 - Пример контракта `ReceivingPosted` — проектный образец, не опубликованный API.
 - Локальные schema/fixtures/generation проверки выполняются в unit suite;
   OpenAPI generation/diff готов локально; CI workflow и breaking-change comparison пока не настроены.

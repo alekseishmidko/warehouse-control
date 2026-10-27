@@ -13,7 +13,7 @@
 TypeScript-типы сами по себе не валидируют вход. События проверяются по JSON
 Schema перед записью outbox и на границе consumer. WMS-105 реализует общий
 EventContracts с prepareForOutbox/parseForHandler, registry, runtime validator
-и генерацию event types. Writer подключён WMS-106, OpenAPI generation WMS-107; consumer ещё предстоит.
+и генерацию event types. Writer подключён WMS-106, OpenAPI generation WMS-107; consumer inventory.putaway реализован WMS-110.
 Дублировать вручную одинаковые DTO в frontend запрещено.
 
 ## HTTP API
@@ -105,8 +105,8 @@ defaults и удаления полей. Локальный registry подде�
 handler caller. Неизвестная версия — UNSUPPORTED_EVENT, invalid payload — INVALID_EVENT,
 неразбираемый JSON — INVALID_JSON, превышенный размер — MESSAGE_TOO_LARGE.
 OutboxService WMS-106 проверяет envelope до INSERT в общей транзакции и сам выделяет
-eventId/aggregateVersion; producer не вправе передавать эти поля. Реального handler
-ещё нет: его validation gate подключается в WMS-109.
+eventId/aggregateVersion; producer не вправе передавать эти поля. Worker validation
+подключена WMS-109, реальный inventory.putaway handler — WMS-110.
 
 `pnpm contracts:generate` создаёт TS types и runtime schema bundle из исходных JSON,
 `pnpm contracts:check` проверяет точное совпадение без изменения checkout.
@@ -130,7 +130,7 @@ check/tests. Команды не требуют Docker/БД. При двух р�
 5. Интеграционные проверки подтверждают бизнес-эффект и дедупликацию.
 
 Локальные проверки schemas/fixtures/event generation и OpenAPI generation diff уже есть; CI workflow,
-сравнение breaking changes с основной веткой и consumer business integration ещё нет.
+сравнение breaking changes с основной веткой ещё нет; consumer business integration готова WMS-110.
 
 ## Уточнение quantity WMS-104
 
@@ -185,3 +185,13 @@ ReceiptDto отделён от Drizzle: id, склад/ячейка, status draf
 nullable postedAt/postedEventId, lines с id/position/productId/quantity.
 Прежний create key возвращает первоначальный draft snapshot; текущее состояние — GET.
 [Примеры и коды отказа](../receiving.md), [ADR-0014](../adr/0014-receiving-vertical-slice.md).
+
+## Consumer inventory.putaway WMS-110
+
+Первый ReceivingPosted handler создаёт одну immutable pending task на source receipt line
+через публичный inventory API. Task/audit/marker/cursors/completion атомарны, stock/movement
+повторно не создаются. Контракт ReceivingPosted v1 не менялся; source ids/quantity/limits
+используются из существующей schema. Task DTO внутренний, новых HTTP routes/OpenAPI schemas нет.
+Известные неинтересные type в будущем проходят no-op handler и cursor. Сейчас registry знает
+только ReceivingPosted: surrogate unit test не добавляет реального контракта. Unknown type/version
+по-прежнему permanent dead до handler. [Схемы и диагностика](../flows/putaway.md).

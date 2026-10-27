@@ -16,7 +16,8 @@ SELECT e.event_id, e.aggregate_version, e.envelope->>'type' AS event_type,
 FROM outbox_events e JOIN outbox_deliveries d ON d.event_id=e.event_id
 JOIN delivery_streams s ON s.destination=d.destination AND s.aggregate_type=e.aggregate_type AND s.aggregate_id=e.aggregate_id
 WHERE e.aggregate_type='receipt' AND e.aggregate_id=:'receipt_id'::uuid;
--- Один ReceivingPosted v1, inventory.putaway, pending, attempts=0, last_completed_version=0, lease_until=null.
+-- До worker: один ReceivingPosted v1, inventory.putaway, pending, attempts=0, last_completed_version=0, lease_until=null.
+-- После WMS-110 worker: completed/cursor=1 и pending task, stock/movement остаются прежними.
 
 SELECT action, entity_type, entity_id, correlation_id, reason_code FROM audit_entries
 WHERE (entity_type='receipt' AND entity_id=:'receipt_id'::uuid)
@@ -24,6 +25,7 @@ WHERE (entity_type='receipt' AND entity_id=:'receipt_id'::uuid)
       (SELECT id FROM receipt_lines WHERE receipt_id=:'receipt_id'::uuid))
 ORDER BY occurred_at, id;
 -- receipt-created, inventory.stock-received, receipt-posted; создающий и проводящий correlation могут различаться.
-SELECT to_regclass('public.putaway_tasks') AS task_table;
--- null: worker/putaway schema ещё не реализованы. Delivery — durable факт ожидания, не задание.
+SELECT count(*) AS tasks FROM putaway_tasks WHERE source_receipt_id=:'receipt_id'::uuid;
+-- WMS-110: до обработки worker — 0, после неё по одной pending task на строку.
+-- Для полной связи receipt → event → task использовать putaway-result.sql.
 COMMIT;

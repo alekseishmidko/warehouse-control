@@ -83,9 +83,20 @@ credential provisioning не включён в schema migration. Текущий 
 ## Локальный worker WMS-109
 
 После явных migrations/build запуск `pnpm worker` отдельным процессом, API отдельно.
-Worker HTTP-порт/readiness endpoint не открывает. Registry production пуст до WMS-110:
-startup предупреждает, что доставки остаются pending. SIGTERM/SIGINT stop claim,
+Worker HTTP-порт/readiness endpoint не открывает. WMS-110 регистрирует inventory.putaway;
+только явно пустой registry оставляет pending без обработки. SIGTERM/SIGINT stop claim,
 bounded drain/close; exit=1 при hard deadline, после crash ждём expiry PostgreSQL lease.
 Config/defaults, DB timeout, диагностика и ограничения —
 [worker README](../apps/backend/src/infrastructure/worker/README.md).
 Не сбрасывать markers/cursors/lease вручную; управляемый recovery CLI ещё не реализован.
+
+
+## Durable handler WMS-110
+
+Production worker теперь автоматически обрабатывает pending inventory.putaway в PutawayTask.
+Требуются migrations 0013/0014/0015; env/команда worker не изменились. Проверить одну БД API/worker.
+Состояние completed delivery + pending task штатно: бизнес-результат consumer достигнут,
+физическое выполнение размещения ещё впереди. [SQL receipt/event/task](examples/putaway-result.sql).
+Historical synthetic outbox facts без реального posted receipt станут permanent dead по source FK;
+их нельзя превращать в фиктивные задания, менять stock либо перепубликовывать с новым eventId.
+Управляемые inspect/retry — WMS-111, без автоматического reset истории при выпуске.

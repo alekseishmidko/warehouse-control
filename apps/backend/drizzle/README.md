@@ -88,3 +88,19 @@ meta/0011_snapshot.json, meta/0012_snapshot.json и journal генерирует
 Миграции не удаляют старые данные, dev volume требует явного pnpm db:migrate.
 Disposable test cleanup отключает retained/immutable guards только в admin harness.
 [Worker модель и границы](../src/infrastructure/worker/README.md).
+
+
+## WMS-110
+
+0013_glamorous_big_bertha.sql — generated receiving composite unique source keys.
+0014_clean_abomination.sql — generated inventory putaway_tasks, source/event-line unique,
+FK к posted receipt/source line и audit, pending/int4 CHECK. Генерация разделена на два
+последовательных schema состояния: сначала существующие receiving unique keys, затем
+новая таблица, чтобы FK не оказались раньше своих targets. Оба SQL — output Kit, не править.
+0015_putaway-retention.sql — custom runtime SELECT/INSERT и immutable retained tasks.
+Scaffold: `pnpm --filter @warehouse/backend exec drizzle-kit generate --custom --name=putaway-retention`.
+meta/0013_snapshot.json, meta/0014_snapshot.json, meta/0015_snapshot.json и journal generated,
+не редактировать вручную. Custom triggers/grants описаны здесь, не в schema snapshot.
+Старые applied migrations не менялись. Existing receipt rows сохраняются; новые unique keys
+не запрещают разрешённые ранее документы, но DDL может блокировать writes. Zero-downtime
+не заявлен; dev БД мигрировать явно. [Модель/флоу](../../../docs/flows/putaway.md).

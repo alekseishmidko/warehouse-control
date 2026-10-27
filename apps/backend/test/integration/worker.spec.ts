@@ -240,8 +240,8 @@ test('consumer gap is dead; runtime role can process and cannot erase markers or
   expect((await pool.query('select last_error from outbox_deliveries where event_id=$1', [gap.eventId])).rows[0].last_error).toBe('CURSOR_MISMATCH');
 });
 
-test('empty production registry leaves delivery pending and starts no implicit no-op', async () => {
-  await events(); const context = await database().createWorkerApplication(); contexts.push(context);
+test('explicitly empty registry leaves delivery pending and starts no implicit no-op', async () => {
+  await events(); const context = await database().createWorkerApplication([]); contexts.push(context);
   expect(await context.get(WorkerService).claim()).toEqual([]);
   expect((await database().connection.pool.query('select status,attempts from outbox_deliveries')).rows).toEqual([{ status: 'pending', attempts: 0 }]);
 });
