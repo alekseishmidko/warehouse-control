@@ -17,9 +17,9 @@
 - [Подробный план разработки](docs/development-plan.md)
 - [Контекст для агента](AGENTS.md)
 
-Реализованы WMS-101–110: PostgreSQL/Drizzle, runtime config, test harness,
+Реализованы WMS-101–112: PostgreSQL/Drizzle, runtime config, test harness,
 транзакции/audit, минимальные catalog/warehouses/inventory, event contracts, outbox writer, HTTP/idempotency и приёмка draft/posted.
-Worker/putaway handler готовы WMS-109/110; backend Docker image и Kubernetes запланированы.
+Worker/putaway handler готовы WMS-109/110; Docker image/Compose готовы WMS-112; Kubernetes запланирован.
 
 ## Запуск
 
@@ -144,3 +144,32 @@ Claim/lease/token, durable markers/cursors, retry/dead и SIGTERM готовы. 
 Production inventory.putaway создаёт pending task на строку posted receipt; stock и movement
 приёмки не повторяются. Delivery completed означает, что task создана; физическое размещение
 ещё не реализовано. [Подробный flow/SQL](docs/flows/putaway.md), [отчёт](docs/reports/wms-110.md).
+
+
+## Local recovery WMS-111
+
+[Проверенный runbook](docs/runbooks/event-recovery.md): pnpm outbox:inspect/retry/signal,
+operator/reason/audit/history, safe JSON и local dead/backlog signal. Команды требуют local
+opt-in и DB admin role; production auth/внешние уведомления ещё нет. Адресный retry сохраняет
+UUID и total attempts, не сбрасывает markers/cursors. `pnpm outbox:recovery-check` воспроизводит
+реальный recovery с CLI в отдельной PostgreSQL, не меняя dev volume.
+
+## Контейнерный запуск WMS-112
+
+Добавьте CONTAINER_DATABASE_URL из .env.example в существующий .env, согласовав
+credentials с PostgreSQL (внутри сети host=postgres, port=5432). Затем:
+
+```sh
+pnpm docker:build
+pnpm app:up
+pnpm app:down # данные сохраняются
+```
+
+API health публикуется на localhost:3000; business routes закрыты до production auth.
+Учебный сценарий приёмки: `pnpm docker:gate` (отдельные БД/project/volume с loopback
+actor). Проверка чистой сборки и исключения secret canary: `pnpm docker:image-check`.
+Все новые файлы/команды и Mermaid flow — [Docker gate](docs/flows/docker-gate.md),
+конфигурация — [Compose](infra/compose/README.md), evidence — [WMS-112](docs/reports/wms-112.md).
+Скрипты scripts/docker-gate.cjs и scripts/docker-image-check.cjs — host-only проверки,
+не runtime image; первый очищает только свой UUID project/volume, второй — только
+свой временный context/archive. Реальная .env ими не загружается.

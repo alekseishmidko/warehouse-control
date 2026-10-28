@@ -1,0 +1,19 @@
+# WMS-112: разрешаем только перечисленные build inputs; .env, Git и host artifacts не передаются BuildKit.
+# Сначала исключаем всё, затем открываем родительские каталоги и конкретные файлы/деревья.
+# Новая build-зависимость требует явного расширения этого списка и проверки docker:image-check.
+**
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.base.json
+!apps/
+!apps/backend/
+!apps/backend/package.json
+!apps/backend/Dockerfile
+!apps/backend/nest-cli.json
+!apps/backend/tsconfig.json
+!apps/backend/tsconfig.build.json
+!apps/backend/src/
+!apps/backend/src/**
+!apps/backend/drizzle/
+!apps/backend/drizzle/**

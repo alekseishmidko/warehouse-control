@@ -148,4 +148,4 @@ Worker process отдельный, API его не запускает. WMS-110 r
 задержка cap/2..cap. MaxAttempts учитывает и crash после claim; exhausted expired claim
 становится dead. Dead блокирует следующую версию только своего потока.
 Process run ограничен PostgreSQL 17 transaction_timeout, SIGTERM drain — общим deadline.
-Durable dead parking реализован; отдельной quarantine table/retry CLI ещё нет.
+Durable dead parking и local retry CLI WMS-111 реализованы; отдельной quarantine table нет.

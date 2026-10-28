@@ -7,6 +7,8 @@ import type { DeliveryClaim } from '../dto/delivery.dto';
 import { classifyDeliveryError, PermanentDeliveryError, retryDelayMs, StaleDeliveryError } from '../delivery-policy';
 import { WorkerRepository } from '../repositories/worker.repository';
 import { HandlerRegistry } from './handler-registry';
+import { deliveryDiagnostic } from '../../../shared/diagnostics/delivery-diagnostic';
+import { logDelivery } from '../delivery-logger';
 
 /** Отдельный worker process использует этот service; API его не импортирует и не запускает polling. */
 @Injectable()
@@ -17,13 +19,20 @@ export class WorkerService {
     private readonly repository: WorkerRepository, private readonly registry: HandlerRegistry,
     @Inject(WORKER_CONFIG) private readonly config: WorkerConfig) {}
 
-  /** Короткий run, только scheduling SQL. Пустой registry не подтверждает и не claim-ит deliveries. */
+  /** Выполняет короткую транзакцию назначения доставок. Пустой registry ничего не захватывает.
+   * @returns Claims после commit; исчерпанные доставки переведены в dead и отдельно залогированы.
+   * Ошибка commit не даёт вывести успешный claimed/dead; внешнего I/O в callback нет. */
   async claim(): Promise<DeliveryClaim[]> {
     if (!this.registry.destinations().length) return [];
-    return this.transactions.run(async context => {
+    const batch = await this.transactions.run(async context => {
       await this.repository.boundTransaction(context, this.config.transactionTimeoutMs);
       return this.repository.claim(context, this.registry.destinations(), this.config);
     });
+    // Назначение уже подтверждено в БД: только теперь выводим диагностику claims/dead.
+    // Best-effort вывод не меняет committed результат и не сериализует lease token.
+    for (const claim of batch.claims) logDelivery('claimed', deliveryDiagnostic(claim));
+    for (const diagnostic of batch.exhausted) logDelivery('dead', diagnostic);
+    return batch.claims;
   }
 
   /**
@@ -52,20 +61,25 @@ export class WorkerService {
         // reclaim SKIP LOCKED не сменит token до commit, повторной проверки wall clock не нужно.
         await this.repository.complete(context, claim);
       });
-      return 'completed';
+      logDelivery('completed', deliveryDiagnostic({ ...claim, lastError: null })); return 'completed';
     } catch (error) {
-      if (error instanceof StaleDeliveryError) return 'stale';
+      if (error instanceof StaleDeliveryError) { logDelivery('stale', deliveryDiagnostic(claim)); return 'stale'; }
       const classification = classifyDeliveryError(error);
       // Callback уже rollback-нут. При потере commit ack эта проверка увидит completed
       // и не перепишет результат; при reclaim новым worker старый token тоже будет отклонён.
-      return this.transactions.run(async context => {
+      const result = await this.transactions.run(async context => {
         await this.repository.boundTransaction(context, this.config.transactionTimeoutMs);
         const delivery = await this.repository.lock(context, claim);
         if (!delivery) return 'stale';
-        const dead = classification.permanent || delivery.attempts >= this.config.maxAttempts;
-        await this.repository.fail(context, claim, dead, classification.code, retryDelayMs(delivery.attempts, this.config));
-        return dead ? 'dead' : 'retry';
+        // Новый административный base открывает бюджет, но attempt в диагностике остаётся общим.
+        // Backoff рассчитывается по попытке текущего бюджета, иначе retry после 10 попыток
+        // сразу исчерпал бы тот же лимит повторно.
+        const budgetAttempt = delivery.attempts - delivery.retryAttemptBase;
+        const dead = classification.permanent || budgetAttempt >= this.config.maxAttempts;
+        await this.repository.fail(context, claim, dead, classification.code, retryDelayMs(budgetAttempt, this.config));
+        return dead ? 'dead' as const : 'retry' as const;
       });
+      logDelivery(result, deliveryDiagnostic({ ...claim, lastError: classification.code })); return result;
     }
   }
 }

@@ -22,6 +22,7 @@ ADR фиксирует причину решения и его последст�
 | [0014](0014-receiving-vertical-slice.md) | Immutable состав приёмки, parent lock и атомарное проведение | Accepted |
 | [0015](0015-postgres-worker.md) | PostgreSQL worker: lease/token, атомарные markers/cursors и shutdown | Accepted |
 | [0016](0016-durable-putaway-handler.md) | Pending PutawayTask, composite source FK и atomic durable handler | Accepted |
+| [0017](0017-local-outbox-recovery.md) | Local inspect/retry/signal, operator audit/history и retry budget base | Accepted |
 
 Шаблон нового ADR: [template.md](template.md). Нумерация последовательная.
 Рутинный implementation detail не требует ADR; изменение границ, гарантий,

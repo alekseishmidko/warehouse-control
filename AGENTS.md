@@ -31,8 +31,9 @@ immutable envelope и retention guards. WMS-107: HTTP boundaries, isolated dev a
 idempotency storage и OpenAPI generation/diff. WMS-108: receiving draft/posted, HTTP create/post/get, parent lock и атомарное проведение.
 WMS-109: worker entrypoint/claim/token/markers/cursors/retry/dead/shutdown protocol.
 WMS-110: production inventory.putaway создаёт pending tasks+audit с atomic markers/cursors/ack.
-Frontend, Kafka,
-образ backend и Kubernetes ещё не реализованы.
+WMS-111: local inspect/retry/signal, structured diagnostics, operator/reason audit/history и retry budget base.
+WMS-112: multi-stage non-root Docker image API/worker/migrate, Compose overlays,
+clean build/layers check и isolated Docker gate 1. Frontend, Kafka и Kubernetes ещё не реализованы.
 Не считать наличие документации доказательством реализации.
 
 ## Обязательные ограничения
@@ -84,7 +85,7 @@ Test support — `apps/backend/test/support/`; отдельный контейн
 Не запускать два test:prepare одновременно в одном checkout; suites одного Jest
 прогона работают параллельно и имеют независимые БД.
 Контрактные fixtures и generation diff проверяются локально в test:prepare/unit.
-CI compatibility comparison ещё нет. Следующая задача — WMS-111 (administrative inspect/retry).
+CI compatibility comparison ещё нет. Следующая задача — WMS-201 (уточнение складских правил).
 При добавлении функциональности нужны проверки её бизнес-инвариантов.
 Для outbox обязательны реальные PostgreSQL integration tests: rollback,
 повторная доставка, конкуренция workers, восстановление после сбоя.
@@ -110,6 +111,9 @@ README каждого модуля содержит схему взаимоде�
 Generated artifacts описывать через генератор, не редактировать вручную.
 Обновлять документацию одновременно с поведением; не оставлять TODO вместо неё.
 
+Поясняющие JSDoc/TSDoc и комментарии пишутся на русском, включая CLI, Dockerfile,
+Compose и тесты; идентификаторы и машинные контракты остаются на английском.
+Применённые миграции и generated artifacts ради перевода не редактировать.
 JSDoc/TSDoc и комментарии к работе кода обязательны при каждом добавлении или
 изменении реализации, включая shared, infrastructure, CLI и test support.
 Для классов, методов, функций и DTO описывать назначение, источник/доверие входных
@@ -184,7 +188,7 @@ receiving HTTP DTO использует эти limits. Unknown optional fields
 
 ## Outbox WMS-106
 
-OutboxModule в infrastructure экспортирует только OutboxService.append(context, AppendEventDto).
+OutboxModule экспортирует writer OutboxService.append(context, AppendEventDto) и local OutboxRecoveryService.
 Producer не задаёт eventId/aggregateVersion; writer создаёт UUID, preflight snapshot,
 выделяет версию guarded upsert в outbox_aggregate_sequences и проверяет финальные bytes
 через EventContracts до INSERT. JSONB сохраняется из проверенного message (смысл,
@@ -222,7 +226,7 @@ Source OpenAPI — production controllers/DTO/decorators; docs/contracts/openapi
 через pnpm openapi:generate, pnpm openapi:check сравнивает. Offline CLI не вызывает app.init,
 не читает .env/БД. Test prepare включает diff после build. Swagger UI/CI comparison ещё нет.
 Тестовый /api/v1/commands существует только в support fixture, не добавлять в production.
-Новые migrations 0007/0008 не переписывать после применения. Следующий этап WMS-111.
+Новые migrations 0007/0008 не переписывать после применения. Следующая задача WMS-201.
 
 
 ## Receiving WMS-108
@@ -243,7 +247,7 @@ Migrations 0009/0010 новые, после применения не менят
 историю от runtime роли, DBA может обойти их. Не начислять stock в worker:
 до обработки delivery pending/stream cursor=0/task нет, после WMS-110 task pending и delivery completed. SQL/HTTP proof — docs/receiving.md.
 Receiving integration проверяет real locks и AFTER SQL fault injection каждого шага;
-cleanup только disposable harness. Следующий этап WMS-111, business handler зарегистрирован WMS-110.
+cleanup только disposable harness. Следующая задача WMS-201, business handler и local recovery готовы.
 
 
 ## Worker WMS-109
@@ -265,7 +269,7 @@ SIGTERM запрещает новый claim, interrupt poll, drain/close в об
 PostgreSQL 17 transaction_timeout bound; CPU-blocking JS не прерывается timer и запрещён.
 Config/defaults в worker README/.env.example, batch<=4 при pool=5. Migrations 0011/0012
 после применения не менять. SIGTERM/SIGKILL и SQL faults проверять реальной БД/child processes.
-Recovery CLI ещё нет. Следующий этап WMS-111. Handler inventory.putaway использует
+Local recovery CLI готова WMS-111. Следующая задача WMS-201. Handler inventory.putaway использует
 worker context/atomic markers, не повторяет receiving stock credit.
 
 
@@ -290,4 +294,48 @@ Task execution/cancel/target location/API/UI ещё нет. Диагностик
 docs/flows/putaway.md и docs/examples/putaway-result.sql, новый отчёт docs/reports/wms-110.md.
 Test harness undefined handlers использует production registry, [] явно отключает его;
 cleanup task immutable trigger только disposable admin DB. Source/task/audit/marker/crash
-проверять реальными migrations/SQL/child SIGKILL до/после commit. Следующий этап WMS-111.
+проверять реальными migrations/SQL/child SIGKILL до/после commit. Следующая задача WMS-201.
+
+
+## Administrative recovery WMS-111
+
+Local CLI: outbox:inspect/retry/signal, outbox:recovery-check — verified isolated runbook.
+OUTBOX_ADMIN_ENABLED=false default; CLI до DB требует explicit dev/test и loopback DATABASE_URL.
+Service дополнительно проверяет warehouse_outbox_admin membership, operator UUID утверждает
+локальный вызывающий, не authenticated identity. Remote admin API/production auth нет.
+OutboxRecoveryService/RecoveryRepository принадлежат outbox; не писать domain tables/markers/cursors.
+Retry только один dead eventId+consumer, NOWAIT locks stream/delivery, live lease запрещён,
+marker отсутствует, оба cursors=version-1, attempts ниже int4 max. Processing expired восстанавливает
+worker, не admin. Audit/history/retry scheduling атомарны; не подавлять SQL/audit failure.
+Total attempts монотонен. Worker budget/backoff = attempts-retry_attempt_base; admin устанавливает
+base=attempts, history хранит прежние attempts/base/error/operator/reason/auditId. Envelope/eventId,
+lastError, tasks/markers/cursors scheduling не сбрасывает. History retained immutable, runtime
+warehouse_app не может менять budget base/insert recovery history, DBA способен обойти guards.
+Inspect safe payload omitted либо opt-in validated preview 10 lines, no unknown fields/token;
+общие diagnostic fields/safe error codes в shared/diagnostics. Worker NDJSON только после commit,
+I/O sink не внутри transaction и не влияет на outcome. Signal local counts/thresholds, Node codes
+0 healthy / 2 alert / 1 failure, внешние каналы отдельно WMS-401/402. Pino/Loki stack ещё нет.
+Migrations 0016/0017 после применения не менять. Cleanup history trigger только disposable
+admin harness. Runbook/fault/role/lease/cursor/race/rollback/CLI проверять реальным PostgreSQL.
+WMS-112 завершена; следующая задача — WMS-201, без неявного remote deploy/публикации.
+
+
+## Docker WMS-112
+
+Один Dockerfile в apps/backend, root context allowlist .dockerignore, pinned Node 24.22.1
+и pnpm 10.18.3, frozen full/prod installs в разных stages. Runtime только production
+node_modules, dist, drizzle; .env/Git/host dist/test/node_modules не копировать.
+Node PID 1, USER node; API/worker/migrate разные CMD одного image. Base compose.yaml
+сохраняет postgres-only workflow; compose.app.yaml добавляет startup healthy/migrate
+exit 0 dependencies. API default production, dev actor/admin false, localhost publication;
+DB runtime остаётся local owner, production login/RBAC не provisioned. API /health liveness,
+не continuous DB readiness; worker без health probe. Read-only rootfs, tmpfs /tmp, cap drop,
+no-new-privileges; Compose grace 20s согласовывать с worker shutdown timeout.
+Host DATABASE_URL loopback:15432, CONTAINER_DATABASE_URL postgres:5432; credentials runtime
+не выводить через compose config/inspect Env. Root .env не переписывать ради Docker.
+pnpm docker:build/app:up/app:migrate/app:down — обычные команды (down сохраняет volume).
+pnpm docker:image-check — clean no-cache build и fake secret scan final layers.
+pnpm docker:gate — отдельный wms112-UUID project/volume/env, actor только loopback через
+exec, настоящие HTTP/SQL, restart и SIGTERM; cleanup только собственного disposable volume.
+Не использовать compose.gate.yaml для внешнего доступа, guard не ослаблять ради demo.
+Flow/evidence: docs/flows/docker-gate.md, docs/reports/wms-112.md. Следующая задача WMS-201.

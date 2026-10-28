@@ -27,3 +27,5 @@ SIGTERM, rollout и восстановление worker. Этапы 1, 3, 5.
 
 Источники: [Gateway Fabric](https://docs.nginx.com/nginx-gateway-fabric),
 [retirement ingress-nginx](https://kubernetes.io/blog/2026/01/29/ingress-nginx-statement/).
+
+WMS-112: Docker/Compose часть реализована, см. [flow](../flows/docker-gate.md) и [evidence](../reports/wms-112.md). Kubernetes/Helm/NGINX пока не реализованы.

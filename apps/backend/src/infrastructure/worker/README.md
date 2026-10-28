@@ -15,7 +15,7 @@ pending PutawayTask на строку проведённой приёмки. Tas
 
 At least once, порядок только внутри `(destination, aggregateType, aggregateId)`.
 Нет обещания exactly once или глобального порядка, Kafka и внешние эффекты отсутствуют.
-Dead останавливает поток до управляемого восстановления WMS-111, которое ещё не реализовано.
+Dead останавливает поток до управляемого восстановления WMS-111 через локальную role-checked CLI.
 Сохранённые receiving/stock данные от этого не откатываются.
 
 ## Для разработчика
@@ -110,7 +110,7 @@ sequenceDiagram
    lease stream также свободен/истёк. Dead/completed predecessor не пропускается.
 3. `FOR UPDATE OF s,d SKIP LOCKED` захватывает stream/delivery. Каждому выдаётся
    random UUID token, одинаковый DB deadline, status processing и attempts+1. При
-   attempts >= max после crash delivery становится dead/ATTEMPTS_EXHAUSTED без новой
+   attempts - retry_attempt_base >= max после crash delivery становится dead/ATTEMPTS_EXHAUSTED без новой
    попытки эффекта. Claim возвращается только после commit.
 4. Новый run обработки ограничен PostgreSQL transaction_timeout/statement_timeout.
    Повторно блокирует stream/delivery и проверяет оба token, live lease, status и cursor
@@ -140,7 +140,7 @@ EventContractError и PermanentDeliveryError — permanent; SQLSTATE класс�
 DATABASE_REJECTED. Deadlock/serialization/disconnect/timeout и неизвестный отказ —
 TRANSIENT_FAILURE до maxAttempts. Raw exception.message/stack/payload не сохраняются.
 last_error — только allowlisted code; это durable dead parking, отдельной quarantine table
-и inspect/retry CLI пока нет. Permanent handler может использовать HANDLER_REJECTED.
+нет; локальные inspect/retry/signal CLI реализованы WMS-111. Permanent handler может использовать HANDLER_REJECTED.
 
 Equal jitter: cap=min(retryMaxMs,retryBaseMs*2^(attempt-1)), delay в [cap/2,cap], минимум
 1ms; available_at рассчитывается PostgreSQL clock. Это retry всей доставки после rollback,
@@ -190,8 +190,23 @@ processes, SIGTERM drain/deadline, SIGKILL и DB recovery, отсутствие 
 `pnpm test`, `pnpm typecheck`, `pnpm db:generate` (no diff после generation).
 Тесты используют real migrations и disposable harness, Docker failure — не skip.
 
-Fixed безопасные lifecycle/poll ошибки пока идут в stdout/stderr. Централизованные
+Delivery diagnostics WMS-111 идут в stdout как JSON после commit; lifecycle/poll ошибки — безопасным текстом. Централизованные
 key-value логи/метрики/tracing — WMS-401/402; HTTP readiness worker ещё нет.
 Диагностика: eventId/destination/attempts/last_error/lease/token и оба cursors;
 не сбрасывать lease/cursor/markers руками. [Runbook](../../../../../docs/runbooks/event-recovery.md),
 [ADR-0015](../../../../../docs/adr/0015-postgres-worker.md), [outbox](../outbox/README.md).
+
+
+## Диагностика и administrative budget WMS-111
+
+DeliveryClaim содержит sanitized correlationId/total attempt/lastError. Общая форма
+shared/diagnostics — eventId, correlationId, stream, consumer, attempt, lastError, без token.
+delivery-logger.ts — local NDJSON sink после claim/processing/failure commit, exhausted claim
+также логируется dead. Best-effort sink failure не меняет DB outcome; durable source — таблицы.
+
+Worker budget/backoff использует attempts-retry_attempt_base, total attempts никогда не
+уменьшается. Base меняет только отдельный approved administrative retry с audit/history;
+обычный failure/claim его не меняет. Config maxAttempts остаётся bounded попытками одного budget.
+[Полный recovery flow](../../../../../docs/flows/outbox-recovery.md),
+[команды](../../../../../docs/runbooks/event-recovery.md). Это локальная диагностика,
+полный Pino/Loki/OTel stack и внешние alert channels ещё не реализованы.

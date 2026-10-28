@@ -3,6 +3,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { setTimeout as delay } from 'node:timers/promises';
 import { WORKER_CONFIG, WorkerConfig } from '../worker.config';
 import { WorkerService } from './worker.service';
+import { deliveryDiagnostic } from '../../../shared/diagnostics/delivery-diagnostic';
+import { logDelivery } from '../delivery-logger';
 
 /** Не стартует через lifecycle автоматически: entrypoint явно вызывает run, API не импортирует worker. */
 @Injectable()
@@ -24,7 +26,12 @@ export class WorkerLoop {
         // не начатые claims безопасно восстановятся после lease expiry.
         if (this.stopping.signal.aborted) break;
         const results = await Promise.allSettled(claims.map(claim => this.worker.process(claim)));
-        if (results.some(result => result.status === 'rejected')) console.error('Worker delivery persistence failed');
+        // При отказе сохранить outcome связываем безопасную ошибку с конкретным claim по индексу.
+        // allSettled уже дождался всего batch; чужие потоки не прерываются из-за одной ошибки.
+        // Диагностика выполняется вне транзакций, исходный rejection/SQL cause не выводится.
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') logDelivery('persistence-failed', deliveryDiagnostic({ ...claims[index], lastError: 'TRANSIENT_FAILURE' }));
+        });
       } catch { console.error('Worker poll failed'); }
       // Не логируем exception/env/payload. Даже DB outage не создаёт busy retry loop.
       try { await delay(this.config.pollIntervalMs, undefined, { signal: this.stopping.signal }); }

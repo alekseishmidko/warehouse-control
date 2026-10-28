@@ -12,7 +12,7 @@ export const applicationMetadata = pgTable('application_metadata', {
 export { products } from '../../modules/catalog/catalog.schema';
 export { warehouses, locations } from '../../modules/warehouses/warehouses.schema';
 export { stockBalances, stockMovements } from '../../modules/inventory/inventory.schema';
-export { outboxAggregateSequences, outboxEvents, outboxDeliveries, deliveryStreams } from '../outbox/outbox.schema';
+export { outboxAggregateSequences, outboxEvents, outboxDeliveries, deliveryStreams, outboxRecoveryActions } from '../outbox/outbox.schema';
 export { httpIdempotency } from '../idempotency/idempotency.schema';
 export { receipts, receiptLines } from '../../modules/receiving/receiving.schema';
 export { processedEvents, consumerStreams } from '../worker/worker.schema';

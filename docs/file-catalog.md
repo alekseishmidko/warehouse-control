@@ -164,8 +164,8 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [apps/backend/src/infrastructure/outbox/README.md](../apps/backend/src/infrastructure/outbox/README.md) | Менеджерская и техническая документация writer: DTO, sequence diagram, SQL/commit/rollback, errors, retention и ограничения. |
 | [apps/backend/src/infrastructure/outbox/dto/append-event.dto.ts](../apps/backend/src/infrastructure/outbox/dto/append-event.dto.ts) | Внутренний append DTO: producer задаёт факт и generated payload, writer владеет eventId/aggregateVersion. |
 | [apps/backend/src/infrastructure/outbox/outbox-destinations.ts](../apps/backend/src/infrastructure/outbox/outbox-destinations.ts) | Стабильный inventory.putaway destination полного receipt stream и безопасный maximum aggregateVersion. |
-| [apps/backend/src/infrastructure/outbox/outbox.module.ts](../apps/backend/src/infrastructure/outbox/outbox.module.ts) | Nest composition OutboxService/private OutboxRepository без собственного pool или запуска worker. |
-| [apps/backend/src/infrastructure/outbox/outbox.schema.ts](../apps/backend/src/infrastructure/outbox/outbox.schema.ts) | Drizzle source counter/events/deliveries/streams с индексами, identity/unique/FK/CHECK. |
+| [apps/backend/src/infrastructure/outbox/outbox.module.ts](../apps/backend/src/infrastructure/outbox/outbox.module.ts) | Composition writer/local recovery services, общий DatabaseModule/AuditModule, без HTTP/worker startup. |
+| [apps/backend/src/infrastructure/outbox/outbox.schema.ts](../apps/backend/src/infrastructure/outbox/outbox.schema.ts) | Outbox stream/event/delivery schema, WMS-111 retry_attempt_base и immutable recovery actions history. |
 | [apps/backend/src/infrastructure/outbox/repositories/outbox.repository.ts](../apps/backend/src/infrastructure/outbox/repositories/outbox.repository.ts) | Private SQL adapter: counter upsert под row lock и INSERT event/message::jsonb/delivery/stream с borrowed context. |
 | [apps/backend/src/infrastructure/outbox/services/outbox.service.ts](../apps/backend/src/infrastructure/outbox/services/outbox.service.ts) | Публичный append(context,input): UUID, snapshot, атомарная версия, финальная contract validation, без собственного commit. |
 | [apps/backend/test/integration/outbox.spec.ts](../apps/backend/test/integration/outbox.spec.ts) | Реальные PostgreSQL tests WMS-106: stock/audit/outbox atomicity, locks/rollback/crash, unique/constraints и retention права. |
@@ -228,10 +228,10 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [apps/backend/src/infrastructure/worker/README.md](../apps/backend/src/infrastructure/worker/README.md) | PostgreSQL outbox worker — WMS-109; фактический контракт/статус, ограничения и evidence. |
 | [apps/backend/src/infrastructure/worker/delivery-policy.ts](../apps/backend/src/infrastructure/worker/delivery-policy.ts) | Retry policy локального DB handler: allowlisted codes и bounded equal jitter без error payload. |
 | [apps/backend/src/infrastructure/worker/dto/delivery.dto.ts](../apps/backend/src/infrastructure/worker/dto/delivery.dto.ts) | Внутренние worker contracts: immutable claim identity и DB-only handler с opaque transaction context. |
-| [apps/backend/src/infrastructure/worker/repositories/worker.repository.ts](../apps/backend/src/infrastructure/worker/repositories/worker.repository.ts) | PostgreSQL worker protocol: parameterized SQL, один порядок locks и обязательный borrowed context. |
+| [apps/backend/src/infrastructure/worker/repositories/worker.repository.ts](../apps/backend/src/infrastructure/worker/repositories/worker.repository.ts) | SKIP LOCKED/token protocol, post-commit diagnostic snapshots, total attempts и отдельный retry budget base. |
 | [apps/backend/src/infrastructure/worker/services/handler-registry.ts](../apps/backend/src/infrastructure/worker/services/handler-registry.ts) | Явная регистрация DB handlers; production без WMS-110 не имеет фиктивного успешного consumer. |
 | [apps/backend/src/infrastructure/worker/services/worker-loop.ts](../apps/backend/src/infrastructure/worker/services/worker-loop.ts) | Poll scheduler: batch parallelism ограничен pool, stop прерывает polling и ожидает активные handlers. |
-| [apps/backend/src/infrastructure/worker/services/worker.service.ts](../apps/backend/src/infrastructure/worker/services/worker.service.ts) | Владелец claim/process/failure transactions; handler effect и durable ack имеют одну границу commit. |
+| [apps/backend/src/infrastructure/worker/services/worker.service.ts](../apps/backend/src/infrastructure/worker/services/worker.service.ts) | Claim/process/failure ownership и atomic handler ack, post-commit diagnostics, bounded budget/backoff. |
 | [apps/backend/src/infrastructure/worker/worker-process.ts](../apps/backend/src/infrastructure/worker/worker-process.ts) | Process lifecycle: signal до/после startup, bounded drain и finally закрытие Nest/pg без HTTP listener. |
 | [apps/backend/src/infrastructure/worker/worker.config.ts](../apps/backend/src/infrastructure/worker/worker.config.ts) | Worker-only runtime config: bounded polling/lease/retry без раскрытия исходных env values. |
 | [apps/backend/src/infrastructure/worker/worker.module.ts](../apps/backend/src/infrastructure/worker/worker.module.ts) | Worker graph без HTTP/Receiving controllers; handlers подключаются явно в composition root WMS-110. |
@@ -262,3 +262,33 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [docs/examples/putaway-result.sql](../docs/examples/putaway-result.sql) | Read-only psql proof receipt → posted event → task → audit/marker/cursors; source UUID параметр, до/после worker, выполняется integration. |
 | [docs/flows/putaway.md](../docs/flows/putaway.md) | Приёмка → event → PutawayTask: подробный флоу WMS-110; фактический статус, подробные схемы/контракт/evidence и ограничения. |
 | [docs/reports/wms-110.md](../docs/reports/wms-110.md) | WMS-110: первый durable handler размещения; фактический статус, подробные схемы/контракт/evidence и ограничения. |
+| [apps/backend/drizzle/0016_tough_blindfold.sql](../apps/backend/drizzle/0016_tough_blindfold.sql) | WMS-111 generated schema либо custom admin role/immutable history/budget guards; scaffold/generation Kit, после применения не менять, детали drizzle/README. |
+| [apps/backend/drizzle/0017_outbox-recovery-grants.sql](../apps/backend/drizzle/0017_outbox-recovery-grants.sql) | WMS-111 generated schema либо custom admin role/immutable history/budget guards; scaffold/generation Kit, после применения не менять, детали drizzle/README. |
+| [apps/backend/drizzle/meta/0016_snapshot.json](../apps/backend/drizzle/meta/0016_snapshot.json) | Generated Drizzle WMS-111 snapshot delivery budget/recovery schema/custom grants; pnpm db:generate, вручную не менять, triggers/grants в drizzle/README. |
+| [apps/backend/drizzle/meta/0017_snapshot.json](../apps/backend/drizzle/meta/0017_snapshot.json) | Generated Drizzle WMS-111 snapshot delivery budget/recovery schema/custom grants; pnpm db:generate, вручную не менять, triggers/grants в drizzle/README. |
+| [apps/backend/src/infrastructure/outbox/dto/recovery.dto.ts](../apps/backend/src/infrastructure/outbox/dto/recovery.dto.ts) | Internal administrative command contracts; operator UUID утверждается локальным вызывающим, не HTTP identity. |
+| [apps/backend/src/infrastructure/outbox/outbox-admin.ts](../apps/backend/src/infrastructure/outbox/outbox-admin.ts) | Local-only inspect/retry/signal executable: strict args/opt-in before DB, JSON stdout и bounded resource cleanup. |
+| [apps/backend/src/infrastructure/outbox/recovery-options.ts](../apps/backend/src/infrastructure/outbox/recovery-options.ts) | Strict local CLI parsing и opt-in guard до создания pool; не production authorization. |
+| [apps/backend/src/infrastructure/outbox/repositories/recovery.repository.ts](../apps/backend/src/infrastructure/outbox/repositories/recovery.repository.ts) | Administrative outbox SQL: read snapshots, NOWAIT stream/delivery locks и atomic retry/history без domain writes. |
+| [apps/backend/src/infrastructure/outbox/services/outbox-recovery.service.ts](../apps/backend/src/infrastructure/outbox/services/outbox-recovery.service.ts) | Локальный administrative owner: inspect/signal и bounded retry transaction с audit, без запуска handler/worker. |
+| [apps/backend/src/infrastructure/worker/delivery-logger.ts](../apps/backend/src/infrastructure/worker/delivery-logger.ts) | Локальный JSON diagnostic sink после commit, без полного logging stack WMS-401 и без влияния на outcome БД. |
+| [apps/backend/src/shared/diagnostics/README.md](../apps/backend/src/shared/diagnostics/README.md) | Delivery diagnostics; контракты, фактическое поведение, флоу/проверки и ограничения. |
+| [apps/backend/src/shared/diagnostics/delivery-diagnostic.ts](../apps/backend/src/shared/diagnostics/delivery-diagnostic.ts) | Pure delivery diagnostics: общая форма worker/inspect, allowlist ошибок и отсутствие raw payload/token. |
+| [apps/backend/test/integration/outbox-recovery.spec.ts](../apps/backend/test/integration/outbox-recovery.spec.ts) | WMS-111 real CLI/runbook + PostgreSQL safety: role, active lease/locks, cursors, audit/history atomicity и signal. |
+| [apps/backend/test/unit/outbox-recovery.spec.ts](../apps/backend/test/unit/outbox-recovery.spec.ts) | Local recovery boundary/unit contracts: strict flags, opt-in и redacted structured diagnostics, без Docker. |
+| [docs/adr/0017-local-outbox-recovery.md](../docs/adr/0017-local-outbox-recovery.md) | 0017. Локальные inspect/retry/signal и сохранение бюджета попыток; контракты, фактическое поведение, флоу/проверки и ограничения. |
+| [docs/flows/outbox-recovery.md](../docs/flows/outbox-recovery.md) | Inspect → адресный retry → worker: флоу WMS-111; контракты, фактическое поведение, флоу/проверки и ограничения. |
+| [docs/reports/wms-111.md](../docs/reports/wms-111.md) | WMS-111: локальная диагностика и адресный retry; контракты, фактическое поведение, флоу/проверки и ограничения. |
+
+## Docker WMS-112
+
+| Файл | Назначение |
+|---|---|
+| [.dockerignore](../.dockerignore) | Allowlist root build context; исключает credentials, Git и host artifacts до передачи BuildKit. |
+| [apps/backend/Dockerfile](../apps/backend/Dockerfile) | Multi-stage frozen build/prod install, pinned Node/pnpm, non-root exec API/worker/migrate; описание в Docker flow. |
+| [infra/compose/compose.app.yaml](../infra/compose/compose.app.yaml) | Локальный app overlay: общий image/config/security, PostgreSQL health и migration completion dependencies; API liveness. |
+| [infra/compose/compose.gate.yaml](../infra/compose/compose.gate.yaml) | Test-only loopback dev actor overlay; использовать только с isolated docker gate, не внешним стендом. |
+| [scripts/docker-gate.cjs](../scripts/docker-gate.cjs) | Host driver isolated Compose gate 1: HTTP/idempotency/SQL, named volume restart, non-root PID 1 и SIGTERM; cleanup своего disposable проекта. |
+| [scripts/docker-image-check.cjs](../scripts/docker-image-check.cjs) | Host-only clean no-cache build и fake secret regression scan всех final image layers; временные context/archive очищаются. |
+| [docs/flows/docker-gate.md](../docs/flows/docker-gate.md) | Владелец WMS-112 build/startup/data/shutdown flow, Mermaid, доверия DTO/context, команд, ошибок и ограничений. |
+| [docs/reports/wms-112.md](../docs/reports/wms-112.md) | Фактические WMS-112 clean build/layer/gate1/SIGTERM/volume/test evidence и ограничения. |

@@ -18,7 +18,7 @@
 | Надёжные события | PostgreSQL transactional outbox | WMS-110 writer/worker/putaway handler готовы |
 | Event transport | Kafka, затем Schema Registry | Последующий этап |
 | UI | React, Vite, TanStack Query, Tailwind, shadcn/ui | Целевой стек |
-| Контейнеры | Docker, Compose | PostgreSQL Compose готов; образ backend предстоит |
+| Контейнеры | Docker, Compose | PostgreSQL + non-root API/worker image и Compose готовы WMS-112 |
 | Оркестрация | kind, Kubernetes, Helm | Обязательно |
 | Внешний HTTP | NGINX Gateway Fabric + Gateway API | Принято |
 | Телеметрия | Pino, OpenTelemetry, Prometheus, Grafana, Loki, Tempo | По этапам |
@@ -175,3 +175,5 @@ Task/audit/marker/cursors/completion коммитятся атомарно.
 [Подробное движение данных](../apps/backend/src/infrastructure/worker/README.md),
 [ADR-0015](adr/0015-postgres-worker.md). Общий transaction runner всё ещё без auto retry;
 повтор доставки происходит отдельно после rollback с backoff/dead budget.
+
+WMS-112 реализует ADR-0005: [один image, отдельные API/worker и migration process](flows/docker-gate.md). Kubernetes/NGINX пока целевые компоненты.

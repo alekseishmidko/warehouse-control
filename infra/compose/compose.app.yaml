@@ -1,0 +1,107 @@
+# Что это за файл
+# compose.app.yaml — дополнение (overlay) к compose.yaml для локального запуска всего backend в Docker.
+# Само имя app не имеет специального значения для Docker: файл подключается явно через -f.
+# Это не Dockerfile: Dockerfile собирает образ, а Compose описывает процессы, сеть и их настройки.
+#
+# Зачем разделили файлы
+# - compose.yaml: только PostgreSQL. Подходит, когда backend запускается на host через pnpm dev/worker.
+# - compose.yaml + compose.app.yaml: PostgreSQL, миграции, API и worker работают в контейнерах.
+# - Добавление compose.gate.yaml: временно меняет API для автоматической учебной демонстрации gate 1.
+# Так postgres-only разработка не требует сборки/запуска контейнеров приложения.
+# Оба дополнения предназначены для локальной среды; production deployment здесь не реализован.
+#
+# Как объединяются настройки
+# Несколько -f образуют одну Compose-конфигурацию в указанном порядке. Поздний файл добавляет
+# сервисы или переопределяет поля по правилам Compose, а не заменяет весь предыдущий файл целиком.
+# Этот файл использует postgres из compose.yaml; отдельно без базового файла его запускать нельзя.
+# Относительные пути объединённой конфигурации считаются от первого файла (здесь infra/compose).
+#
+# Как использовать — команды из корня репозитория
+# 1. Если .env отсутствует, скопировать .env.example; существующую .env не перезаписывать.
+# 2. Добавить CONTAINER_DATABASE_URL: те же локальные credentials/база, но host=postgres и port=5432.
+#    Пароль в URL кодируется. Host DATABASE_URL остаётся 127.0.0.1:15432 для команд вне контейнеров.
+#    Смена POSTGRES_PASSWORD в .env не меняет пароль уже существующего PostgreSQL volume.
+# 3. pnpm app:up — собрать image, запустить PostgreSQL, применить миграции, запустить API/worker.
+#    Скрипт выполняет:
+#    docker compose --env-file .env -f infra/compose/compose.yaml -f infra/compose/compose.app.yaml up -d --build --wait api worker
+# 4. GET http://127.0.0.1:3000/health — проверить HTTP-процесс; API_PORT меняет опубликованный порт.
+# 5. pnpm app:down — остановить стек, сохранив named volume PostgreSQL. Не добавлять --volumes.
+# После изменения SQL: пересобрать image и выполнить pnpm app:migrate перед новым API/worker.
+# Завершённый migration service может переиспользоваться Compose и не заменяет явный запуск новых миграций.
+#
+# Что будет доступно
+# Один image запускается тремя командами: migrate — одноразовый процесс, api и worker — отдельные процессы.
+# Порядок старта: PostgreSQL healthy → migrate exit=0 → независимый старт API и worker.
+# API публикуется только на localhost host-машины, внутри контейнера слушает 0.0.0.0:3000.
+# Dev actor выключен: технические GET доступны, складские HTTP-команды получают 403 до production auth.
+# NODE_ENV=production здесь проверяет поведение приложения, но не превращает локальный стенд в production:
+# DB login пока локальный owner, постоянной DB readiness и production identity ещё нет.
+# Для выполнения учебной приёмки используйте pnpm docker:gate — назначение соседнего compose.gate.yaml.
+#
+# Общие настройки ниже
+# x-backend — YAML-шаблон, а не четвёртый сервис. &backend создаёт anchor,
+# <<: *backend переиспользует image/build/env/security для migrate/api/worker без копирования настроек.
+# Объединение environment у worker явно сохраняет общую среду и добавляет только WORKER_*.
+# Полный сценарий, Mermaid и ограничения: docs/flows/docker-gate.md; evidence: docs/reports/wms-112.md.
+x-backend: &backend
+  image: ${BACKEND_IMAGE:-warehouse-backend:local}
+  build:
+    context: ../..
+    dockerfile: apps/backend/Dockerfile
+  # Значения заданы явно: host .env не может незаметно включить actor/admin в контейнере.
+  environment: &backend-environment
+    NODE_ENV: production
+    DATABASE_URL: ${CONTAINER_DATABASE_URL:?Set CONTAINER_DATABASE_URL with postgres host and port 5432}
+    PORT: '3000'
+    HTTP_HOST: 0.0.0.0
+    DEV_ACTOR_ENABLED: 'false'
+    OUTBOX_ADMIN_ENABLED: 'false'
+  # Rootfs неизменяем; единственный временный каталог ограничен tmpfs. Данные хранит PostgreSQL.
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=16m
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  # Больше default worker drain=15s; при изменении timeout согласовать оба предела.
+  stop_grace_period: 20s
+services:
+  # Один migration process до зависимых API/worker, а не запуск миграций в каждом процессе.
+  migrate:
+    <<: *backend
+    command: ['dist/infrastructure/database/migrate.js']
+    depends_on:
+      postgres:
+        condition: service_healthy
+  api:
+    <<: *backend
+    command: ['dist/main.js']
+    ports:
+      - '127.0.0.1:${API_PORT:-3000}:3000'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      # Только liveness процесса. Health PostgreSQL и migration exit=0 проверяются при запуске,
+      # а не непрерывно: этот endpoint не обещает готовность БД после её последующего отказа.
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/health',{signal:AbortSignal.timeout(2000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+  # Worker не зависит от HTTP API: после миграции может обрабатывать outbox самостоятельно.
+  worker:
+    <<: *backend
+    command: ['dist/worker.js']
+    environment:
+      <<: *backend-environment
+      WORKER_BATCH_SIZE: ${WORKER_BATCH_SIZE:-4}
+      WORKER_POLL_INTERVAL_MS: ${WORKER_POLL_INTERVAL_MS:-1000}
+      WORKER_LEASE_MS: ${WORKER_LEASE_MS:-30000}
+      WORKER_RETRY_BASE_MS: ${WORKER_RETRY_BASE_MS:-1000}
+      WORKER_RETRY_MAX_MS: ${WORKER_RETRY_MAX_MS:-60000}
+      WORKER_MAX_ATTEMPTS: ${WORKER_MAX_ATTEMPTS:-10}
+      WORKER_TRANSACTION_TIMEOUT_MS: ${WORKER_TRANSACTION_TIMEOUT_MS:-10000}
+      WORKER_SHUTDOWN_TIMEOUT_MS: ${WORKER_SHUTDOWN_TIMEOUT_MS:-15000}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully

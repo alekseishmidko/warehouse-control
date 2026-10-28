@@ -213,7 +213,8 @@ sequenceDiagram
 `-v receipt_id=<UUID>`. Показывает receipt → line → posted event → task → audit,
 delivery status и оба cursors/marker. До handler task_id null, после — pending task UUID.
 Путь event.correlationId → task.auditId → audit.correlationId помогает расследованию.
-Inspect/retry CLI WMS-111 и UI пока нет; ручной reset marker/cursor не предлагается.
+Local inspect/retry CLI готова WMS-111, [проверенные команды](../runbooks/event-recovery.md).
+UI пока нет; ручной reset marker/cursor не предлагается.
 
 | Проверяемый путь | Evidence |
 |---|---|

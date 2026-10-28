@@ -141,8 +141,13 @@ export async function createDatabaseHarness(): Promise<DatabaseHarness> {
           await tx.execute(sql`alter table processed_events disable trigger processed_events_immutable`);
           await tx.execute(sql`alter table consumer_streams disable trigger consumer_streams_retained`);
           await tx.execute(sql`alter table putaway_tasks disable trigger putaway_tasks_immutable`);
+          // История recovery ссылается на аудит и delivery, поэтому очищается с их FK-графом.
+          // Отключать immutable trigger разрешено только в этой disposable admin БД.
+          // Повторное включение ниже находится в той же cleanup-транзакции.
+          await tx.execute(sql`alter table outbox_recovery_actions disable trigger outbox_recovery_actions_immutable`);
           await tx.execute(sql`truncate table application_metadata, audit_entries, stock_movements, stock_balances,
-            locations, products, warehouses, outbox_deliveries, outbox_events, delivery_streams, outbox_aggregate_sequences, http_idempotency, receipts, receipt_lines, processed_events, consumer_streams, putaway_tasks`);
+            locations, products, warehouses, outbox_deliveries, outbox_events, delivery_streams, outbox_aggregate_sequences, http_idempotency, receipts, receipt_lines, processed_events, consumer_streams, putaway_tasks, outbox_recovery_actions`);
+          await tx.execute(sql`alter table outbox_recovery_actions enable trigger outbox_recovery_actions_immutable`);
           await tx.execute(sql`alter table putaway_tasks enable trigger putaway_tasks_immutable`);
           await tx.execute(sql`alter table processed_events enable trigger processed_events_immutable`);
           await tx.execute(sql`alter table consumer_streams enable trigger consumer_streams_retained`);

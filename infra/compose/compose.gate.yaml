@@ -1,0 +1,45 @@
+# Что это за файл
+# compose.gate.yaml — тестовое дополнение к compose.yaml + compose.app.yaml для демонстрации gate 1.
+# Gate 1 — проверка первого сквозного сценария: приёмка 10 штук, повтор posting,
+# остановленный worker, затем одно задание размещения без повторного начисления остатков.
+# Имя gate — договорённость проекта, а не специальный режим Docker/Compose.
+#
+# Чем отличается от compose.app.yaml
+# app добавляет реальные контейнеры API/worker/migrate с выключенной учебной identity.
+# gate НЕ создаёт второй backend и НЕ меняет image, worker, миграции или складскую бизнес-логику.
+# Он переопределяет только environment уже существующего api, чтобы разрешить изолированный dev actor.
+# Остальные environment-поля API (например DATABASE_URL и PORT) наследуются из app при объединении.
+# Этот файл подключается последним: compose.yaml → compose.app.yaml → compose.gate.yaml.
+# Сам по себе gate не содержит достаточной конфигурации для запуска приложения.
+#
+# Почему нужны эти переопределения
+# Обычный app запускает API с NODE_ENV=production и DEV_ACTOR_ENABLED=false: business routes закрыты.
+# Production auth ещё нет, поэтому для учебной HTTP-команды используется server-side synthetic actor.
+# Guard требует одновременно явный development/test, DEV_ACTOR_ENABLED=true, UUID actor,
+# HTTP_HOST loopback и loopback socket peer. Здесь соблюдены эти условия; guard не отключается.
+# HTTP_HOST=127.0.0.1 — loopback ВНУТРИ API-контейнера, не localhost host-машины.
+# Поэтому унаследованный published port не открывает этот listener с host/других контейнеров.
+# Проверочный скрипт вызывает HTTP через docker compose exec: Node fetch внутри API-контейнера.
+# UUID ниже синтетический и задаётся сервером; body/headers запроса не могут выбрать пользователя.
+#
+# Где и как использовать — из корня репозитория
+# pnpm docker:gate
+# Скрипт scripts/docker-gate.cjs сам подключает нужные файлы в нужные моменты:
+# сначала base+app (проверка /health и business 403), затем base+app+gate (учебные команды через exec).
+# Он создаёт отдельный project wms112-UUID, env tempfile 0600, новые credentials/volume и случайные порты.
+# После проверок удаляет только этот disposable project/volume; root .env и dev БД не используются.
+# Важно: такую изоляцию создаёт СКРИПТ, не этот YAML. Если вручную добавить -f compose.gate.yaml
+# к обычному проекту, его DATABASE_URL и volume останутся прежними — отдельная БД автоматически не появится.
+#
+# Когда НЕ использовать
+# Не добавлять этот файл к повседневному pnpm app:up и не использовать на внешнем стенде.
+# Он не заменяет настоящую authentication/ACL и не нужен для обычного чтения /health.
+# Для host-разработки используйте postgres-only compose.yaml, для обычного Docker backend — base+app.
+# Подробный флоу и cleanup: docs/flows/docker-gate.md; результаты: docs/reports/wms-112.md.
+services:
+  api:
+    environment:
+      NODE_ENV: development
+      HTTP_HOST: 127.0.0.1
+      DEV_ACTOR_ENABLED: 'true'
+      DEV_ACTOR_ID: dbb37b21-1c4a-4b32-9307-148df1647f4c

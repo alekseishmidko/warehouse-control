@@ -1,73 +1,141 @@
 # Восстановление обработки событий
 
-Проектный runbook: административные команды пока не реализованы.
-Не выполнять произвольные SQL reset/update по этому документу.
+Проверенный локальный runbook WMS-111. Команды inspect/retry/signal реализованы;
+реальная CLI последовательность проверена в disposable PostgreSQL. Не выполнять
+произвольные SQL reset/update, не менять eventId/envelope/markers/cursors/tasks.
+[Подробный flow](../flows/outbox-recovery.md), [модель прав](../adr/0017-local-outbox-recovery.md).
 
-Реализация и проверка этого runbook запланированы в
-[плане разработки](../development-plan.md): WMS-111 — inspect/retry,
-WMS-404 — recovery drill, WMS-506 — переключение на Kafka.
+## Для менеджера
 
-## Для менеджера и координатора инцидента
+Зафиксировать receipt/eventId, время и correlationId; не проводить приёмку повторно ради
+ремонта очереди. Подтверждённые stock/movement сохраняются при ошибке фонового handler.
+Delivery completed + task pending означает успешное создание задания и ожидание физического
+размещения, а не отказ доставки. Оператор сообщает причину, затронутый stream и итог проверки.
 
-Если подтверждённая операция не приводит к следующему заданию, зафиксировать
-документ/заказ, время и correlationId и передать оператору. Не проводить документ
-повторно и не менять остатки ради ремонта очереди. Задержка доставки не отменяет
-подтверждённую складскую операцию.
-Оператор сообщает затронутые процессы, масштаб и время следующего обновления.
-Сроки реакции пока не утверждены. Инцидент закрывается после проверки бизнес-результата,
-отсутствия двойного начисления/списания и восстановления заблокированного потока.
+## Безопасная воспроизводимая тренировка
 
-## Диагностика
+Из корня репозитория, с доступным Docker и установленными workspace dependencies:
 
-По eventId/correlationId найти outbox event, destination, попытки, последний error,
-lease и stream cursor. Проверить схему, DB health, блокировки и backlog.
-Для Kafka дополнительно проверить broker availability, publisher ack и group lag.
-Наличие event в broker не означает выполненный DB effect.
+```sh
+pnpm outbox:recovery-check
+```
 
-## Retry после исправления
+Команда выполняет build/contracts/OpenAPI checks и integration recovery suite. Создаёт
+собственный PostgreSQL, применяет настоящие migrations, создаёт posted receipt через
+production owners, вводит временный test-only SQL fault после task INSERT и получает dead.
+Затем удаляет fault и вызывает **настоящий compiled CLI** inspect → signal → retry → worker
+→ inspect/signal. Проверяется одна task/marker/movement/event, stock=10, operator/reason audit
+и сохранение attempts. После тестов контейнер/pools закрываются; dev Compose и его volume
+не меняются. Production handler не имеет fault flag. Нормальный результат — passed suite,
+никакого Docker skip/fallback. Число cases растёт вместе с safety tests, см. [отчёт](../reports/wms-111.md).
 
-1. Устранить причину: код, схема, конфигурация или доступность зависимости.
-2. Проверить processed marker и фактический бизнес-эффект.
-3. Управляемой командой вернуть конкретную delivery из dead в retry,
-   сохраняя eventId, историю попыток и причину вмешательства.
-4. Не пропускать следующую версию заблокированного агрегата.
-5. Проверить результат, cursor и спад backlog; записать действие в audit.
+## Условия ручного локального запуска
 
-Lease не сбрасывать вручную, пока старый обработчик может работать.
-Для Kafka publisher перед передачей владения гарантировать остановку старого процесса.
+Перед использованием текущей локальной БД: `pnpm db:migrate`, `pnpm build`.
+Требуются PostgreSQL 17 и migrations 0016/0017, отдельный worker/API уже используют эту БД.
+В ignored .env настроен loopback DATABASE_URL; URL с credentials не передавать флагом.
+CLI требует explicit NODE_ENV development/test, OUTBOX_ADMIN_ENABLED=true и loopback DB host.
+Для обычного запуска опция выключена. DB login должен иметь warehouse_outbox_admin role
+с нужными grants; dev migration owner/superuser также проходит. CLI не создаёт login и
+не аутентифицирует человека по operator UUID. Remote production admin API не реализован.
 
-## Replay
+```sh
+export NODE_ENV=development
+export OUTBOX_ADMIN_ENABLED=true
+WMS_EVENT_ID='<postedEventId из ответа проведения>'
+WMS_OPERATOR_ID='dbb37b21-1c4a-4b32-9307-148df1647f4c'
+```
 
-Указать диапазон, consumer и цель. Обычный replay не очищает processed_events.
-Для новой read model создать новый consumer name и изолированную проекцию.
-Перед повтором внешних эффектов нужен отдельный план компенсации/idempotency.
+UUID оператора в примере синтетический; для локальной практики выбрать свой постоянный
+UUID и указывать его явно. Это утверждённый локальным вызывающим субъект, не проверка
+пользовательского каталога. Не включать этот режим на внешнем стенде; provisioning credentials
+и authenticated production RBAC остаются отдельными задачами.
 
-## Cutover на Kafka
+## 1. Найти состояние и ограничить масштаб
 
-Остановить запись → завершить локальных workers → backup и boundary →
-перенести незавершённые доставки с прежними eventId → запустить Kafka путь →
-проверить эффекты/markers/cursors → открыть запись.
-При ошибке не включать два пути одновременно. После новых эффектов rollback
-требует явного нового boundary, а не простого переключения env variable.
+```sh
+pnpm outbox:inspect --event "$WMS_EVENT_ID" --consumer inventory.putaway
+pnpm outbox:inspect --event "$WMS_EVENT_ID" --consumer inventory.putaway --payload
+pnpm outbox:signal
+```
 
+Inspect показывает eventId, source correlationId, stream/type/id/version, consumer,
+общий attempt, lastError, status, обе lease даты/active flags, cursors и processed marker.
+Последние 20 recovery records включают прежние attempts/base/error, operator/reason и auditId.
+Payload по умолчанию omitted; --payload показывает только проверенные UUID/quantity первых
+10 lines и lineCount/truncated. Unknown optional fields исключены; invalid envelope redacted.
+Raw error/stack/SQL/token/credentials не печатаются. Не считать inspect блокировкой worker.
 
-## Реализованный baseline WMS-109
+Signal defaults: dead>=1 либо active backlog>=100 либо oldest active backlog>=60s → alert.
+Backlog=pending/retry/processing; dead отдельный count. BlockedStreams показывает next-version
+потоки с dead, expiredProcessing — кандидаты автоматического lease recovery.
+Можно явно задать `--dead-limit 1 --backlog-limit 100 --max-age-seconds 60`.
+Node executable возвращает 0 healthy, 2 alert, 1 denial/failure. pnpm добавляет свои banners;
+для machine-readable одного JSON и точных exit codes использовать после build:
 
-Автоматически восстанавливается истёкший lease processing delivery, если её stream
-не заблокирован активной transaction. Token меняется; stale process не может ack/fail
-нового владельца. Ошибка rollback-ит effect/marker/cursors, отдельный run ставит retry/dead.
-Expired claim с исчерпанным budget тоже dead; следующий event того же потока заблокирован.
-Permanent code/attempts/DB deadline — durable evidence; raw payload/credentials не логируются.
+```sh
+node apps/backend/dist/infrastructure/outbox/outbox-admin.js signal
+```
 
-Production registry содержит inventory.putaway WMS-110. Долго pending delivery без task
-требует проверки worker, lease, last_error и DB health. Completed delivery с pending task —
-успешное создание задания, а не отказ очереди: физическое размещение ещё не реализовано.
-Сам handler не меняет приёмочный stock; проверьте receipt → event → task по read-only SQL.
-SIGTERM drain/deadline и SIGKILL recovery проверены child-process integration tests;
-ручной reset/replay/admin CLI по-прежнему не реализован и этим runbook не разрешён.
-[Конфигурация/протокол](../../apps/backend/src/infrastructure/worker/README.md).
+Команда использует тот же env guard. Внешние каналы/уведомления не вызываются и не
+настроены этим этапом. Pino/Loki/метрики и alert routing — WMS-401/402.
 
-WMS-110 диагностика: [putaway-result.sql](../examples/putaway-result.sql),
-[состояния/сбои](../flows/putaway.md). Unknown source FK и conflicting event для существующей
-line — permanent dead, не повод менять stock или генерировать новый eventId. API inspect/retry
-ещё не реализован; этот документ не разрешает manual reset markers/cursors/tasks.
+## 2. Устранить причину до retry
+
+- Для transient dependency/DB failure восстановить доступность.
+- Для ошибочного handler/schema support исправить код и перезапустить нужный worker.
+- Для source FK/semantic конфликтов изучить receipt → event → task через
+  [read-only putaway SQL](../examples/putaway-result.sql). Не исправлять immutable fact руками.
+- Processing с expired lease восстанавливает сам worker, это не dead retry.
+- Completed/processed marker не повторять; не удалять task/marker ради «чистого» прогона.
+
+Runbook тренировки устраняет причину удалением fault только внутри disposable fixture.
+В пользовательской dev БД такой failure injection CLI не существует. Неисправленная причина
+снова даст dead — сам retry не делает неправильный event корректным.
+
+## 3. Выполнить ровно один адресный retry
+
+```sh
+pnpm outbox:retry --event "$WMS_EVENT_ID" --consumer inventory.putaway \
+  --operator "$WMS_OPERATOR_ID" --reason dependency-restored
+```
+
+Reason — технический code до 96 символов, например handler-fixed/schema-support-added;
+не свободный текст с токенами, персональными данными или описанием инцидента.
+Команда требует dead, неактивные leases и отсутствие locks работающего handler (NOWAIT).
+Оба cursors должны быть version-1, marker отсутствовать; обход предыдущего event запрещён.
+Retry не вызывает handler. В одной transaction сохраняются AuditService entry и immutable
+recovery record, ставится retry/available now и budget base=текущие attempts. EventId/envelope,
+общие attempts, last_error, tasks, markers/cursors сохраняются. Новый worker claim увеличит
+общие attempts, но начнёт новый ограниченный бюджет; прежняя ошибка останется в history.
+
+Ответ содержит committed recoveryId/auditId, operator/reason, administrationCorrelationId.
+Исходный correlationId event не заменяется. При потере ответа сначала inspect: повтор той же
+команды на уже retry/processing/completed будет отклонён, новая история не создаётся автоматически.
+
+| Code | Действие |
+|---|---|
+| LOCAL_ACCESS_REQUIRED / ADMIN_ROLE_REQUIRED | Проверить локальный режим и DB membership; не обходить guard |
+| DELIVERY_NOT_FOUND / INVALID_ARGUMENTS | Проверить UUID и consumer, не выбирать другой event наугад |
+| DELIVERY_BUSY / LEASE_ACTIVE | Дождаться штатного завершения/автоматического lease recovery |
+| NOT_DEAD | Processing/retry/pending не являются целью административного dead retry |
+| PREDECESSOR_REQUIRED | Устранить предыдущую ошибку потока, не продвигать cursors вручную |
+| ALREADY_PROCESSED | Исследовать состояние, не сбрасывать marker/task |
+| ATTEMPT_LIMIT_REACHED | Требуется отдельное решение по исчерпанному int4 counter, reset не предлагается |
+
+## 4. Проверить итог
+
+Worker должен работать отдельным процессом: `pnpm worker`. Далее повторить inspect/signal.
+Ожидание для демонстрационной одной строки: delivery completed, оба cursors=1, marker=true,
+attempt 2, recovery history с прежним attempt 1; task pending, stock=10/reserved=0,
+movement/event/task по одному. Наличие task проверяется [putaway-result.sql](../examples/putaway-result.sql).
+Alert исчезает при отсутствии других dead/старого backlog; другой поток может требовать
+отдельного расследования. После локального обслуживания выключить OUTBOX_ADMIN_ENABLED.
+
+## Будущие replay и Kafka recovery
+
+Replay/rebuild, массовый retry и внешние эффекты этой CLI не реализованы. Для них нужен
+явный диапазон/consumer/start position и отдельный план, сохраняющий ordinary deduplication.
+Kafka cutover остаётся проектным WMS-506: stop writers/workers → backup/boundary → явный
+перенос незавершённых delivery с прежним eventId → проверка эффектов → открытие записи.
+Не включать два транспортных пути одновременно, не считать rollback образа rollback данных.

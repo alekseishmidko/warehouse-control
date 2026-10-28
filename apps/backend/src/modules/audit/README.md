@@ -168,8 +168,8 @@ input — объект выше. Пример показывает вызов, �
 | Повтор write в новом run | Новый вызов сервиса | Новая запись с новым UUID; deduplication пока не реализована |
 
 Общий retry/recovery-контекст — [transactions](../../../../../docs/transactions.md),
-а [event-recovery](../../../../../docs/runbooks/event-recovery.md) относится к будущей
-доставке outbox, не к ремонту текущей audit-таблицы.
+а [event-recovery](../../../../../docs/runbooks/event-recovery.md) описывает локальное
+восстановление outbox WMS-111 и будущую Kafka recovery, не ремонт audit-таблицы.
 
 Подтверждающие тесты: [service](../../../test/unit/audit.service.spec.ts),
 [validation/redaction](../../../test/unit/audit-entry.spec.ts),

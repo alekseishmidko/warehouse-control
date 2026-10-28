@@ -27,7 +27,17 @@
     "contracts:check": "pnpm --filter @warehouse/backend contracts:check",
     "openapi:generate": "pnpm --filter @warehouse/backend openapi:generate",
     "openapi:check": "pnpm --filter @warehouse/backend openapi:check",
-    "worker": "pnpm --filter @warehouse/backend worker"
+    "worker": "pnpm --filter @warehouse/backend worker",
+    "outbox:inspect": "pnpm --filter @warehouse/backend outbox:inspect",
+    "outbox:retry": "pnpm --filter @warehouse/backend outbox:retry",
+    "outbox:signal": "pnpm --filter @warehouse/backend outbox:signal",
+    "outbox:recovery-check": "pnpm --filter @warehouse/backend outbox:recovery-check",
+    "docker:build": "docker build -f apps/backend/Dockerfile -t warehouse-backend:local .",
+    "app:up": "docker compose --env-file .env -f infra/compose/compose.yaml -f infra/compose/compose.app.yaml up -d --build --wait api worker",
+    "app:down": "docker compose --env-file .env -f infra/compose/compose.yaml -f infra/compose/compose.app.yaml down",
+    "app:migrate": "docker compose --env-file .env -f infra/compose/compose.yaml -f infra/compose/compose.app.yaml run --rm migrate",
+    "docker:gate": "node scripts/docker-gate.cjs",
+    "docker:image-check": "node scripts/docker-image-check.cjs"
   },
   "private": true
 }

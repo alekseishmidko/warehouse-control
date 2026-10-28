@@ -21,7 +21,11 @@
     "contracts:check": "node scripts/generate-event-contracts.cjs --check",
     "openapi:generate": "pnpm build && node scripts/generate-openapi.cjs",
     "openapi:check": "pnpm build && node scripts/generate-openapi.cjs --check",
-    "worker": "node dist/worker.js"
+    "worker": "node dist/worker.js",
+    "outbox:inspect": "node dist/infrastructure/outbox/outbox-admin.js inspect",
+    "outbox:retry": "node dist/infrastructure/outbox/outbox-admin.js retry",
+    "outbox:signal": "node dist/infrastructure/outbox/outbox-admin.js signal",
+    "outbox:recovery-check": "pnpm test:prepare && jest --selectProjects integration --runInBand --runTestsByPath .test-dist/test/integration/outbox-recovery.spec.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",

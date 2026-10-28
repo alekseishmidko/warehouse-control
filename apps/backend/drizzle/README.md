@@ -104,3 +104,37 @@ meta/0013_snapshot.json, meta/0014_snapshot.json, meta/0015_snapshot.json и jou
 Старые applied migrations не менялись. Existing receipt rows сохраняются; новые unique keys
 не запрещают разрешённые ранее документы, но DDL может блокировать writes. Zero-downtime
 не заявлен; dev БД мигрировать явно. [Модель/флоу](../../../docs/flows/putaway.md).
+
+
+## WMS-111
+
+0016_tough_blindfold.sql — generated retry_attempt_base в deliveries и outbox_recovery_actions,
+source delivery/audit FK и range checks. meta/0016_snapshot.json и journal создаёт Kit.
+0017_outbox-recovery-grants.sql — custom warehouse_outbox_admin NOLOGIN, targeted grants,
+immutable recovery history и monotonic attempts/admin-only base transition guard.
+Scaffold: `pnpm --filter @warehouse/backend exec drizzle-kit generate --custom --name=outbox-recovery-grants`.
+meta/0017_snapshot.json generated; triggers/grants не представлены snapshot. Generated SQL/meta
+не править вручную, applied migrations 0000–0015 не менялись. Existing rows получают base=0,
+source attempts/event/history не удаляются. Нужны migration-owner CREATEROLE либо заранее
+подготовленная группа, реальные credentials не provision-ятся migration. Dev volume мигрировать
+явно через pnpm db:migrate. [Role/flow](../../../docs/flows/outbox-recovery.md).
+
+### Пояснение ограничений WMS-111
+
+0016 добавляет `retry_attempt_base` с начальным 0 для существующих доставок. CHECK
+`0 <= retry_attempt_base <= attempts` отделяет новый бюджет от общего счётчика, не удаляя
+следов прежних попыток. Таблица `outbox_recovery_actions` связана составным FK с конкретной
+доставкой (event_id, consumer) и отдельным FK с audit_entries. Причина — технический код
+до 96 символов; previous_attempts/base/error объясняют состояние до вмешательства.
+
+0017 создаёт NOLOGIN permission group, не login с паролем. Администратору outbox даны
+права читать состояние, обновлять scheduling и добавлять аудит/историю; прав начислять
+остатки эта роль не добавляет. Runtime warehouse_app не может создавать recovery history
+или менять base. Trigger не разрешает уменьшить общий attempts, а изменение base требует
+admin membership и перехода dead → retry при неизменном attempts и новом base=старый attempts.
+История защищена от UPDATE/DELETE/TRUNCATE, но DBA способен обойти эти ограничения.
+
+Оператор не меняет уже сохранённый eventId/envelope, marker, cursor или warehouse effect.
+Тестовый harness отключает защиту только для очистки созданной им disposable БД и включает
+её обратно в той же транзакции. Эти пояснения находятся в README, поскольку 0016/0017 уже
+применены: менять SQL/checksum ради перевода комментариев или править generated snapshots нельзя.

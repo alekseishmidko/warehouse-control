@@ -77,3 +77,45 @@ Dev admin URL остаётся прежним. Миграции требуют C
 WMS-104: после pnpm db:migrate можно выполнить pnpm db:seed — новый demo товар,
 склад и три ячейки без начисления. Команда разрешена только development и каждый раз
 создаёт новый набор; подробности — [stock baseline](../../docs/stock-baseline.md).
+
+## API/worker в Docker — WMS-112
+
+Base compose.yaml по-прежнему управляет только PostgreSQL. compose.app.yaml добавляет
+один multi-stage image для api/worker/migrate, ожидание postgres healthy и migration
+exit=0; compose.gate.yaml — **test-only** loopback dev identity.
+
+Для существующего .env добавить CONTAINER_DATABASE_URL с теми же локальными
+credentials/базой и URL-encoded password, но адресом postgres:5432. Host DATABASE_URL
+остаётся 127.0.0.1:15432. Значения не передаются в build; .env не копируется в image.
+
+```sh
+pnpm docker:build
+pnpm app:up
+# После новых migrations пересобрать image и выполнить migrator перед новым API/worker:
+pnpm app:migrate
+pnpm app:down # volume сохраняется
+```
+
+Обычный app API: http://127.0.0.1:3000/health, API_PORT меняет только published port.
+Business routes закрыты (production/dev actor off). NODE_ENV/HTTP_HOST/dev actor/admin
+CLI заданы overlay явно, host .env не включает identity в контейнере.
+Только isolated gate включает её через exec и loopback, не через внешний HTTP:
+
+```sh
+pnpm docker:image-check # no-cache clean context + canary scan всех final layers
+pnpm docker:gate        # одноразовые project/volume, реальная приёмка/worker/SIGTERM
+```
+
+Gate создаёт собственный env tempfile 0600 и случайные localhost ports, не читает root
+.env, не пишет в dev БД и удаляет только свой volume. Без Docker проверка падает.
+Не передавать compose.gate.yaml при обычном app:up: gate не является production auth.
+Backend filesystems read-only, USER node, cap_drop ALL, no-new-privileges и bounded
+/tmp; node PID 1 получает SIGTERM напрямую, stop grace 20s > worker drain 15s.
+Health API — liveness; pg health/migration — startup dependencies, постоянной DB
+readiness и worker probe ещё нет. DB owner по-прежнему локальный admin; отдельные
+production credentials/grants не provisioned. Не публиковать docker compose config /
+inspect Env: runtime credentials доступны Docker-администратору.
+
+Файлы, подробный build/startup/data/shutdown flow, ошибки и ограничения:
+[Docker gate](../../docs/flows/docker-gate.md). Результаты:
+[WMS-112](../../docs/reports/wms-112.md).
