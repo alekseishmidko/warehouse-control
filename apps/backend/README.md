@@ -1,6 +1,6 @@
 # Backend Warehouse Controller
 
-Документация корневого NestJS-модуля и конфигурации backend после WMS-101–110.
+Документация корневого NestJS-модуля и конфигурации backend после WMS-101–112.
 
 ## Для менеджера
 
@@ -141,3 +141,24 @@ Migrations 0013/0014/0015, pending tasks с immutable provenance и source FK. T
 cursors/ack атомарны; новых stock movements/outbox events при создании task нет.
 No-op для будущих известных неинтересных типов не означает принятие unknown schema/version.
 [Флоу/диагностика](../../docs/flows/putaway.md), [ADR-0016](../../docs/adr/0016-durable-putaway-handler.md).
+
+
+## WMS-111
+
+OutboxRecoveryService экспортируется из OutboxModule; CLI entrypoint
+infrastructure/outbox/outbox-admin.ts запускает только этот graph без HTTP/worker.
+Scripts outbox:inspect/retry/signal используют build output, outbox:recovery-check готовит
+build/tests и проверяет runbook. Raw JSON automation запускает Node executable напрямую.
+Новые worker diagnostics поля/NDJSON не являются полным logging stack WMS-401.
+[Role/command/flows](../../docs/flows/outbox-recovery.md), [ADR-0017](../../docs/adr/0017-local-outbox-recovery.md).
+
+## Docker runtime WMS-112
+
+[Dockerfile](Dockerfile) собирается от корня monorepo, frozen pnpm 10.18.3, pinned Node
+24.22.1. Один non-root image, Node PID 1, команды dist/main.js / dist/worker.js /
+dist/infrastructure/database/migrate.js; только prod dependencies, dist и drizzle.
+Нет .env/исходников/tests/dev tooling из build stage. Runtime env передаёт Compose,
+rootfs read-only; backend пишет в PostgreSQL. Без production auth обычный Compose
+не открывает receiving commands; test-only gate использует container loopback actor.
+[Подробный flow и границы процессов/commit/shutdown](../../docs/flows/docker-gate.md),
+[команды и конфигурация](../../infra/compose/README.md), [проверки](../../docs/reports/wms-112.md).

@@ -1,7 +1,8 @@
 # Этапы реализации
 
 Не начинать следующий инфраструктурный этап до рабочего вертикального сценария.
-Этап 1 начат: WMS-101–WMS-110 выполнены; остальные задачи пока не реализованы.
+Этап 1 завершён: WMS-101–WMS-112 выполнены; Docker gate 1 и существующие
+unit/integration gates пройдены, ограничения перечислены в отчёте WMS-112.
 
 Подробный backlog с ID задач, зависимостями, демонстрациями и критериями перехода:
 [план разработки](development-plan.md): 38 задач, разбитых на 217 шагов с чекбоксами.
@@ -21,7 +22,9 @@ WMS-107 завершена: HTTP validation/problems/dev context, command dedup 
 WMS-108 завершена: draft/posted, HTTP-команды и атомарное проведение.
 WMS-109 завершена: worker protocol, lease fencing, atomic markers/cursors, retry/dead и SIGTERM.
 WMS-110 завершена: production handler создаёт pending task и audit атомарно с marker/cursors/ack.
-Следующая задача: WMS-111, административное inspect/retry восстановление.
+WMS-111 завершена: local inspect/retry/signal, operator/reason history и verified runbook.
+WMS-112 завершена: один multi-stage non-root image, Compose API/worker/migrate,
+чистая сборка и Docker gate 1. Следующая задача: WMS-201, уточнение складских правил.
 
 Отчёты: [окружение WMS-101](reports/wms-101.md),
 [тестовая инфраструктура WMS-102](reports/wms-102.md),
@@ -32,7 +35,9 @@ WMS-110 завершена: production handler создаёт pending task и au
 [HTTP/idempotency WMS-107](reports/wms-107.md),
 [приёмка WMS-108](reports/wms-108.md),
 [worker WMS-109](reports/wms-109.md),
-[durable handler WMS-110](reports/wms-110.md).
+[durable handler WMS-110](reports/wms-110.md),
+[administrative recovery WMS-111](reports/wms-111.md),
+[Docker gate WMS-112](reports/wms-112.md).
 
 ## 1. Приёмка + outbox + Docker
 

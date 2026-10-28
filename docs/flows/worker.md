@@ -66,7 +66,7 @@ flowchart TD
   Begin --> Select["Найти event version = stream cursor + 1"]
   Select --> Eligible["Фильтр destination, lease, status и available_at"]
   Eligible --> Lock["FOR UPDATE OF stream, delivery SKIP LOCKED; LIMIT batchSize"]
-  Lock --> Budget{"У выбранной delivery attempts меньше max?"}
+  Lock --> Budget{"Попыток в текущем budget меньше max?"}
   Budget -->|Нет| Dead["Dead: ATTEMPTS_EXHAUSTED; очистить lease; cursor прежний"]
   Budget -->|Да| Claim["Новый token; DB deadline; attempts + 1; processing"]
   Dead --> Commit["COMMIT A; вернуть claims только разрешённых попыток"]
@@ -201,13 +201,17 @@ stateDiagram-v2
   processing --> dead: Permanent failure или исчерпан budget
   pending --> dead: Claim обнаружил исчерпанный budget
   retry --> dead: Claim обнаружил исчерпанный budget
+  dead --> retry: Local administrative retry с reason/operator/audit
   completed --> [*]
 ```
 
 Истечение lease само не меняет статус: нужен следующий claim. Переход в dead на
-claim актуален также после уменьшения maxAttempts в конфигурации. Из dead текущий
-worker не делает переходов, а completed не сбрасывается в pending автоматически.
-Управляемые retry/replay CLI — будущий этап WMS-111.
+claim актуален также после уменьшения maxAttempts в конфигурации. Из dead сам
+worker не делает переходов; local admin CLI проверяет lease/locks/marker/cursors.
+Completed не сбрасывается в pending автоматически.
+Адресный dead retry реализован WMS-111; replay/rebuild CLI отсутствует.
+[Recovery flow](outbox-recovery.md): total attempts не сбрасывается, budget/backoff
+считается от retry_attempt_base, новое вмешательство сохраняется в audit/history.
 
 **Неизвестный исход commit.** Если B успела committed, а worker потерял подтверждение,
 повторная проверка в C увидит completed/снятый token и ничего не перепишет. Новый poll

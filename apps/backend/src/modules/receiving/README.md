@@ -165,4 +165,4 @@ rollback winner takeover, SQL AFTER fault injection каждого сущест�
 SQL — безопасная read-only диагностика; не исправлять stock/events вручную.
 Метрики, централизованные key-value логи и tracing запланированы WMS-401/402.
 Для расследования сохранить receiptId, время и correlationId;
-[runbook](../../../../../docs/runbooks/event-recovery.md), worker recovery пока не применять.
+[runbook](../../../../../docs/runbooks/event-recovery.md), локальный recovery реализован WMS-111, использовать только проверенные команды runbook.

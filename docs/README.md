@@ -25,6 +25,10 @@
 | [Worker WMS-109](../apps/backend/src/infrastructure/worker/README.md) | Протокол, конфигурация, движение данных и ограничения |
 | [Подробный флоу worker](flows/worker.md) | Графические схемы, пошаговые ветки, состояние БД и границы транзакций |
 | [Putaway WMS-110](flows/putaway.md) | Подробный production flow, состояния, Mermaid и SQL receipt → event → task |
+| [Recovery WMS-111](flows/outbox-recovery.md) | Локальные inspect/retry/signal, права, история и Mermaid flow |
+| [Docker flow](flows/docker-gate.md) | Multi-stage image, startup/migration, Compose gate и shutdown |
+| [Отчёт WMS-112](reports/wms-112.md) | Clean build/layers, Docker gate 1, SQL и SIGTERM evidence |
+| [Отчёт WMS-111](reports/wms-111.md) | Проверенный CLI runbook, atomic audit/history, role/lease/cursor tests |
 | [Отчёт WMS-110](reports/wms-110.md) | Tasks/marker atomicity, SQL constraints, duplicate/concurrency и SIGKILL evidence |
 | [Отчёт WMS-109](reports/wms-109.md) | Реальные PostgreSQL races/faults и child-process shutdown/crash |
 | [Отчёт WMS-107](reports/wms-107.md) | HTTP foundation, OpenAPI и транзакционная идемпотентность |
@@ -70,8 +74,12 @@
   retry/dead и bounded SIGTERM. Production handler подключён WMS-110.
 - Готово WMS-110: durable inventory.putaway, pending task на source line, task audit,
   atomic marker/cursors/completion и crash/duplicate tests без повторного stock credit.
+- Готово WMS-111: локальные inspect/retry/signal, безопасные key-value diagnostics,
+  адресный retry с operator/reason/audit/history и сохранением общего attempts; проверенный runbook.
+- Готово WMS-112: multi-stage non-root image API/worker/migrate, Compose startup gates,
+  clean build/layers regression и реальная демонстрация gate 1 с SIGTERM/volume restart.
 - Описано, но не реализовано: физическое размещение и остальные складские операции,
-  production авторизация, frontend, Docker image backend, Kubernetes и CI/CD.
+  production авторизация, frontend, Kubernetes и CI/CD.
 - Пример контракта `ReceivingPosted` — проектный образец, не опубликованный API.
 - Локальные schema/fixtures/generation проверки выполняются в unit suite;
   OpenAPI generation/diff готов локально; CI workflow и breaking-change comparison пока не настроены.
@@ -89,3 +97,10 @@
 - Точная версия и режим Schema Registry: перед Kafka, после compatibility spike.
 - Ресурсы локального кластера и место внешнего стенда: перед Kubernetes.
 - Резервное копирование и численные SLO: до эксплуатации внешнего стенда.
+
+## Чтение реализации WMS-111 и WMS-112
+
+Русские комментарии к контрактам, транзакциям, SQL, тестовым сбоям и Docker-проверкам
+дополняют флоу. Карты файлов: [восстановление outbox](flows/outbox-recovery.md#карта-реализации-и-чтение-кода-wms-111)
+и [Docker](flows/docker-gate.md#карта-комментариев-wms-112). Пояснения к применённым
+миграциям — в [Drizzle README](../apps/backend/drizzle/README.md#wms-111), без изменения SQL.

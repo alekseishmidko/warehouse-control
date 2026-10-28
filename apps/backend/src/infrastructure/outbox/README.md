@@ -172,8 +172,82 @@ Testcontainers PostgreSQL той же версии, что Compose. Покрыт
 Fault triggers/direct SQL нужны только для проверки constraints/сбоя и живут в
 disposable DB. Reset отключает retention triggers только в admin test cleanup.
 Worker redelivery, crash после claim и конкуренция проверяются WMS-109
-в worker.spec.ts/worker-process.spec.ts, см. [worker](../worker/README.md). Отдельных logs/metrics/inspect/retry CLI пока нет.
+в worker.spec.ts/worker-process.spec.ts, см. [worker](../worker/README.md). WMS-111 добавляет локальные JSON diagnostics/inspect/retry/signal; централизованные logs/metrics ещё впереди.
 
 Связанные документы: [ADR-0012](../../../../../docs/adr/0012-outbox-writer.md),
 [outbox protocol](../../../../../docs/outbox.md),
-[проектный recovery runbook](../../../../../docs/runbooks/event-recovery.md).
+[проверенный локальный recovery runbook](../../../../../docs/runbooks/event-recovery.md).
+
+
+## Локальное восстановление WMS-111
+
+Для менеджера: inspect показывает состояние, signal проверяет dead/backlog, retry разрешает
+новую попытку конкретного dead event после устранения причины. Приёмка/stock не меняются,
+оператор/reason и прежний total attempt/error сохраняются. Отправки во внешние каналы нет.
+[Реальные команды runbook](../../../../../docs/runbooks/event-recovery.md),
+[подробный флоу/Mermaid](../../../../../docs/flows/outbox-recovery.md).
+
+OutboxModule экспортирует OutboxRecoveryService вместе с writer, использует общие DatabaseModule
+и AuditModule. API новых HTTP endpoints не получает, CLI не импортирует AppModule/WorkerModule.
+recovery-options.ts проверяет flags/local env до DB; dto/recovery.dto.ts — адрес/operator/reason/
+thresholds и безопасные error codes. outbox-admin.ts владеет executable/JSON/exit codes/close.
+services/outbox-recovery.service.ts владеет bounded run каждого inspect/retry/signal;
+repositories/recovery.repository.ts читает protocol snapshots/marker/cursor и пишет только
+outbox scheduling/history. AuditService пишет журнал, чужие business tables не меняются.
+
+Migrations 0016/0017 добавляют retry_attempt_base и outbox_recovery_actions с immutable guard,
+NOLOGIN warehouse_outbox_admin и targeted grants. Worker attempts-base budget/backoff сохраняет
+монотонный attempts. Retry требует dead, NOWAIT stream/delivery locks, неактивные leases,
+отсутствующий marker, оба cursors=version-1 и запас int4 attempts. Audit/history/scheduling имеют
+один commit; SQL failure откатывает всё. История source error/attempts/base/operator/reason/auditId
+retained. Event/envelope/tasks/markers/cursors/last_error при scheduling не сбрасываются.
+
+```mermaid
+sequenceDiagram
+  participant C as Local CLI
+  participant S as OutboxRecoveryService
+  participant R as RecoveryRepository
+  participant A as AuditService
+  participant DB as PostgreSQL
+  C->>C: Strict args + dev/test opt-in + loopback DB
+  C->>S: retry(address, operator, reason, correlation)
+  S->>DB: BEGIN, timeout, admin role check
+  S->>R: read with NOWAIT stream/delivery locks
+  S->>S: Dead, lease, marker, cursor, counter checks
+  S->>A: write intervention audit в том же context
+  A->>DB: INSERT audit
+  S->>R: history INSERT + retry/base scheduling
+  R->>DB: SQL в том же context
+  S->>DB: COMMIT
+  S-->>C: Committed IDs; worker claim позже
+```
+
+Inspect без row locks advisory: по умолчанию payload omitted; --payload — actual contract
+validation и allowlist первых 10 lines. LastError только safe code/REDACTED, source correlation
+UUID/null, raw lease token не печатается. История в выводе последние 20 records, в БД не удаляется.
+Signal одним SQL считает dead/backlog/blockedStreams/expiredProcessing/oldestBacklogAgeSeconds;
+Node exit 0 healthy, 2 alert, 1 failure. Thresholds defaults 1 dead / 100 backlog / 60s age.
+PNPM adds banners; для чистого JSON automation использует compiled Node executable.
+
+OUTBOX_ADMIN_ENABLED=false default, explicit NODE_ENV dev/test и loopback DB обязательны CLI.
+DB role проверяется service независимо от transport. Operator UUID — assertion локального
+вызывающего, production authentication/RBAC и remote admin API не реализованы. NOLOGIN group
+не создаёт runtime login/credentials, superuser/DBA может обойти guards. Existing trusted worker
+UPDATE grants не объявляются защитой от произвольного malicious SQL. [ADR-0017](../../../../../docs/adr/0017-local-outbox-recovery.md).
+
+Пример: attempts=10/base=0/dead → admin commit attempts=10/base=10/retry + audit/history →
+worker claim attempts=11 → completed, одна task и прежний stock. Проверки:
+[outbox-recovery.spec.ts](../../../test/integration/outbox-recovery.spec.ts),
+[unit boundary](../../../test/unit/outbox-recovery.spec.ts), команда pnpm outbox:recovery-check.
+Централизованные logging/metrics/notifications — WMS-401/402; replay/rebuild отсутствуют.
+
+### Как читать реализацию восстановления
+
+Для каждого публичного метода WMS-111 в коде описаны недоверенный ввод, безопасный результат,
+ошибки и владелец транзакции. Рядом с NOWAIT, проверкой обоих курсоров и записью истории
+объясняется причина порядка действий. Полная [карта файлов и отказов](../../../../../docs/flows/outbox-recovery.md#карта-реализации-и-чтение-кода-wms-111)
+связывает CLI, DTO, сервис, SQL, shared diagnostics, worker и тесты без дублирования флоу.
+Inspect читает состояние/историю разными запросами без блокировок: это диагностическое
+наблюдение, а не согласованный snapshot и не разрешение на retry. Retry всегда повторяет
+проверки по свежему состоянию под блокировками. Ошибка stdout/cleanup после commit
+не означает откат вмешательства; следующий шаг оператора — inspect.

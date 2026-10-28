@@ -7,9 +7,11 @@ import type { TransactionContext } from '../../../shared/transactions/transactio
 import type { DeliveryClaim } from '../dto/delivery.dto';
 import type { WorkerConfig } from '../worker.config';
 import { PermanentDeliveryError } from '../delivery-policy';
+import { deliveryDiagnostic, DeliveryDiagnostic } from '../../../shared/diagnostics/delivery-diagnostic';
 
-/** Locked immutable event identity и delivery state; наружу отдаётся только внутри одного context. */
-export interface LockedDelivery { envelope: unknown; attempts: number; }
+/** Снимок события и состояния доставки, прочитанный под блокировкой внутри одного context.
+ * retryAttemptBase отделяет новый разрешённый бюджет от общего монотонного attempts. */
+export interface LockedDelivery { envelope: unknown; attempts: number; retryAttemptBase: number; }
 
 /** Внутренний provider worker; pool/run/commit отсутствуют, все методы требуют действующий context. */
 @Injectable()
@@ -25,11 +27,13 @@ export class WorkerRepository {
    * Не пропускает retry/dead predecessor. Row locks stream/delivery держатся только до commit claim.
    * Expired crash с исчерпанным budget переводится в dead без новой попытки эффекта.
    */
-  async claim(context: TransactionContext, destinations: string[], config: WorkerConfig): Promise<DeliveryClaim[]> {
-    if (!destinations.length) return [];
+  async claim(context: TransactionContext, destinations: string[], config: WorkerConfig): Promise<{ claims: DeliveryClaim[]; exhausted: DeliveryDiagnostic[] }> {
+    if (!destinations.length) return { claims: [], exhausted: [] };
     const tx = transactionClient(context);
-    const selected = await tx.execute<{ event_id: string; destination: string; aggregate_type: string; aggregate_id: string; version: string; attempts: number }>(sql`
-      select d.event_id,s.destination,s.aggregate_type,s.aggregate_id,e.aggregate_version::text as version,d.attempts
+    const selected = await tx.execute<{ event_id: string; destination: string; aggregate_type: string; aggregate_id: string; version: string;
+      attempts: number; retry_attempt_base: number; correlation_id: unknown; last_error: unknown }>(sql`
+      select d.event_id,s.destination,s.aggregate_type,s.aggregate_id,e.aggregate_version::text as version,d.attempts,d.retry_attempt_base,
+        e.envelope->>'correlationId' as correlation_id,d.last_error
       from delivery_streams s
       join outbox_events e on e.aggregate_type=s.aggregate_type and e.aggregate_id=s.aggregate_id
         and e.aggregate_version=s.last_completed_version+1
@@ -41,12 +45,19 @@ export class WorkerRepository {
       order by d.available_at,s.aggregate_id limit ${config.batchSize}
       for update of s,d skip locked`);
     const claims: DeliveryClaim[] = [];
+    const exhausted: DeliveryDiagnostic[] = [];
     for (const row of selected.rows) {
+      const diagnostic = deliveryDiagnostic({ eventId: row.event_id, aggregateType: row.aggregate_type, aggregateId: row.aggregate_id,
+        version: Number(row.version), destination: row.destination, attempt: row.attempts, correlationId: row.correlation_id, lastError: row.last_error });
       const claim = Object.freeze({ eventId: row.event_id, destination: row.destination, aggregateType: row.aggregate_type,
-        aggregateId: row.aggregate_id, version: Number(row.version), token: randomUUID() });
-      if (row.attempts >= config.maxAttempts) {
+        aggregateId: row.aggregate_id, version: Number(row.version), token: randomUUID(),
+        correlationId: diagnostic.correlationId, attempt: row.attempts + 1, lastError: diagnostic.lastError });
+      // Бюджет считаем от последнего административного разрешения. Общий счётчик
+      // не обнуляем: crash тоже расходует попытку, история должна оставаться объяснимой.
+      if (row.attempts - row.retry_attempt_base >= config.maxAttempts) {
         await tx.execute(sql`update outbox_deliveries set status='dead',lease_until=null,lease_token=null,last_error='ATTEMPTS_EXHAUSTED'
           where event_id=${claim.eventId} and destination=${claim.destination}`);
+        exhausted.push(deliveryDiagnostic({ ...claim, attempt: row.attempts, lastError: 'ATTEMPTS_EXHAUSTED' }));
         await this.releaseStream(context, claim); continue;
       }
       // Одинаковые token/deadline на stream и delivery. Все selected locks уже
@@ -60,7 +71,9 @@ export class WorkerRepository {
         where event_id=${claim.eventId} and destination=${claim.destination}`);
       claims.push(claim);
     }
-    return claims;
+    // Возвращаем данные для логирования, не выполняя I/O под блокировками.
+    // Сервис выведет claimed/dead только после успешного commit этой транзакции.
+    return { claims, exhausted };
   }
 
   /**
@@ -69,8 +82,8 @@ export class WorkerRepository {
    * @returns null для completed, stale/expired token либо cursor, который уже продвинут.
    */
   async lock(context: TransactionContext, claim: DeliveryClaim): Promise<LockedDelivery | null> {
-    const result = await transactionClient(context).execute<{ envelope: unknown; attempts: number; valid: boolean }>(sql`
-      select e.envelope,d.attempts,(s.lease_token=${claim.token}::uuid and d.lease_token=${claim.token}::uuid
+    const result = await transactionClient(context).execute<{ envelope: unknown; attempts: number; retry_attempt_base: number; valid: boolean }>(sql`
+      select e.envelope,d.attempts,d.retry_attempt_base,(s.lease_token=${claim.token}::uuid and d.lease_token=${claim.token}::uuid
         and s.lease_until>clock_timestamp() and d.lease_until>clock_timestamp()
         and d.status='processing' and s.last_completed_version=${claim.version - 1}) as valid
       from delivery_streams s join outbox_events e on e.aggregate_type=s.aggregate_type and e.aggregate_id=s.aggregate_id
@@ -78,7 +91,7 @@ export class WorkerRepository {
       where s.destination=${claim.destination} and s.aggregate_type=${claim.aggregateType} and s.aggregate_id=${claim.aggregateId}
         and e.event_id=${claim.eventId} and e.aggregate_version=${claim.version}
       for update of s,d`);
-    const row = result.rows[0]; return row?.valid ? { envelope: row.envelope, attempts: row.attempts } : null;
+    const row = result.rows[0]; return row?.valid ? { envelope: row.envelope, attempts: row.attempts, retryAttemptBase: row.retry_attempt_base } : null;
   }
 
   /** Создаёт/блокирует consumer cursor и проверяет dedup marker до handler; gap не маскируется успешным ack. */

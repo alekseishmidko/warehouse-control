@@ -209,3 +209,15 @@ draft/post без прямого stock SQL. Parent env не меняется, ch
 receiving-posted.handler.spec.ts проверяет server metadata/permanent mapping и будущую
 known-uninteresting routing ветку; surrogate не добавлен в runtime registry.
 Документированный putaway-result.sql выполняется в happy path.
+
+
+## WMS-111
+
+outbox-recovery.spec.ts integration проверяет production failure→dead→actual child CLI
+inspect/signal/retry→одна task с прежним stock, operator/reason audit/history, новый budget
+без reset attempts, role denial/admin group, live lease/NOWAIT locks, predecessor/marker
+refusal, two operators и fault после каждого admin SQL шага. Safe payload/unknown errors,
+old backlog/dead alert и int4 attempt limit также покрыты. Unit suite с тем же именем проверяет
+strict parser/local guard/shared formatter и failing stdout sink. Parent env не меняется.
+`pnpm outbox:recovery-check` запускает этот disposable runbook, Docker failure не skip.
+Harness очищает recovery history только отключив immutable trigger внутри test admin transaction.

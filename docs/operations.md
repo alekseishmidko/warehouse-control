@@ -1,14 +1,15 @@
 # Эксплуатация и поставка
 
 PostgreSQL Compose и проверки WMS-101 реализованы: [инструкция](../infra/compose/README.md),
-[отчёт](reports/wms-101.md). Backend Dockerfile, manifests и pipelines пока отсутствуют.
+[отчёт](reports/wms-101.md). Dockerfile API/worker и Compose overlay реализованы WMS-112;
+Kubernetes manifests и pipelines пока отсутствуют.
 WMS-102 добавляет изолированные Jest/Supertest/Testcontainers проверки:
 [инструкция](../apps/backend/test/README.md).
-Остальные разделы описывают целевые требования.
+Раздел WMS-112 ниже описывает реализованный стенд; Kubernetes/observability/CI — целевые требования.
 
 ## Локальный запуск
 
-Compose: PostgreSQL и приложение; профили Kafka и observability включаются отдельно.
+Compose: PostgreSQL и приложение готовы; профили Kafka и observability пока не реализованы.
 kind: тот же образ приложения в локальном Kubernetes, инфраструктура через Helm.
 Закреплять версии образов; опубликованные deployment images использовать по digest.
 API и worker используют один backend image с разными entrypoints.
@@ -88,7 +89,8 @@ Worker HTTP-порт/readiness endpoint не открывает. WMS-110 рег�
 bounded drain/close; exit=1 при hard deadline, после crash ждём expiry PostgreSQL lease.
 Config/defaults, DB timeout, диагностика и ограничения —
 [worker README](../apps/backend/src/infrastructure/worker/README.md).
-Не сбрасывать markers/cursors/lease вручную; управляемый recovery CLI ещё не реализован.
+Не сбрасывать markers/cursors/lease вручную; локальный recovery CLI реализован WMS-111,
+использовать проверенный runbook с role/lease/cursor checks.
 
 
 ## Durable handler WMS-110
@@ -100,3 +102,15 @@ Production worker теперь автоматически обрабатывае
 Historical synthetic outbox facts без реального posted receipt станут permanent dead по source FK;
 их нельзя превращать в фиктивные задания, менять stock либо перепубликовывать с новым eventId.
 Управляемые inspect/retry — WMS-111, без автоматического reset истории при выпуске.
+
+## Реализованный локальный Docker WMS-112
+
+API/worker/migrate используют один multi-stage non-root image. Запуск `pnpm app:up`
+с отдельным CONTAINER_DATABASE_URL, остановка `pnpm app:down` сохраняет volume.
+Изменения SQL применяются отдельным migration process; без успешной migration
+зависимые процессы не запускаются. Постоянная readiness и worker probe ещё не готовы.
+`pnpm docker:image-check` проверяет clean context/layers, `pnpm docker:gate` — реальный
+сценарий и shutdown на одноразовом стенде. Подробности и ограничения —
+[Docker flow](flows/docker-gate.md), [Compose](../infra/compose/README.md),
+[evidence](reports/wms-112.md). Локальные image не публиковались, production login/
+секреты/Kubernetes/NGINX остаются будущими задачами.

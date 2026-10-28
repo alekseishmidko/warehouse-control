@@ -59,3 +59,6 @@ Kubernetes и Kafka ещё предстоят. Обработчик размещ
 
 Реализация регистрации handler уточнена WMS-110: [ADR-0016](0016-durable-putaway-handler.md).
 Протокол locks/markers/cursors сохраняется, production registry теперь содержит реальный handler.
+
+Budget и local recovery дополнены [ADR-0017](0017-local-outbox-recovery.md): total attempts
+не сбрасывается, новый административный budget отсчитывается от retry_attempt_base.

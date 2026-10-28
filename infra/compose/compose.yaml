@@ -1,4 +1,4 @@
-# PostgreSQL для локальной разработки WMS-101; backend запускается на host.
+# PostgreSQL baseline WMS-101; host backend или дополнительный compose.app.yaml WMS-112.
 name: warehouse-controller
 services:
   postgres:
