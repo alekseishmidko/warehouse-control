@@ -11,14 +11,14 @@
 
 ## Для разработчика
 
-| Файл | Контракт |
-|---|---|
-| schema.ts | Metadata и агрегация audit schema; минимальные catalog/warehouses/inventory tables WMS-104 |
-| connection.ts | Создаёт Pool и typed Drizzle; владелец обязан вызвать pool.end() |
-| database.module.ts | DatabaseModule экспортирует DatabaseService, подключает БД при Nest init и закрывает при destroy |
-| postgres-transaction-runner.ts | Реализация shared port, context binding и nested/scope guards |
-| migrate.ts | CLI применяет generated SQL, использует finally для закрытия pool, exit 1 при ошибке |
-| check.ts | Read-only CLI читает server_version и baseline table, закрывает pool |
+| Файл                           | Контракт                                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------------ |
+| schema.ts                      | Metadata и агрегация audit schema; минимальные catalog/warehouses/inventory tables WMS-104       |
+| connection.ts                  | Создаёт Pool и typed Drizzle; владелец обязан вызвать pool.end()                                 |
+| database.module.ts             | DatabaseModule экспортирует DatabaseService, подключает БД при Nest init и закрывает при destroy |
+| postgres-transaction-runner.ts | Реализация shared port, context binding и nested/scope guards                                    |
+| migrate.ts                     | CLI применяет generated SQL, использует finally для закрытия pool, exit 1 при ошибке             |
+| check.ts                       | Read-only CLI читает server_version и baseline table, закрывает pool                             |
 
 DATABASE_CONFIG — DI token RuntimeConfig, production provider вызывает loadEnvironment.
 Test harness заменяет provider готовым валидированным config, не меняя env.
@@ -95,9 +95,23 @@ seed-dev.ts — development-only CLI с транзакцией и finally app.cl
 Schema.ts агрегирует 18 таблиц (включая receiving/worker/putaway/recovery WMS-108–111); owner-specific models описаны в
 [stock baseline](../../../../../docs/stock-baseline.md).
 
-
 WMS-106 crash-проверка: pool factory подписывается на error каждого pg client,
 включая checked-out connection между запросами. Это предотвращает необработанный
 EventEmitter error при server-side termination; следующий SQL/commit всё равно
 отклоняется, auto retry нет. В логи попадает только безопасный фиксированный текст.
 Idle pool errors также обрабатываются. Потеря commit acknowledgement не доказывает rollback.
+
+## Пояснения к схемам хранения
+
+Все 15 собственных schema-файлов backend (23 таблицы) содержат русские комментарии
+к каждому полю: предметный смысл, выбор типа, источник/default/nullable и существенные
+ограничения. Обоснования составных ключей/индексов находятся рядом с определениями.
+Агрегатор schema.ts экспортирует владельцев таблиц, а не централизует бизнес-правила.
+[Общие нюансы PostgreSQL/Drizzle](../../../../../docs/database-types.md) собраны отдельно,
+чтобы не дублировать полный справочник типов в каждом модуле. Комментарии не создают
+SQL COMMENT в БД и не требуют миграции; applied SQL/generated artifacts не изменяются.
+
+WMS-202: identity экспортирует пять таблиц напрямую из modules/identity/schemas/, одна
+таблица на файл. Старого identity.schema.ts нет; разбиение исходников подтвердило no-diff
+Drizzle generation и не потребовало новой миграции. Seed CLI теперь создаёт только
+Catalog/Warehouses graph, не поднимает HTTP/auth и не требует session policy.

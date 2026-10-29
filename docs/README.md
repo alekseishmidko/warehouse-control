@@ -3,44 +3,51 @@
 Это стартовый проектный baseline. Статус «принято» означает согласованное
 архитектурное направление, а не готовую реализацию.
 
-| Документ | Содержание |
-|---|---|
-| [Продукт для менеджеров](product.md) | Роли, процессы, критерии и ограничения |
-| [Стандарт документации](documentation-standard.md) | Модули и каждый файл |
-| [Shared и DRY](shared.md) | Повторное использование и границы общей логики |
-| [Каталог файлов](file-catalog.md) | Назначение собственных файлов |
-| [Шаблон модуля](templates/module.md) | Бизнес- и техническая документация |
-| [Текущий backend](../apps/backend/README.md) | Реализованный корневой модуль |
-| [Архитектура](architecture.md) | Модули, зависимости, процессы, целевой стек |
-| [Минимальные складские данные](stock-baseline.md) | Модели, int4, начисление, dev fixtures и ограничения |
-| [Домен](domain.md) | Сущности, операции и инварианты склада |
-| [Контракты](contracts/README.md) | API, события, совместимость и ответственность |
-| [Транзакции и аудит](transactions.md) | Реализованные ports, scope, маскирование, роли и retry policy |
-| [Outbox](outbox.md) | Транзакции, доставка, идемпотентность и Kafka |
-| [Эксплуатация](operations.md) | Docker, Kubernetes, наблюдаемость, CI/CD |
-| [План](roadmap.md) | Этапы и критерии готовности |
-| [Отчёт WMS-104](reports/wms-104.md) | Складские модели, гонки, ограничения и проверки |
-| [Приёмка WMS-108](receiving.md) | HTTP-команды draft/posted, пример 10 штук и SQL proof |
-| [Отчёт WMS-108](reports/wms-108.md) | Конкурентное проведение и rollback на каждом шаге |
-| [Worker WMS-109](../apps/backend/src/infrastructure/worker/README.md) | Протокол, конфигурация, движение данных и ограничения |
-| [Подробный флоу worker](flows/worker.md) | Графические схемы, пошаговые ветки, состояние БД и границы транзакций |
-| [Putaway WMS-110](flows/putaway.md) | Подробный production flow, состояния, Mermaid и SQL receipt → event → task |
-| [Recovery WMS-111](flows/outbox-recovery.md) | Локальные inspect/retry/signal, права, история и Mermaid flow |
-| [Docker flow](flows/docker-gate.md) | Multi-stage image, startup/migration, Compose gate и shutdown |
-| [Отчёт WMS-112](reports/wms-112.md) | Clean build/layers, Docker gate 1, SQL и SIGTERM evidence |
-| [Отчёт WMS-111](reports/wms-111.md) | Проверенный CLI runbook, atomic audit/history, role/lease/cursor tests |
-| [Отчёт WMS-110](reports/wms-110.md) | Tasks/marker atomicity, SQL constraints, duplicate/concurrency и SIGKILL evidence |
-| [Отчёт WMS-109](reports/wms-109.md) | Реальные PostgreSQL races/faults и child-process shutdown/crash |
-| [Отчёт WMS-107](reports/wms-107.md) | HTTP foundation, OpenAPI и транзакционная идемпотентность |
-| [Отчёт WMS-106](reports/wms-106.md) | Атомарная запись outbox, counter races, migrations и retention |
-| [Отчёт WMS-105](reports/wms-105.md) | Runtime contracts, generation, fixtures и пределы сообщений |
-| [Отчёт WMS-103](reports/wms-103.md) | Атомарность audit, scopes, права и результаты проверок |
-| [Отчёт WMS-102](reports/wms-102.md) | Jest, Supertest, изоляция БД и проверки cleanup |
-| [Отчёт WMS-101](reports/wms-101.md) | Проверенное окружение, миграции и результаты проверок |
-| [План разработки](development-plan.md) | 38 задач и 217 подробных шагов с зависимостями, проверками и демонстрациями |
-| [ADR](adr/README.md) | Принятые решения и шаблон новых решений |
-| [Восстановление обработки](runbooks/event-recovery.md) | Зависшие, ошибочные и повторные события |
-| [Контекст агента](../AGENTS.md) | Ограничения и правила работы с проектом |
+| Документ                                                              | Содержание                                                                            |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [Продукт для менеджеров](product.md)                                  | Роли, процессы, критерии и ограничения                                                |
+| [Стандарт документации](documentation-standard.md)                    | Модули и каждый файл                                                                  |
+| [Shared и DRY](shared.md)                                             | Повторное использование и границы общей логики                                        |
+| [Каталог файлов](file-catalog.md)                                     | Назначение собственных файлов                                                         |
+| [Шаблон модуля](templates/module.md)                                  | Бизнес- и техническая документация                                                    |
+| [Текущий backend](../apps/backend/README.md)                          | Реализованный корневой модуль                                                         |
+| [Архитектура](architecture.md)                                        | Модули, зависимости, процессы, целевой стек                                           |
+| [Поля и PostgreSQL-типы](database-types.md)                           | Обоснование типов, NULL/default, ключей и индексов; пояснения в schema-файлах         |
+| [Минимальные складские данные](stock-baseline.md)                     | Модели, int4, начисление, dev fixtures и ограничения                                  |
+| [Identity flow и проверки](flows/identity.md)                         | Session/CSRF/warehouse policies, locks/revoke, bootstrap и реальные тесты             |
+| [Отчёт WMS-202](reports/wms-202.md)                                   | Проверенные auth, migration, Docker и форматирование                                  |
+| [Identity WMS-202](identity.md)                                       | Реализованные sessions/ACL/CSRF/bootstrap; числовые сроки задаются явно, без defaults |
+| [Правила WMS-201](fulfillment-rules.md)                               | B1–B4 приняты; переходы и техническая модель для будущей реализации                   |
+| [Будущий fulfillment flow](flows/fulfillment.md)                      | Mermaid, числовые AC и гонки; не реализовано                                          |
+| [Проект контрактов fulfillment](contracts/fulfillment.md)             | Границы будущих команд и лимиты; не опубликовано                                      |
+| [Домен](domain.md)                                                    | Сущности, операции и инварианты склада                                                |
+| [Контракты](contracts/README.md)                                      | API, события, совместимость и ответственность                                         |
+| [Транзакции и аудит](transactions.md)                                 | Реализованные ports, scope, маскирование, роли и retry policy                         |
+| [Outbox](outbox.md)                                                   | Транзакции, доставка, идемпотентность и Kafka                                         |
+| [Эксплуатация](operations.md)                                         | Docker, Kubernetes, наблюдаемость, CI/CD                                              |
+| [План](roadmap.md)                                                    | Этапы и критерии готовности                                                           |
+| [Отчёт WMS-104](reports/wms-104.md)                                   | Складские модели, гонки, ограничения и проверки                                       |
+| [Приёмка WMS-108](receiving.md)                                       | HTTP-команды draft/posted, пример 10 штук и SQL proof                                 |
+| [Отчёт WMS-108](reports/wms-108.md)                                   | Конкурентное проведение и rollback на каждом шаге                                     |
+| [Worker WMS-109](../apps/backend/src/infrastructure/worker/README.md) | Протокол, конфигурация, движение данных и ограничения                                 |
+| [Подробный флоу worker](flows/worker.md)                              | Графические схемы, пошаговые ветки, состояние БД и границы транзакций                 |
+| [Putaway WMS-110](flows/putaway.md)                                   | Подробный production flow, состояния, Mermaid и SQL receipt → event → task            |
+| [Recovery WMS-111](flows/outbox-recovery.md)                          | Локальные inspect/retry/signal, права, история и Mermaid flow                         |
+| [Docker flow](flows/docker-gate.md)                                   | Multi-stage image, startup/migration, Compose gate и shutdown                         |
+| [Отчёт WMS-112](reports/wms-112.md)                                   | Clean build/layers, Docker gate 1, SQL и SIGTERM evidence                             |
+| [Отчёт WMS-111](reports/wms-111.md)                                   | Проверенный CLI runbook, atomic audit/history, role/lease/cursor tests                |
+| [Отчёт WMS-110](reports/wms-110.md)                                   | Tasks/marker atomicity, SQL constraints, duplicate/concurrency и SIGKILL evidence     |
+| [Отчёт WMS-109](reports/wms-109.md)                                   | Реальные PostgreSQL races/faults и child-process shutdown/crash                       |
+| [Отчёт WMS-107](reports/wms-107.md)                                   | HTTP foundation, OpenAPI и транзакционная идемпотентность                             |
+| [Отчёт WMS-106](reports/wms-106.md)                                   | Атомарная запись outbox, counter races, migrations и retention                        |
+| [Отчёт WMS-105](reports/wms-105.md)                                   | Runtime contracts, generation, fixtures и пределы сообщений                           |
+| [Отчёт WMS-103](reports/wms-103.md)                                   | Атомарность audit, scopes, права и результаты проверок                                |
+| [Отчёт WMS-102](reports/wms-102.md)                                   | Jest, Supertest, изоляция БД и проверки cleanup                                       |
+| [Отчёт WMS-101](reports/wms-101.md)                                   | Проверенное окружение, миграции и результаты проверок                                 |
+| [План разработки](development-plan.md)                                | 38 задач и 217 подробных шагов с зависимостями, проверками и демонстрациями           |
+| [ADR](adr/README.md)                                                  | Принятые решения и шаблон новых решений                                               |
+| [Восстановление обработки](runbooks/event-recovery.md)                | Зависшие, ошибочные и повторные события                                               |
+| [Контекст агента](../AGENTS.md)                                       | Ограничения и правила работы с проектом                                               |
 
 ## Подход к коду
 
@@ -78,8 +85,14 @@
   адресный retry с operator/reason/audit/history и сохранением общего attempts; проверенный runbook.
 - Готово WMS-112: multi-stage non-root image API/worker/migrate, Compose startup gates,
   clean build/layers regression и реальная демонстрация gate 1 с SIGTERM/volume restart.
+- Готово WMS-201 как согласование правил: B1–B4 приняты 2026-10-29, таблицы переходов,
+  числовые AC и проект контрактов подготовлены. Fulfillment ещё не реализован; auth готова WMS-202, далее WMS-203.
+- Готово WMS-202: users/sessions, login/logout/me, session/warehouse policies, admin API,
+  one-time bootstrap и real PostgreSQL tests. Числовых defaults TTL нет; настройки обязательны явно.
+  IdentityModule разделён на Auth/Sessions/Users/Access services с общим transaction context.
+  Dev actor удалён; внешний TLS gateway/frontend ещё не реализованы.
 - Описано, но не реализовано: физическое размещение и остальные складские операции,
-  production авторизация, frontend, Kubernetes и CI/CD.
+  frontend, Kubernetes и CI/CD.
 - Пример контракта `ReceivingPosted` — проектный образец, не опубликованный API.
 - Локальные schema/fixtures/generation проверки выполняются в unit suite;
   OpenAPI generation/diff готов локально; CI workflow и breaking-change comparison пока не настроены.
@@ -92,8 +105,10 @@
 
 ## Открытые вопросы
 
-- Правила частичной отгрузки и истечения резерва: до реализации fulfillment.
-- Выбор системы авторизации: до identity; локальные сессии — исходное предложение.
+- Технические детали fulfillment: [правила WMS-201](fulfillment-rules.md); B1–B4 приняты,
+  дополнительные меры при нехватке, schema/DTO и лимиты новых документов уточняются перед реализацией.
+- Сроки сессий: [identity](identity.md); способ auth, threat assumptions и матрица
+  ролей/складов приняты и реализованы WMS-202.
 - Точная версия и режим Schema Registry: перед Kafka, после compatibility spike.
 - Ресурсы локального кластера и место внешнего стенда: перед Kubernetes.
 - Резервное копирование и численные SLO: до эксплуатации внешнего стенда.
@@ -104,3 +119,8 @@
 дополняют флоу. Карты файлов: [восстановление outbox](flows/outbox-recovery.md#карта-реализации-и-чтение-кода-wms-111)
 и [Docker](flows/docker-gate.md#карта-комментариев-wms-112). Пояснения к применённым
 миграциям — в [Drizzle README](../apps/backend/drizzle/README.md#wms-111), без изменения SQL.
+
+Identity HTTP transport дополнительно проверяется unit tests cookie/CSRF/commit boundaries
+и real PostgreSQL tests revoke/role removal/logout faults/матрицы ADR-0019. Команда
+`pnpm test:identity:coverage` требует Docker и контролирует 100% coverage IdentityController;
+[подробности](../apps/backend/test/README.md#проверка-покрытия-identity).

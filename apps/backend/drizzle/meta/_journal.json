@@ -127,6 +127,20 @@
       "when": 1793099495479,
       "tag": "0017_outbox-recovery-grants",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793252558034,
+      "tag": "0018_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793252606109,
+      "tag": "0019_identity-security",
+      "breakpoints": true
     }
   ]
 }

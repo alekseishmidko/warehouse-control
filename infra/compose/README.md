@@ -97,7 +97,7 @@ pnpm app:down # volume сохраняется
 ```
 
 Обычный app API: http://127.0.0.1:3000/health, API_PORT меняет только published port.
-Business routes закрыты (production/dev actor off). NODE_ENV/HTTP_HOST/dev actor/admin
+Business routes требуют настоящую session/warehouse role/CSRF. NODE_ENV/HTTP_HOST/dev actor/admin
 CLI заданы overlay явно, host .env не включает identity в контейнере.
 Только isolated gate включает её через exec и loopback, не через внешний HTTP:
 
@@ -108,7 +108,7 @@ pnpm docker:gate        # одноразовые project/volume, реальна�
 
 Gate создаёт собственный env tempfile 0600 и случайные localhost ports, не читает root
 .env, не пишет в dev БД и удаляет только свой volume. Без Docker проверка падает.
-Не передавать compose.gate.yaml при обычном app:up: gate не является production auth.
+Не передавать compose.gate.yaml при обычном app:up: gate не отключает настоящую auth.
 Backend filesystems read-only, USER node, cap_drop ALL, no-new-privileges и bounded
 /tmp; node PID 1 получает SIGTERM напрямую, stop grace 20s > worker drain 15s.
 Health API — liveness; pg health/migration — startup dependencies, постоянной DB
@@ -119,3 +119,12 @@ inspect Env: runtime credentials доступны Docker-администрат�
 Файлы, подробный build/startup/data/shutdown flow, ошибки и ограничения:
 [Docker gate](../../docs/flows/docker-gate.md). Результаты:
 [WMS-112](../../docs/reports/wms-112.md).
+
+## WMS-202: обязательные auth настройки
+
+Для app overlay задать AUTH_ORIGIN (HTTPS при NODE_ENV=production) и оба срока seconds,
+без числовых defaults. Host .env для pnpm dev может содержать loopback HTTP origin;
+для Compose переопределить AUTH_ORIGIN на HTTPS. До внешней эксплуатации нужен TLS gateway,
+backend сам TLS не завершает. Для изолированной демонстрации pnpm docker:gate использует
+свой env, реальные bootstrap/login/grants и dev/test loopback HTTP. DEV_ACTOR_ENABLED=true
+теперь отклоняет startup: это не способ включить бизнес-команды. [Флоу](../../docs/flows/identity.md).

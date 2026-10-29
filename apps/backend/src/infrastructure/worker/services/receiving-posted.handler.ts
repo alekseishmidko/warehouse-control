@@ -25,8 +25,13 @@ export class ReceivingPostedHandler implements LocalEventHandler {
   async handle(context: TransactionContext, event: KnownEvent): Promise<void> {
     if (event.type !== 'receiving.receipt-posted') return;
     try {
-      await this.inventory.createPutawayTasks(context, { event, actorType: 'system', actorId: PUTAWAY_SYSTEM_ACTOR_ID,
-        correlationId: event.correlationId, reasonCode: 'receipt-posted' });
+      await this.inventory.createPutawayTasks(context, {
+        event,
+        actorType: 'system',
+        actorId: PUTAWAY_SYSTEM_ACTOR_ID,
+        correlationId: event.correlationId,
+        reasonCode: 'receipt-posted',
+      });
     } catch (error) {
       if (error instanceof PutawayInputError) throw new PermanentDeliveryError('HANDLER_REJECTED');
       throw error;

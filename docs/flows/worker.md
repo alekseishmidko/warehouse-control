@@ -37,11 +37,11 @@ pending PutawayTask, не начисляя stock повторно. Подроб�
 
 ## 2. Три транзакции вместо одной длинной
 
-| Граница | Владелец и методы | Что сохраняется | Когда освобождаются locks |
-|---|---|---|---|
-| A: claim | WorkerService.claim → WorkerRepository.claim | Processing, attempts, lease/token stream и delivery | После COMMIT A; handler ещё не выполнялся |
-| B: обработка | WorkerService.process → lock/prepareConsumer → handler → markProcessed/complete | Effect, marker, consumer cursor, completed и delivery cursor | После COMMIT B или ROLLBACK B |
-| C: отказ, только после ошибки B | WorkerService.process catch → lock/fail | Safe error code, retry deadline либо dead, освобождение scheduling lease | После COMMIT C или ROLLBACK C |
+| Граница                         | Владелец и методы                                                               | Что сохраняется                                                          | Когда освобождаются locks                 |
+| ------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------- |
+| A: claim                        | WorkerService.claim → WorkerRepository.claim                                    | Processing, attempts, lease/token stream и delivery                      | После COMMIT A; handler ещё не выполнялся |
+| B: обработка                    | WorkerService.process → lock/prepareConsumer → handler → markProcessed/complete | Effect, marker, consumer cursor, completed и delivery cursor             | После COMMIT B или ROLLBACK B             |
+| C: отказ, только после ошибки B | WorkerService.process catch → lock/fail                                         | Safe error code, retry deadline либо dead, освобождение scheduling lease | После COMMIT C или ROLLBACK C             |
 
 Транзакцию A нельзя держать открытой до завершения всего batch: это мешало бы другим
 workers выбирать независимые потоки. Транзакцию B нельзя разрывать между effect и
@@ -146,13 +146,13 @@ sequenceDiagram
 Таблица ниже показывает одну delivery v1 и первый эффект. Значения внутри B другие
 transactions ещё не видят. Consumer cursor может ещё не иметь строки — это отмечено «нет».
 
-| Момент | Delivery | Attempts | Token | Delivery cursor | Consumer cursor | Marker | Подтверждённый effect |
-|---|---|---|---|---|---|---|---|
-| До claim | pending | 0 | null | 0 | нет | нет | нет |
-| После COMMIT A | processing | 1 | T1 | 0 | нет | нет | нет |
-| После handler, но до COMMIT B | Для других всё ещё processing | 1 | T1 | 0 | нет | нет | нет |
-| После COMMIT B | completed | 1 | null | 1 | 1 | есть | есть |
-| Если B откатилась | processing до решения C/reclaim | 1 | T1 | 0 | нет | нет | нет |
+| Момент                        | Delivery                        | Attempts | Token | Delivery cursor | Consumer cursor | Marker | Подтверждённый effect |
+| ----------------------------- | ------------------------------- | -------- | ----- | --------------- | --------------- | ------ | --------------------- |
+| До claim                      | pending                         | 0        | null  | 0               | нет             | нет    | нет                   |
+| После COMMIT A                | processing                      | 1        | T1    | 0               | нет             | нет    | нет                   |
+| После handler, но до COMMIT B | Для других всё ещё processing   | 1        | T1    | 0               | нет             | нет    | нет                   |
+| После COMMIT B                | completed                       | 1        | null  | 1               | 1               | есть   | есть                  |
+| Если B откатилась             | processing до решения C/reclaim | 1        | T1    | 0               | нет             | нет    | нет                   |
 
 При уже существующем marker consumer cursor не уменьшается: complete использует
 GREATEST. Так transport cursor может догнать ранее обработанную историю без повторного
@@ -276,15 +276,15 @@ PostgreSQL transaction_timeout отдельно ограничивает DB tran
 
 ## 8. Где проверяется каждый путь
 
-| Ветка схемы | Проверка |
-|---|---|
-| Empty registry, next version, два workers, независимые агрегаты | [worker.spec.ts](../../apps/backend/test/integration/worker.spec.ts) |
-| Второй processor ждёт реальный lock и отклоняет старый claim после commit | worker.spec.ts, `two concurrent processors with the same claim` |
-| Active locks после expiry и rotation stale token | worker.spec.ts, `active processing row locks` / `expired claim rotates token` |
-| Ошибка каждого существенного SQL шага B | worker.spec.ts, `fault after ... rolls back effect/marker/cursors/completion` |
-| Marker replay, cursor gap, contract dead и retry budget | worker.spec.ts, соответствующие integration cases |
-| SIGTERM drain/deadline, SIGKILL до и после commit | [worker-process.spec.ts](../../apps/backend/test/integration/worker-process.spec.ts) |
-| Config, equal jitter и safe error classification | [worker-policy.spec.ts](../../apps/backend/test/unit/worker-policy.spec.ts) |
+| Ветка схемы                                                               | Проверка                                                                             |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Empty registry, next version, два workers, независимые агрегаты           | [worker.spec.ts](../../apps/backend/test/integration/worker.spec.ts)                 |
+| Второй processor ждёт реальный lock и отклоняет старый claim после commit | worker.spec.ts, `two concurrent processors with the same claim`                      |
+| Active locks после expiry и rotation stale token                          | worker.spec.ts, `active processing row locks` / `expired claim rotates token`        |
+| Ошибка каждого существенного SQL шага B                                   | worker.spec.ts, `fault after ... rolls back effect/marker/cursors/completion`        |
+| Marker replay, cursor gap, contract dead и retry budget                   | worker.spec.ts, соответствующие integration cases                                    |
+| SIGTERM drain/deadline, SIGKILL до и после commit                         | [worker-process.spec.ts](../../apps/backend/test/integration/worker-process.spec.ts) |
+| Config, equal jitter и safe error classification                          | [worker-policy.spec.ts](../../apps/backend/test/unit/worker-policy.spec.ts)          |
 
 Изучать схему вместе с тестом её ветки. Диаграммы не являются доказательством
 exactly once; бизнес-handler WMS-110 подтверждается отдельными integration tests. Для incident recovery использовать

@@ -20,12 +20,12 @@ callback вызывает business/AuditService/OutboxService с тем же con
 Внешний I/O и вложенный run запрещены. Авторизацию выполнить до execute на каждом
 запросе, в том числе replay; callback на повторе не выполняется.
 
-| Файл | Назначение |
-|---|---|
-| idempotency.module.ts | Providers/import DatabaseModule/export command service |
-| idempotency.schema.ts | Scope PK, SHA-256 hash, nullable pending/result fields и checks |
-| repositories/idempotency.repository.ts | Claim unique INSERT, отдельный read committed SELECT, complete UPDATE |
-| services/http-commands.service.ts | Canonical fingerprint, владелец transaction/callback, проверка result snapshot |
+| Файл                                   | Назначение                                                                     |
+| -------------------------------------- | ------------------------------------------------------------------------------ |
+| idempotency.module.ts                  | Providers/import DatabaseModule/export command service                         |
+| idempotency.schema.ts                  | Scope PK, SHA-256 hash, nullable pending/result fields и checks                |
+| repositories/idempotency.repository.ts | Claim unique INSERT, отдельный read committed SELECT, complete UPDATE          |
+| services/http-commands.service.ts      | Canonical fingerprint, владелец transaction/callback, проверка result snapshot |
 
 Scope: `(actor_type,actor_id,operation,key)`. Actor user/system UUID, key UUID,
 operation — постоянный server identifier `[a-z][a-z0-9.-]{0,95}`. UUID нормализуется
@@ -120,3 +120,13 @@ immutable result и runtime grants. `pnpm test`, Docker обязателен д�
 [ADR-0013](../../../../../docs/adr/0013-http-idempotency.md),
 [transactions](../../../../../docs/transactions.md),
 [contracts](../../../../../docs/contracts/README.md).
+
+## Session/ACL WMS-202
+
+execute принимает authorize(context) четвёртым аргументом. Receiving передаёт его всегда:
+актуальная session/warehouse permission проверяется до unique claim и saved response,
+locks удерживаются до commit. Guard сам по себе не закрывает race revoke↔replay.
+Callback work может не запускаться при replay, поэтому авторизация не должна быть только
+внутри work. Test-only protocol fixture не объявляет warehouse endpoint production.
+Auth/credential admin controllers не кешируют password inputs в этом storage, чтобы
+не создавать быстрый проверочный SHA-256 fingerprint. [Подробности](../../../../../docs/flows/identity.md).

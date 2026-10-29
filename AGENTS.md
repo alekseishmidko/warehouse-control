@@ -33,7 +33,9 @@ WMS-109: worker entrypoint/claim/token/markers/cursors/retry/dead/shutdown proto
 WMS-110: production inventory.putaway создаёт pending tasks+audit с atomic markers/cursors/ack.
 WMS-111: local inspect/retry/signal, structured diagnostics, operator/reason audit/history и retry budget base.
 WMS-112: multi-stage non-root Docker image API/worker/migrate, Compose overlays,
-clean build/layers check и isolated Docker gate 1. Frontend, Kafka и Kubernetes ещё не реализованы.
+clean build/layers check и isolated Docker gate 1. WMS-202: users/sessions, cookie auth/CSRF,
+warehouse policies и отдельный bootstrap; dev actor удалён. Identity DTO и таблицы разделены
+по файлам в dto/ и schemas/. Настроен root Prettier. Frontend, Kafka и Kubernetes ещё не реализованы.
 Не считать наличие документации доказательством реализации.
 
 ## Обязательные ограничения
@@ -85,7 +87,7 @@ Test support — `apps/backend/test/support/`; отдельный контейн
 Не запускать два test:prepare одновременно в одном checkout; suites одного Jest
 прогона работают параллельно и имеют независимые БД.
 Контрактные fixtures и generation diff проверяются локально в test:prepare/unit.
-CI compatibility comparison ещё нет. Следующая задача — WMS-201 (уточнение складских правил).
+CI compatibility comparison ещё нет. Следующая задача — WMS-203 (физическое размещение).
 При добавлении функциональности нужны проверки её бизнес-инвариантов.
 Для outbox обязательны реальные PostgreSQL integration tests: rollback,
 повторная доставка, конкуренция workers, восстановление после сбоя.
@@ -105,6 +107,9 @@ README каждого модуля содержит схему взаимоде�
 вход/DTO, проверки и преобразования, вызовы сервисов/repositories, SQL/события,
 результат, границы commit/rollback и ошибки. Добавлять синтетический пример
 входа/выхода и ссылки на подтверждающие тесты; будущее отделять от реализованного.
+В schema-файлах каждое поле пояснять по-русски: назначение, выбор SQL-типа, единицы/диапазон,
+default/nullable и нюансы SQL/JS/JSON. Объяснять причины составных ключей, CHECK и индексов;
+общий справочник — docs/database-types.md. Пояснения не требуют правки applied SQL/generated.
 Каждый исходный файл имеет file-level TSDoc/JSDoc; публичные символы — контракт,
 ошибки и эффекты. Файлы без поддержки комментариев описывать в ближайшем README
 и `docs/file-catalog.md`. Каждый новый собственный файл добавлять в каталог.
@@ -185,7 +190,6 @@ receiving HTTP DTO использует эти limits. Unknown optional fields
 Контракт не проверяет DB refs, права, duplicate lines или aggregateId=receiptId:
 это ответственность ReceivingService WMS-108. Подробности — shared/events/README и ADR-0011.
 
-
 ## Outbox WMS-106
 
 OutboxModule экспортирует writer OutboxService.append(context, AppendEventDto) и local OutboxRecoveryService.
@@ -203,31 +207,23 @@ DBA может обойти triggers. Test reset отключает их тол�
 Worker/claim/dedup/retry/dead реализованы WMS-109, Kafka ещё нет; append повторно создаёт новый факт,
 будущая повторная доставка использует сохранённый eventId, а не новый append.
 
+## HTTP/idempotency WMS-107 и identity WMS-202
 
-## HTTP/idempotency WMS-107
+Технические GET / и /health public, receiving create/get/post под /api/v1 требуют session
+и warehouse policy. AuthGuard заменил удалённый DevActorGuard, env DEV_ACTOR_ENABLED=true
+отклоняет startup. Server principal задаёт actor, body/headers не предоставляют роль/identity.
+Unsafe requests требуют exact AUTH_ORIGIN, JSON, session-bound X-CSRF-Token; login вместо
+session CSRF требует custom X-CSRF-Protection:1. CORS не включён. Cookie HTTPS __Host-*,
+HttpOnly/Secure/Strict/Path=/, без Domain; явный dev/test loopback HTTP — wms_session.
 
-Production graph включает public GET / и /health без prefix и receiving routes
-/api/v1/receipts (create/get/post) под isolated dev actor; production auth нет. configureHttp до init
-настраивает middleware/prefix api/v1/body limit; APP_PIPE/GUARD/FILTER — HttpModule.
-Ошибки application/problem+json безопасны, correlation UUID валидируется/генерируется.
-Dev actor default off: explicit NODE_ENV dev/test + DEV_ACTOR_ENABLED=true + server
-DEV_ACTOR_ID UUID + loopback HTTP_HOST/peer, без proxy. Не доверять actor в body/headers.
-
-ReceivingController использует HttpCommand(operation), CommandContext, class DTO validation
-и HttpCommandsService.execute(scope,normalizedTargetAndBody,callback). Авторизацию проверить
-до dedup на каждой попытке, state/business правила — внутри callback с общим context.
-Сервис владеет одним run, nested run запрещён; callback без внешнего I/O. Scope PK
-actorType/actorId/operation/UUID key, fingerprint SHA-256 canonical JSON без correlationId.
-Повтор ждёт unique INSERT и читает сохранённый result отдельным read committed statement.
-Result 200/201/202 JSON и relative Location, ошибки не кешируются; status/result/business/audit/
-outbox атомарны. HTTP disconnect не отменяет commit: retry с тем же key. TTL/deletion нет.
-
-Source OpenAPI — production controllers/DTO/decorators; docs/contracts/openapi.json generated
-через pnpm openapi:generate, pnpm openapi:check сравнивает. Offline CLI не вызывает app.init,
-не читает .env/БД. Test prepare включает diff после build. Swagger UI/CI comparison ещё нет.
-Тестовый /api/v1/commands существует только в support fixture, не добавлять в production.
-Новые migrations 0007/0008 не переписывать после применения. Следующая задача WMS-201.
-
+Receiving передаёт authorize callback в HttpCommandsService.execute: user/session/warehouse
+повторно проверяются под SHARE locks в том же context ДО claim и saved replay. Admin UPDATE
+target user ждёт ongoing command; revoke не отменяет уже committed факт. Scope по-прежнему
+actorType/actorId/operation/key, normalized JSON fingerprint, saved result с бизнес-эффектом
+в одном commit. Login/credential admin не проходят через этот cache (быстрый SHA пароля недопустим).
+Ошибки problem+json безопасны, responses no-store. Source OpenAPI — production controllers/DTO;
+generator offline с DI overrides, не читает .env/БД. Test-only /commands не production endpoint.
+Старые migrations не переписывать. Полный flow — docs/flows/identity.md. Далее WMS-203.
 
 ## Receiving WMS-108
 
@@ -242,13 +238,13 @@ operationId=line.id, receipt audit, один ReceivingPosted v1, финальн�
 Event aggregateId=payload.receiptId=receipt.id, postedAt=occurredAt, version=1.
 Прежний key возвращает исходный response (create остаётся draft snapshot), новый key
 на posted → 409. GET возвращает текущее состояние; post body отсутствует/{}.
-Все routes требуют isolated dev actor, кроме технических GET; production auth/ACL нет.
+Все receiving routes требуют server session/warehouse role, кроме технических GET;
+auth/ACL реализованы WMS-202.
 Migrations 0009/0010 новые, после применения не менять. SQL guards/retention защищают
 историю от runtime роли, DBA может обойти их. Не начислять stock в worker:
 до обработки delivery pending/stream cursor=0/task нет, после WMS-110 task pending и delivery completed. SQL/HTTP proof — docs/receiving.md.
 Receiving integration проверяет real locks и AFTER SQL fault injection каждого шага;
-cleanup только disposable harness. Следующая задача WMS-201, business handler и local recovery готовы.
-
+cleanup только disposable harness. Следующая задача WMS-203, business handler и local recovery готовы.
 
 ## Worker WMS-109
 
@@ -269,9 +265,8 @@ SIGTERM запрещает новый claim, interrupt poll, drain/close в об
 PostgreSQL 17 transaction_timeout bound; CPU-blocking JS не прерывается timer и запрещён.
 Config/defaults в worker README/.env.example, batch<=4 при pool=5. Migrations 0011/0012
 после применения не менять. SIGTERM/SIGKILL и SQL faults проверять реальной БД/child processes.
-Local recovery CLI готова WMS-111. Следующая задача WMS-201. Handler inventory.putaway использует
+Local recovery CLI готова WMS-111. Следующая задача WMS-203. Handler inventory.putaway использует
 worker context/atomic markers, не повторяет receiving stock credit.
-
 
 ## Durable putaway WMS-110
 
@@ -294,8 +289,7 @@ Task execution/cancel/target location/API/UI ещё нет. Диагностик
 docs/flows/putaway.md и docs/examples/putaway-result.sql, новый отчёт docs/reports/wms-110.md.
 Test harness undefined handlers использует production registry, [] явно отключает его;
 cleanup task immutable trigger только disposable admin DB. Source/task/audit/marker/crash
-проверять реальными migrations/SQL/child SIGKILL до/после commit. Следующая задача WMS-201.
-
+проверять реальными migrations/SQL/child SIGKILL до/после commit. Следующая задача WMS-203.
 
 ## Administrative recovery WMS-111
 
@@ -317,8 +311,7 @@ I/O sink не внутри transaction и не влияет на outcome. Signal
 0 healthy / 2 alert / 1 failure, внешние каналы отдельно WMS-401/402. Pino/Loki stack ещё нет.
 Migrations 0016/0017 после применения не менять. Cleanup history trigger только disposable
 admin harness. Runbook/fault/role/lease/cursor/race/rollback/CLI проверять реальным PostgreSQL.
-WMS-112 завершена; следующая задача — WMS-201, без неявного remote deploy/публикации.
-
+WMS-112 завершена; следующая задача — WMS-203, без неявного remote deploy/публикации.
 
 ## Docker WMS-112
 
@@ -338,4 +331,62 @@ pnpm docker:image-check — clean no-cache build и fake secret scan final layer
 pnpm docker:gate — отдельный wms112-UUID project/volume/env, actor только loopback через
 exec, настоящие HTTP/SQL, restart и SIGTERM; cleanup только собственного disposable volume.
 Не использовать compose.gate.yaml для внешнего доступа, guard не ослаблять ради demo.
-Flow/evidence: docs/flows/docker-gate.md, docs/reports/wms-112.md. Следующая задача WMS-201.
+Flow/evidence: docs/flows/docker-gate.md, docs/reports/wms-112.md. Следующая задача WMS-203.
+
+## Бизнес-политики WMS-201
+
+B1–B4 явно приняты владельцем продукта 2026-10-29; WMS-201 завершена как документация
+и согласование правил, не реализация fulfillment. Частичные сборка/отгрузка разрешены,
+остаток открыт; найденное при нехватке подтверждается, недособранное остаётся в резерве
+до решения оператора, автоматического списания нет. Отмена до сборки освобождает резерв,
+после переноса в shipping требует подтверждённого физического возврата; shipped не отменяется.
+Автоматического expiration/TTL/cron/job нет: возраст сам не освобождает резерв. Проверять
+гонки явных release/cancel с pick/ship, без добавления expiration по предположению.
+Владелец правил — docs/fulfillment-rules.md; flow/AC и проект контрактов связаны оттуда.
+Дополнительная блокировка сомнительной позиции, closed_mixed, точные DTO/schema и лимиты
+новых документов остаются проектными деталями, не утверждёнными этим согласием. До их
+реализации уточнить в соответствующих задачах. Следующая задача — WMS-202.
+
+## Identity WMS-202 — реализовано
+
+Принятые auth/threat assumptions/матрица — ADR-0018/0019; техническая реализация — ADR-0020.
+Controller/service/repository, экспортируются AuthService, SessionsService, UsersService и AccessService.
+IdentityRepository и общий IdentityTransactionsService остаются private providers. DTO разделены по файлам
+в identity/dto, таблицы по одной в identity/schemas; не возвращать общий identity.dto/schema монолит.
+Password scrypt N=2^17/r=8/p=1 (salt16/key64, max 2 in flight), случайный token256bit,
+в БД только digest. Crypto до DB transaction, затем recheck user/hash под lock. Session
+clock/validity проверять новым SQL statement ПОСЛЕ получения row lock; истёкшая в ожидании
+сессия не должна ожить sliding touch. Idle refresh <= absolute. API/admin без raw credentials logs.
+
+AUTH_ORIGIN и AUTH_SESSION_ABSOLUTE_SECONDS/IDLE_SECONDS обязательны явно (30..86400,
+idle<=absolute); числовые 12h/30m НЕ утверждены как defaults. Без настройки API/bootstrap
+fail closed. Worker/seed не импортируют HTTP auth graph. Пользовательские сессии истекают,
+товарные резервы по B4 автоматически не истекают. Backend не TLS gateway, внешний доступ
+требует HTTPS и закрытого прямого HTTP.
+
+Bootstrap — отдельный pnpm identity:bootstrap, credentials только bounded stdin, explicit opt-in,
+DB group warehouse_identity_bootstrap и retained marker с проверкой users под advisory lock.
+Не запускать на startup API, не использовать для reset/recovery, не возвращать public register.
+System admin не получает warehouse roles автоматически. Mutation users/grants/revoke и audit
+атомарны, последний active admin защищён общей advisory lock. Старые applied SQL не менять.
+Новые migrations 0018/0019 уже применены локально; cleanup marker только disposable harness.
+
+test/support/identity.fixture создаёт реальные synthetic sessions/grants, guard не подменяется.
+Docker gate использует реальные bootstrap/login/role/CSRF через private stdin; dev actor удалён.
+Source/API/flow/evidence: modules/identity/README.md, docs/identity.md, docs/flows/identity.md,
+docs/reports/wms-202.md. Реализация login/me/logout/admin готова, будущие fulfillment endpoints — нет.
+
+## Форматирование
+
+Root Prettier 3.9.10, pnpm format / pnpm format:check. .prettierignore исключает applied SQL,
+generated artifacts, lockfile, credentials, deps/outputs. Не менять generated/applied ради форматтера.
+Новые файлы добавлять в каталог; format не заменяет typecheck/Jest. Следующая задача — WMS-203.
+
+## Проверка покрытия identity
+
+`pnpm test:identity:coverage` выполняет полный Jest unit/integration прогон с Docker,
+production build и generation diff. IdentityController threshold — 100% statements/branches/
+functions/lines; config apps/backend/jest.identity-coverage.config.cjs. HTML/JSON summary в
+apps/backend/coverage/identity (Git ignored). Не объявлять весь identity 100%: bootstrap
+исполняется отдельным child CLI, coverage не объединяется с parent. Подробности tests —
+apps/backend/test/README.md; текущий подтверждённый прогон 435 tests/28 suites.

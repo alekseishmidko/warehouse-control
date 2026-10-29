@@ -29,8 +29,13 @@ export class EventContracts {
       // replacer отклоняет такие значения, когда они встречаются при обходе.
       // Стандартный toJSON выполняется до replacer: проверяется результат toJSON.
       message = JSON.stringify(input, (_key, value: unknown) => {
-        if (value === undefined || typeof value === 'function' || typeof value === 'symbol'
-          || typeof value === 'bigint' || (typeof value === 'number' && !Number.isFinite(value))) {
+        if (
+          value === undefined ||
+          typeof value === 'function' ||
+          typeof value === 'symbol' ||
+          typeof value === 'bigint' ||
+          (typeof value === 'number' && !Number.isFinite(value))
+        ) {
           throw new EventContractError('INVALID_JSON');
         }
         return value;
@@ -59,7 +64,8 @@ export class EventContracts {
     // Runtime guard нужен даже при TS string: внешние JS callers могут нарушить сигнатуру.
     if (typeof message !== 'string') throw new EventContractError('INVALID_JSON');
     // Сначала bytes, затем parse: слишком большое сообщение не разбираем в дерево объектов.
-    if (Buffer.byteLength(message, 'utf8') > MAX_EVENT_BYTES) throw new EventContractError('MESSAGE_TOO_LARGE');
+    if (Buffer.byteLength(message, 'utf8') > MAX_EVENT_BYTES)
+      throw new EventContractError('MESSAGE_TOO_LARGE');
     let input: unknown;
     try {
       input = JSON.parse(message);
@@ -68,12 +74,17 @@ export class EventContracts {
       throw new EventContractError('INVALID_JSON');
     }
     // JSON допускает null/array/primitives, но envelope должен быть объектом.
-    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new EventContractError('INVALID_EVENT');
+    if (!input || typeof input !== 'object' || Array.isArray(input))
+      throw new EventContractError('INVALID_EVENT');
     const header = input as Record<string, unknown>;
     // Это минимальная проверка для выбора schema, а не валидация всего envelope.
     // Некорректный номер версии отличается от корректной, но неподдерживаемой версии.
-    if (typeof header.type !== 'string' || header.type.length === 0
-      || !Number.isSafeInteger(header.schemaVersion) || (header.schemaVersion as number) < 1) {
+    if (
+      typeof header.type !== 'string' ||
+      header.type.length === 0 ||
+      !Number.isSafeInteger(header.schemaVersion) ||
+      (header.schemaVersion as number) < 1
+    ) {
       throw new EventContractError('INVALID_EVENT');
     }
     const key = `${header.type}:${header.schemaVersion}`;

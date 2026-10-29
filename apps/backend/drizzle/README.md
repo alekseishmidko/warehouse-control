@@ -138,3 +138,20 @@ admin membership и перехода dead → retry при неизменном 
 Тестовый harness отключает защиту только для очистки созданной им disposable БД и включает
 её обратно в той же транзакции. Эти пояснения находятся в README, поскольку 0016/0017 уже
 применены: менять SQL/checksum ради перевода комментариев или править generated snapshots нельзя.
+
+## WMS-202
+
+0018_identity.sql — generated users/sessions/warehouse_roles/auth_login_windows/
+identity_bootstrap, FK, hash/role/deadline CHECK и индекс sessions(user_id).
+Schema владельцев теперь в modules/identity/schemas/, одна таблица — один файл;
+изменение путей подтвердило no-diff generation, не создаёт новую миграцию.
+0019_identity-security.sql — custom warehouse_identity_bootstrap NOLOGIN,
+раздельные runtime/bootstrap grants и retained marker trigger.
+Runtime не может создать/удалить marker; CLI проверяет ещё отсутствие users, DB group,
+opt-in и локальную область. DBA может обойти защиту. Пароли/credentials миграции не создают.
+
+Snapshots 0018/0019 и journal создаёт Drizzle Kit; вручную не менять. Технические
+пояснения находятся в schemas/README модуля и [flow](../../../docs/flows/identity.md).
+Очистка retained marker допускается только disposable admin harness в cleanup transaction.
+Новые migrations применены к локальной dev БД без удаления volume и старых данных.
+Prettier исключает всю drizzle/директорию, чтобы не менять applied SQL/checksums.

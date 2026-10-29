@@ -71,15 +71,15 @@ cursor, claim только следующей версии и блокировк
 
 ## Сбои
 
-| Точка сбоя | Результат |
-|---|---|
-| До commit бизнес-операции | Нет изменения и события |
-| После commit до claim | Worker найдёт pending delivery |
-| После claim до обработки | Повтор после lease expiry |
-| Внутри локального handler | Rollback эффекта и processed marker |
-| После локального commit | Повтор распознаётся по marker |
-| Ошибка схемы/неподдерживаемая версия | Quarantine/dead и сигнал оператору |
-| Исчерпаны попытки | Dead блокирует следующий event этого потока |
+| Точка сбоя                           | Результат                                   |
+| ------------------------------------ | ------------------------------------------- |
+| До commit бизнес-операции            | Нет изменения и события                     |
+| После commit до claim                | Worker найдёт pending delivery              |
+| После claim до обработки             | Повтор после lease expiry                   |
+| Внутри локального handler            | Rollback эффекта и processed marker         |
+| После локального commit              | Повтор распознаётся по marker               |
+| Ошибка схемы/неподдерживаемая версия | Quarantine/dead и сигнал оператору          |
+| Исчерпаны попытки                    | Dead блокирует следующий event этого потока |
 
 ## Переход на Kafka
 
@@ -138,7 +138,6 @@ WMS-109 вызывает parseForHandler(message) до допуска handler.
 Immutable/retention triggers защищают обычный DML, не DBA. Автоматического удаления
 events/deliveries/streams/counters нет, включая completed/dead, до replay policy.
 
-
 ## Реализация worker WMS-109
 
 [Worker README](../apps/backend/src/infrastructure/worker/README.md) — фактические
@@ -149,3 +148,17 @@ Worker process отдельный, API его не запускает. WMS-110 r
 становится dead. Dead блокирует следующую версию только своего потока.
 Process run ограничен PostgreSQL 17 transaction_timeout, SIGTERM drain — общим deadline.
 Durable dead parking и local retry CLI WMS-111 реализованы; отдельной quarantine table нет.
+
+## Почему выбраны поля и типы
+
+В [outbox.schema.ts](../apps/backend/src/infrastructure/outbox/outbox.schema.ts) над каждой
+колонкой описаны её смысл, причина отдельного хранения и ограничения. Например, envelope
+остаётся JSONB-снимком, но event/aggregate identity вынесены для ключей и проверяются на
+совпадение; bigint версий ограничен точным JS/JSON диапазоном; nullable leaseUntil/token
+образуют пару; retry_attempt_base сохраняет общий attempts и историю.
+
+Рядом с ограничениями пояснены составные PK/FK/UNIQUE, coalesce в CHECK envelope и
+частичный индекс активных доставок. [Общий справочник типов](database-types.md) объясняет
+UUID, int4/bigint, timestamptz/defaultNow, text + CHECK, JSONB и SQL NULL/JSON null.
+Так же задокументированы все остальные schema-файлы backend. Это изменение комментариев,
+а не новая модель outbox: applied SQL и generated snapshots остаются прежними.

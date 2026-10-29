@@ -28,15 +28,15 @@ corrupted immutable facts требуют отдельного решения, а
 
 ## Источники данных и полномочия
 
-| Данные | Источник / доверие |
-|---|---|
-| eventId, consumer | CLI flags, UUID и server destination validation до DB |
-| operatorId | Обязательный UUID локального вызывающего; не authenticated directory identity |
-| reasonCode | Технический slug до 96 символов, без свободного текста/PII |
-| administrationCorrelationId | Новый server UUID данного CLI запуска |
-| source correlationId | Envelope UUID либо null при invalid value, не входной admin correlation |
-| status/attempts/base/lease/cursors/marker | Повторное чтение PostgreSQL, не данные предыдущего inspect |
-| payload preview | Explicit opt-in, full EventContracts validation, allowlist первых 10 lines |
+| Данные                                    | Источник / доверие                                                            |
+| ----------------------------------------- | ----------------------------------------------------------------------------- |
+| eventId, consumer                         | CLI flags, UUID и server destination validation до DB                         |
+| operatorId                                | Обязательный UUID локального вызывающего; не authenticated directory identity |
+| reasonCode                                | Технический slug до 96 символов, без свободного текста/PII                    |
+| administrationCorrelationId               | Новый server UUID данного CLI запуска                                         |
+| source correlationId                      | Envelope UUID либо null при invalid value, не входной admin correlation       |
+| status/attempts/base/lease/cursors/marker | Повторное чтение PostgreSQL, не данные предыдущего inspect                    |
+| payload preview                           | Explicit opt-in, full EventContracts validation, allowlist первых 10 lines    |
 
 CLI требует explicit dev/test, opt-in и loopback DB URL **до** Nest/pool. Внутри каждого service
 run проверяется warehouse_outbox_admin membership. SET ROLE tests проверяют именно current_user.
@@ -122,12 +122,12 @@ commit повтор не делает новый reset: status уже retry/proc
 
 ## Attempts и новый budget без удаления истории
 
-| Шаг, maxAttempts=10 | Total attempts | Retry base | Потрачено в этом budget | Статус |
-|---|---|---|---|---|
-| Исчерпаны обычные попытки | 10 | 0 | 10 | dead |
-| Административный COMMIT | 10 | 10 | 0 | retry |
-| Новый claim | 11 | 10 | 1 | processing |
-| Worker COMMIT | 11 | 10 | 1 | completed |
+| Шаг, maxAttempts=10       | Total attempts | Retry base | Потрачено в этом budget | Статус     |
+| ------------------------- | -------------- | ---------- | ----------------------- | ---------- |
+| Исчерпаны обычные попытки | 10             | 0          | 10                      | dead       |
+| Административный COMMIT   | 10             | 10         | 0                       | retry      |
+| Новый claim               | 11             | 10         | 1                       | processing |
+| Worker COMMIT             | 11             | 10         | 1                       | completed  |
 
 Worker сравнивает attempts-base с maxAttempts и рассчитывает backoff по этому budget attempt.
 Diagnostics всегда показывает **общий** attempt=11. История хранит previousAttempts=10 и старый
@@ -182,23 +182,23 @@ replay/rebuild и исправление corrupted immutable facts не реал
 Подробные русские комментарии находятся рядом с проверками и SQL, а не только в этой схеме.
 Начинать чтение удобно в следующем порядке:
 
-| Файл / участок | Ответственность и существенное ограничение |
-|---|---|
-| [outbox-admin.ts](../../apps/backend/src/infrastructure/outbox/outbox-admin.ts) | argv → local guard → Nest-контекст → сервис → безопасный JSON; общий deadline 15s включает закрытие пула |
-| [recovery-options.ts](../../apps/backend/src/infrastructure/outbox/recovery-options.ts) | Проверка UUID, server destination, причины, числовых порогов; неизвестные/повторные флаги запрещены до подключения |
-| [recovery.dto.ts](../../apps/backend/src/infrastructure/outbox/dto/recovery.dto.ts) | Контракты адреса, команды и порогов; operator UUID утверждает вызывающий, а не каталог пользователей |
-| [outbox-recovery.service.ts](../../apps/backend/src/infrastructure/outbox/services/outbox-recovery.service.ts) | Один runner на команду, проверка роли и состояний, аудит через владельца, безопасный preview |
-| [recovery.repository.ts](../../apps/backend/src/infrastructure/outbox/repositories/recovery.repository.ts) | Заимствованный context, SQL NOWAIT, запись history и scheduling без собственного commit; таймауты по 5s |
-| [outbox.schema.ts](../../apps/backend/src/infrastructure/outbox/outbox.schema.ts) | retry_attempt_base и outbox_recovery_actions; назначение ограничений и ссылки на аудит/delivery |
-| [delivery-diagnostic.ts](../../apps/backend/src/shared/diagnostics/delivery-diagnostic.ts) | Чистый выбор полей, проверка correlation UUID и маскирование неизвестной ошибки |
-| [delivery-logger.ts](../../apps/backend/src/infrastructure/worker/delivery-logger.ts) | Локальный JSON stdout после завершения транзакции; ошибка вывода не отменяет commit |
-| [worker.repository.ts](../../apps/backend/src/infrastructure/worker/repositories/worker.repository.ts) | Бюджет attempts-base, сбор claims/exhausted без I/O под блокировками |
-| [worker.service.ts](../../apps/backend/src/infrastructure/worker/services/worker.service.ts) | Вывод результата только после commit; backoff по текущему бюджету, общий attempt в логах |
-| [worker-loop.ts](../../apps/backend/src/infrastructure/worker/services/worker-loop.ts) | allSettled сохраняет независимость потоков; ошибка persistence связана с конкретным claim по индексу |
-| [Миграции README](../../apps/backend/drizzle/README.md#wms-111) | Назначение 0016/0017, SQL-права и триггеры; applied/generated SQL не редактируется для комментариев |
-| [Интеграционные тесты](../../apps/backend/test/integration/outbox-recovery.spec.ts) | Настоящий CLI, AFTER-trigger fault, удерживаемые блокировки, конкурирующие операторы, роль и rollback |
-| [Unit-тесты](../../apps/backend/test/unit/outbox-recovery.spec.ts) | Граница ввода, redaction, отказ stdout, остановка poll через тестовый барьер |
-| [database-harness.ts](../../apps/backend/test/support/database-harness.ts) | Cleanup полного FK-графа вместе с recovery history; отключение trigger только в disposable admin БД |
+| Файл / участок                                                                                                 | Ответственность и существенное ограничение                                                                         |
+| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [outbox-admin.ts](../../apps/backend/src/infrastructure/outbox/outbox-admin.ts)                                | argv → local guard → Nest-контекст → сервис → безопасный JSON; общий deadline 15s включает закрытие пула           |
+| [recovery-options.ts](../../apps/backend/src/infrastructure/outbox/recovery-options.ts)                        | Проверка UUID, server destination, причины, числовых порогов; неизвестные/повторные флаги запрещены до подключения |
+| [recovery.dto.ts](../../apps/backend/src/infrastructure/outbox/dto/recovery.dto.ts)                            | Контракты адреса, команды и порогов; operator UUID утверждает вызывающий, а не каталог пользователей               |
+| [outbox-recovery.service.ts](../../apps/backend/src/infrastructure/outbox/services/outbox-recovery.service.ts) | Один runner на команду, проверка роли и состояний, аудит через владельца, безопасный preview                       |
+| [recovery.repository.ts](../../apps/backend/src/infrastructure/outbox/repositories/recovery.repository.ts)     | Заимствованный context, SQL NOWAIT, запись history и scheduling без собственного commit; таймауты по 5s            |
+| [outbox.schema.ts](../../apps/backend/src/infrastructure/outbox/outbox.schema.ts)                              | retry_attempt_base и outbox_recovery_actions; назначение ограничений и ссылки на аудит/delivery                    |
+| [delivery-diagnostic.ts](../../apps/backend/src/shared/diagnostics/delivery-diagnostic.ts)                     | Чистый выбор полей, проверка correlation UUID и маскирование неизвестной ошибки                                    |
+| [delivery-logger.ts](../../apps/backend/src/infrastructure/worker/delivery-logger.ts)                          | Локальный JSON stdout после завершения транзакции; ошибка вывода не отменяет commit                                |
+| [worker.repository.ts](../../apps/backend/src/infrastructure/worker/repositories/worker.repository.ts)         | Бюджет attempts-base, сбор claims/exhausted без I/O под блокировками                                               |
+| [worker.service.ts](../../apps/backend/src/infrastructure/worker/services/worker.service.ts)                   | Вывод результата только после commit; backoff по текущему бюджету, общий attempt в логах                           |
+| [worker-loop.ts](../../apps/backend/src/infrastructure/worker/services/worker-loop.ts)                         | allSettled сохраняет независимость потоков; ошибка persistence связана с конкретным claim по индексу               |
+| [Миграции README](../../apps/backend/drizzle/README.md#wms-111)                                                | Назначение 0016/0017, SQL-права и триггеры; applied/generated SQL не редактируется для комментариев                |
+| [Интеграционные тесты](../../apps/backend/test/integration/outbox-recovery.spec.ts)                            | Настоящий CLI, AFTER-trigger fault, удерживаемые блокировки, конкурирующие операторы, роль и rollback              |
+| [Unit-тесты](../../apps/backend/test/unit/outbox-recovery.spec.ts)                                             | Граница ввода, redaction, отказ stdout, остановка poll через тестовый барьер                                       |
+| [database-harness.ts](../../apps/backend/test/support/database-harness.ts)                                     | Cleanup полного FK-графа вместе с recovery history; отключение trigger только в disposable admin БД                |
 
 ### Что означает диагностическое чтение
 
@@ -211,18 +211,18 @@ read committed. Каждый запрос видит свой снимок, по
 
 ### Отказы и действие оператора
 
-| Код | Что произошло | Следующий шаг |
-|---|---|---|
-| INVALID_ARGUMENTS | Неверные флаги/UUID/получатель/причина/порог | Исправить команду, не искать проблему в БД |
-| LOCAL_ACCESS_REQUIRED | Нет явного локального разрешения или URL не loopback | Проверить dev/test и среду, не ослаблять guard |
-| ADMIN_ROLE_REQUIRED | current_user не член warehouse_outbox_admin | Использовать разрешённый локальный DB login; UUID оператора прав не добавляет |
-| DELIVERY_NOT_FOUND | По адресу eventId+consumer нет доставки | Сверить сохранённый eventId и получателя |
-| DELIVERY_BUSY | NOWAIT встретил удерживаемую SQL-блокировку | Дождаться текущего владельца, повторно inspect |
-| LEASE_ACTIVE | Один из lease ещё активен | Дать worker завершиться; не стирать токен/lease вручную |
-| ALREADY_PROCESSED | Есть marker либо consumer cursor уже прошёл событие | Не повторять эффект, изучить текущий результат |
-| NOT_DEAD | Состояние не dead | Для expired processing работает автоматический lease recovery |
-| PREDECESSOR_REQUIRED | Один из курсоров не стоит на предыдущей версии | Исследовать предшественника; не перескакивать порядок |
-| ATTEMPT_LIMIT_REACHED | Общий attempts достиг int4 max | Обычный retry не исправляет предел; требуется отдельное решение |
+| Код                   | Что произошло                                        | Следующий шаг                                                                 |
+| --------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------- |
+| INVALID_ARGUMENTS     | Неверные флаги/UUID/получатель/причина/порог         | Исправить команду, не искать проблему в БД                                    |
+| LOCAL_ACCESS_REQUIRED | Нет явного локального разрешения или URL не loopback | Проверить dev/test и среду, не ослаблять guard                                |
+| ADMIN_ROLE_REQUIRED   | current_user не член warehouse_outbox_admin          | Использовать разрешённый локальный DB login; UUID оператора прав не добавляет |
+| DELIVERY_NOT_FOUND    | По адресу eventId+consumer нет доставки              | Сверить сохранённый eventId и получателя                                      |
+| DELIVERY_BUSY         | NOWAIT встретил удерживаемую SQL-блокировку          | Дождаться текущего владельца, повторно inspect                                |
+| LEASE_ACTIVE          | Один из lease ещё активен                            | Дать worker завершиться; не стирать токен/lease вручную                       |
+| ALREADY_PROCESSED     | Есть marker либо consumer cursor уже прошёл событие  | Не повторять эффект, изучить текущий результат                                |
+| NOT_DEAD              | Состояние не dead                                    | Для expired processing работает автоматический lease recovery                 |
+| PREDECESSOR_REQUIRED  | Один из курсоров не стоит на предыдущей версии       | Исследовать предшественника; не перескакивать порядок                         |
+| ATTEMPT_LIMIT_REACHED | Общий attempts достиг int4 max                       | Обычный retry не исправляет предел; требуется отдельное решение               |
 
 Неизвестные ошибки CLI выводятся как ADMIN_COMMAND_FAILED; ADMIN_CLEANUP_FAILED относится
 к закрытию ресурсов, ADMIN_DEADLINE_EXCEEDED — к общему сроку выполнения. Такой отказ вывода

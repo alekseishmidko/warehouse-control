@@ -1,6 +1,9 @@
 /** @file Drizzle transaction adapter: scoped capabilities, запрет nested run и отзыв context после callback. */
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type { TransactionContext, TransactionRunner } from '../../shared/transactions/transaction.port';
+import type {
+  TransactionContext,
+  TransactionRunner,
+} from '../../shared/transactions/transaction.port';
 import type { createDatabaseConnection } from './connection';
 
 type Database = ReturnType<typeof createDatabaseConnection>['db'];
@@ -25,15 +28,19 @@ export class PostgresTransactionRunner implements TransactionRunner {
 
   /** Запускает read committed transaction ровно один раз; оригинальная ошибка/SQLSTATE передаётся вызывающему. */
   async run<T>(work: (context: TransactionContext) => Promise<T>): Promise<T> {
-    if (scope.getStore()) throw new Error('Nested transaction run is forbidden; pass the existing context');
-    return this.db.transaction(async client => {
-      const context = Object.freeze({}) as TransactionContext;
-      clients.set(context, client);
-      try {
-        return await scope.run(context, () => work(context));
-      } finally {
-        clients.delete(context);
-      }
-    }, { isolationLevel: 'read committed' });
+    if (scope.getStore())
+      throw new Error('Nested transaction run is forbidden; pass the existing context');
+    return this.db.transaction(
+      async (client) => {
+        const context = Object.freeze({}) as TransactionContext;
+        clients.set(context, client);
+        try {
+          return await scope.run(context, () => work(context));
+        } finally {
+          clients.delete(context);
+        }
+      },
+      { isolationLevel: 'read committed' },
+    );
   }
 }

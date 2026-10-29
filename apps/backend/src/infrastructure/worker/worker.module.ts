@@ -9,8 +9,21 @@ import { WorkerRepository } from './repositories/worker.repository';
 import { InventoryModule } from '../../modules/inventory/inventory.module';
 import { ReceivingPostedHandler } from './services/receiving-posted.handler';
 /** Production registry содержит настоящий handler; tests могут явно заменить список, не меняя API graph. */
-@Module({ imports: [DatabaseModule, InventoryModule], providers: [{ provide: WORKER_CONFIG, useFactory: loadWorkerConfig },
-  ReceivingPostedHandler, { provide: WORKER_HANDLERS, useFactory: (handler: ReceivingPostedHandler) => [handler], inject: [ReceivingPostedHandler] },
-  HandlerRegistry, WorkerRepository, WorkerService, WorkerLoop],
-  exports: [WorkerService, WorkerLoop] })
+@Module({
+  imports: [DatabaseModule, InventoryModule],
+  providers: [
+    { provide: WORKER_CONFIG, useFactory: loadWorkerConfig },
+    ReceivingPostedHandler,
+    {
+      provide: WORKER_HANDLERS,
+      useFactory: (handler: ReceivingPostedHandler) => [handler],
+      inject: [ReceivingPostedHandler],
+    },
+    HandlerRegistry,
+    WorkerRepository,
+    WorkerService,
+    WorkerLoop,
+  ],
+  exports: [WorkerService, WorkerLoop],
+})
 export class WorkerModule {}

@@ -13,14 +13,24 @@ export class AppController {
 
   /** GET /: возвращает текстовое имя API без изменения состояния. */
   @Get()
-  @ApiOkResponse({ description: 'Имя технического API без бизнес-эффектов.', content: { 'text/plain': { schema: { type: 'string', example: 'Warehouse Controller API' } } } })
+  @ApiOkResponse({
+    description: 'Имя технического API без бизнес-эффектов.',
+    content: { 'text/plain': { schema: { type: 'string', example: 'Warehouse Controller API' } } },
+  })
   getHello(): string {
     return this.appService.getHello();
   }
 
   /** GET /health: подтверждает ответ процесса, но не готовность БД или очереди. */
   @Get('health')
-  @ApiOkResponse({ description: 'Liveness процесса, не readiness БД.', schema: { type: 'object', required: ['status'], properties: { status: { type: 'string', enum: ['ok'] } } } })
+  @ApiOkResponse({
+    description: 'Liveness процесса, не readiness БД.',
+    schema: {
+      type: 'object',
+      required: ['status'],
+      properties: { status: { type: 'string', enum: ['ok'] } },
+    },
+  })
   getHealth(): { status: string } {
     return { status: 'ok' };
   }

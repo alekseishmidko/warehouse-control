@@ -9,15 +9,24 @@ import type { PutawayTaskDto } from '../dto/putaway-task.dto';
 @Injectable()
 export class PutawayRepository {
   /** Возвращает immutable task либо null в текущем context; читает только таблицу inventory. */
-  async findBySourceLine(context: TransactionContext, lineId: string): Promise<PutawayTaskDto | null> {
-    const [row] = await transactionClient(context).select().from(putawayTasks).where(eq(putawayTasks.sourceReceiptLineId, lineId));
+  async findBySourceLine(
+    context: TransactionContext,
+    lineId: string,
+  ): Promise<PutawayTaskDto | null> {
+    const [row] = await transactionClient(context)
+      .select()
+      .from(putawayTasks)
+      .where(eq(putawayTasks.sourceReceiptLineId, lineId));
     return row ? { ...row, createdAt: row.createdAt.toISOString() } : null;
   }
   /**
    * Вставляет task с обязательным auditId; FK/unique ошибки выходят до runner.
    * Unique race не подавляется: иначе уже записанный audit проигравшего мог бы остаться orphan.
    */
-  async insert(context: TransactionContext, task: Omit<PutawayTaskDto, 'createdAt'>): Promise<PutawayTaskDto> {
+  async insert(
+    context: TransactionContext,
+    task: Omit<PutawayTaskDto, 'createdAt'>,
+  ): Promise<PutawayTaskDto> {
     const [row] = await transactionClient(context).insert(putawayTasks).values(task).returning();
     return { ...row, createdAt: row.createdAt.toISOString() };
   }

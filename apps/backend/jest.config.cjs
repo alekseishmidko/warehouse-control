@@ -13,7 +13,11 @@ module.exports = {
   testTimeout: 15000,
   projects: [
     { ...common, displayName: 'unit', testMatch: ['<rootDir>/.test-dist/test/unit/**/*.spec.js'] },
-    { ...common, displayName: 'integration', testMatch: ['<rootDir>/.test-dist/test/integration/**/*.spec.js'],
-      setupFilesAfterEnv: ['<rootDir>/test/integration.setup.cjs'] },
+    {
+      ...common,
+      displayName: 'integration',
+      testMatch: ['<rootDir>/.test-dist/test/integration/**/*.spec.js'],
+      setupFilesAfterEnv: ['<rootDir>/test/integration.setup.cjs'],
+    },
   ],
 };

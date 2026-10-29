@@ -6,10 +6,12 @@
   "createdAt": "2026-10-17T05:59:00.000Z",
   "postedAt": "2026-10-17T06:00:00.000Z",
   "postedEventId": "78ae6ebd-16c3-4cb8-896b-de321cb8c634",
-  "lines": [{
-    "id": "482adf2c-e40a-46c9-8640-b4606363fa80",
-    "position": 1,
-    "productId": "801c9003-42c2-48f5-af04-ae26f106ea46",
-    "quantity": 10
-  }]
+  "lines": [
+    {
+      "id": "482adf2c-e40a-46c9-8640-b4606363fa80",
+      "position": 1,
+      "productId": "801c9003-42c2-48f5-af04-ae26f106ea46",
+      "quantity": 10
+    }
+  ]
 }

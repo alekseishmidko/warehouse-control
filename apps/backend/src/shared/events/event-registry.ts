@@ -34,11 +34,14 @@ addFormats(ajv, { mode: 'full' });
  * Внешнего Kafka Schema Registry и загрузки schemas по сети здесь нет.
  */
 export const EVENT_REGISTRY = Object.freeze({
-  'receiving.receipt-posted:1': ajv.compile<ReceivingPostedV1>(eventSchemas['receiving.receipt-posted.v1']),
+  'receiving.receipt-posted:1': ajv.compile<ReceivingPostedV1>(
+    eventSchemas['receiving.receipt-posted.v1'],
+  ),
 });
 
 /** Максимальное число строк одного документа; берётся из schema для согласованности с будущим receiving DTO. */
-export const MAX_RECEIPT_LINES = eventSchemas['receiving.receipt-posted.v1'].properties.payload.properties.lines.maxItems;
+export const MAX_RECEIPT_LINES =
+  eventSchemas['receiving.receipt-posted.v1'].properties.payload.properties.lines.maxItems;
 
 /**
  * Максимум 256 КиБ сериализованного JSON UTF-8 с envelope и неизвестными полями.

@@ -11,13 +11,13 @@
 
 ## Для разработчика
 
-| Файл | Назначение |
-|---|---|
-| warehouses.module.ts | Экспорт WarehousesService; private repository |
-| services/warehouses.service.ts | createWarehouse, createLocation, requireLocation |
-| repositories/warehouses.repository.ts | Только SQL собственных warehouses/locations |
-| dto/warehouse.dto.ts | CreateWarehouse/Location DTO, Warehouse/Location DTO, LocationKind |
-| warehouses.schema.ts | FK location→warehouse, unique warehouse code и location code в складе |
+| Файл                                  | Назначение                                                            |
+| ------------------------------------- | --------------------------------------------------------------------- |
+| warehouses.module.ts                  | Экспорт WarehousesService; private repository                         |
+| services/warehouses.service.ts        | createWarehouse, createLocation, requireLocation                      |
+| repositories/warehouses.repository.ts | Только SQL собственных warehouses/locations                           |
+| dto/warehouse.dto.ts                  | CreateWarehouse/Location DTO, Warehouse/Location DTO, LocationKind    |
+| warehouses.schema.ts                  | FK location→warehouse, unique warehouse code и location code в складе |
 
 Все методы принимают existing context, не делают отдельный commit. Names/codes
 нормализуются shared helpers, kind проверяет сервис и SQL CHECK. Composite unique
@@ -67,7 +67,6 @@ DATABASE_URL общий; специальных переменных, events, co
 [stock.spec.ts](../../../test/integration/stock.spec.ts).
 Миграции: pnpm db:migrate; примеры: pnpm db:seed, только development.
 [Правила и модели](../../../../../docs/stock-baseline.md).
-
 
 WMS-108: ReceivingService.requireReceivingLocation вызывает requireLocation;
 возвращённая location/FK доказывает наличие склада и ownership. Missing/wrong warehouse

@@ -11,12 +11,17 @@ export class HandlerRegistry {
   /** Проверяет stable destination и уникальность до старта poll; новый destination требует migration/replay плана. */
   constructor(@Inject(WORKER_HANDLERS) handlers: readonly LocalEventHandler[]) {
     for (const handler of handlers) {
-      if (handler.destination !== PUTAWAY_DESTINATION || this.handlers.has(handler.destination)) throw new Error('Invalid worker handler registration');
+      if (handler.destination !== PUTAWAY_DESTINATION || this.handlers.has(handler.destination))
+        throw new Error('Invalid worker handler registration');
       this.handlers.set(handler.destination, handler);
     }
   }
   /** Список только реально подключённых handlers; пустой список означает отсутствие claim, а не no-op ack. */
-  destinations(): string[] { return [...this.handlers.keys()]; }
+  destinations(): string[] {
+    return [...this.handlers.keys()];
+  }
   /** Lookup по проверенному claim; undefined не считается успешной обработкой. */
-  get(destination: string): LocalEventHandler | undefined { return this.handlers.get(destination); }
+  get(destination: string): LocalEventHandler | undefined {
+    return this.handlers.get(destination);
+  }
 }

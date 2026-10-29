@@ -16,17 +16,17 @@ DBA способен менять БД: append-only не является кри
 
 ## Файлы и интерфейсы
 
-| Файл | Назначение |
-|---|---|
-| inventory.module.ts | Экспорт InventoryService, imports сервисов catalog/warehouses/audit |
-| services/inventory.service.ts | Публичные receive/getBalance/createPutawayTasks с borrowed context |
-| services/putaway.service.ts | Source validation, duplicate/conflict и создание task/audit без stock |
-| repositories/putaway.repository.ts | SELECT/INSERT собственной putaway_tasks, SQL unique race защита |
-| dto/putaway-task.dto.ts | Внутренний command и task result без ORM/HTTP |
-| putaway-task.schema.ts | Source provenance FK, unique line/event, pending и int4 constraints |
-| repositories/inventory.repository.ts | Guarded upsert, appendMovement и чтение собственного balance |
-| dto/stock.dto.ts | StockKeyDto, ReceiveStockDto, StockBalanceDto, ReceiveStockResultDto |
-| inventory.schema.ts | int4, unique/FK/CHECK, movement с audit link и operationId unique |
+| Файл                                 | Назначение                                                            |
+| ------------------------------------ | --------------------------------------------------------------------- |
+| inventory.module.ts                  | Экспорт InventoryService, imports сервисов catalog/warehouses/audit   |
+| services/inventory.service.ts        | Публичные receive/getBalance/createPutawayTasks с borrowed context    |
+| services/putaway.service.ts          | Source validation, duplicate/conflict и создание task/audit без stock |
+| repositories/putaway.repository.ts   | SELECT/INSERT собственной putaway_tasks, SQL unique race защита       |
+| dto/putaway-task.dto.ts              | Внутренний command и task result без ORM/HTTP                         |
+| putaway-task.schema.ts               | Source provenance FK, unique line/event, pending и int4 constraints   |
+| repositories/inventory.repository.ts | Guarded upsert, appendMovement и чтение собственного balance          |
+| dto/stock.dto.ts                     | StockKeyDto, ReceiveStockDto, StockBalanceDto, ReceiveStockResultDto  |
+| inventory.schema.ts                  | int4, unique/FK/CHECK, movement с audit link и operationId unique     |
 
 Repository не экспортируется. Сервис получает только публичные сервисы других
 модулей и не пишет в их таблицы. Schema может ссылаться на чужие schema для FK —
@@ -113,7 +113,6 @@ pnpm db:migrate. Fixture CLI pnpm db:seed не начисляет stock. Runbook
 не применим к восстановлению balance; исправлять journal прямым UPDATE нельзя.
 [Модели/контракт](../../../../../docs/stock-baseline.md),
 [транзакции](../../../../../docs/transactions.md), [ADR-0010](../../../../../docs/adr/0010-minimal-stock.md).
-
 
 WMS-108: ReceivingService.post вызывает receive с UUID строки как operationId и общим
 command context; receiving владеет документом и ReceivingPosted, inventory не создаёт

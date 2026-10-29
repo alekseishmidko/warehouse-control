@@ -18,32 +18,32 @@ Transaction runner и AuditService/AuditRepository реализованы; catal
 production авторизации ещё нет; consumer inventory.putaway подключён WMS-110; producer документа использует outbox writer.
 Технические маршруты открыты; receiving закрыт guard, opt-in только isolated dev/test.
 
-| Маршрут | Ответ | Ограничение |
-|---|---|---|
-| GET / | 200, Warehouse Controller API | Без бизнес-эффектов |
-| GET /health | 200, JSON status: ok | Только HTTP, не readiness PostgreSQL |
+| Маршрут     | Ответ                         | Ограничение                          |
+| ----------- | ----------------------------- | ------------------------------------ |
+| GET /       | 200, Warehouse Controller API | Без бизнес-эффектов                  |
+| GET /health | 200, JSON status: ok          | Только HTTP, не readiness PostgreSQL |
 
 ### Файлы и настройки
 
-| Файл / каталог | Назначение |
-|---|---|
-| src/main.ts | Config validation, Nest HTTP, shutdown и безопасная ошибка старта |
-| src/app.module.ts | Composition root с DatabaseModule и AuditModule |
-| src/app.controller.ts | Два технических HTTP routes |
-| src/app.service.ts | Статическое приветствие |
-| src/infrastructure/ | Config, pg pool/Drizzle, scoped transactions, migrate/check CLI |
-| src/shared/ | ORM/transport-independent transaction contracts |
-| src/modules/audit/ | AuditService, AuditRepository, redaction и schema; README |
-| drizzle.config.ts | PostgreSQL dialect, schema/output пути, validated URL для Kit |
-| drizzle/ | Generated SQL, snapshot, journal и README |
-| test/ | Jest unit/integration, Testcontainers support, отдельный native dev baseline smoke |
-| scripts/generate-event-contracts.cjs | Детерминированная генерация event types/schema bundle; --check только сравнивает |
-| package.json | Runtime/dev dependencies, scripts и exact версии Drizzle/pg |
-| nest-cli.json | sourceRoot src, очистка dist перед build |
-| tsconfig.json | strict base TS, decorators/metadata, src → dist |
-| tsconfig.build.json | Исключение tests/dependencies/dist из build |
-| tsconfig.test.json | Jest/node types, test aliases и output .test-dist |
-| jest.config.cjs | Unit/integration projects, mapper на production dist, maxWorkers=2 |
+| Файл / каталог                       | Назначение                                                                         |
+| ------------------------------------ | ---------------------------------------------------------------------------------- |
+| src/main.ts                          | Config validation, Nest HTTP, shutdown и безопасная ошибка старта                  |
+| src/app.module.ts                    | Composition root с DatabaseModule и AuditModule                                    |
+| src/app.controller.ts                | Два технических HTTP routes                                                        |
+| src/app.service.ts                   | Статическое приветствие                                                            |
+| src/infrastructure/                  | Config, pg pool/Drizzle, scoped transactions, migrate/check CLI                    |
+| src/shared/                          | ORM/transport-independent transaction contracts                                    |
+| src/modules/audit/                   | AuditService, AuditRepository, redaction и schema; README                          |
+| drizzle.config.ts                    | PostgreSQL dialect, schema/output пути, validated URL для Kit                      |
+| drizzle/                             | Generated SQL, snapshot, journal и README                                          |
+| test/                                | Jest unit/integration, Testcontainers support, отдельный native dev baseline smoke |
+| scripts/generate-event-contracts.cjs | Детерминированная генерация event types/schema bundle; --check только сравнивает   |
+| package.json                         | Runtime/dev dependencies, scripts и exact версии Drizzle/pg                        |
+| nest-cli.json                        | sourceRoot src, очистка dist перед build                                           |
+| tsconfig.json                        | strict base TS, decorators/metadata, src → dist                                    |
+| tsconfig.build.json                  | Исключение tests/dependencies/dist из build                                        |
+| tsconfig.test.json                   | Jest/node types, test aliases и output .test-dist                                  |
+| jest.config.cjs                      | Unit/integration projects, mapper на production dist, maxWorkers=2                 |
 
 Config [документирован отдельно](src/infrastructure/config/README.md): NODE_ENV,
 PORT и DATABASE_URL. API не запускается без валидного URL и доступной БД.
@@ -51,7 +51,7 @@ PORT и DATABASE_URL. API не запускается без валидного 
 Логи Nest/console пока не заменены Pino; драйверные ошибки наружу не выводятся.
 
 Из корня: pnpm dev/typecheck/build/start, db:generate/db:migrate/db:check,
- test/test:unit/test:integration/test:config/test:db-baseline. `pnpm start` и db:check требуют актуального build.
+test/test:unit/test:integration/test:config/test:db-baseline. `pnpm start` и db:check требуют актуального build.
 Для пакета: `pnpm --filter @warehouse/backend <script>`.
 Jest/Supertest/Testcontainers подключены в WMS-102: `pnpm test:unit`,
 `pnpm test:integration`, `pnpm test`. Подробности — [test README](test/README.md).
@@ -95,7 +95,6 @@ Atomic counter/events/deliveries/streams, immutable/retention grants/triggers:
 новые migrations 0005/0006, dev Compose мигрируется явно через pnpm db:migrate.
 Документ приёмки подключён WMS-108; worker protocol готов WMS-109, handler подключён WMS-110. Подробности — [ADR-0012](../../docs/adr/0012-outbox-writer.md).
 
-
 ## WMS-107
 
 [HTTP module](src/infrastructure/http/README.md): /api/v1 prefix кроме технических GET,
@@ -112,17 +111,15 @@ app.init/DB, с @nestjs/testing config override и finally close. Артефак
 и generate/diff. Test prepare: event contracts check → build → OpenAPI check → compile tests.
 Swagger UI не добавлен. Новые migrations 0007/0008, source API не привязан к DB schema.
 
-
 ## WMS-108
 
 [Receiving module](src/modules/receiving/README.md) экспортирует ReceivingService,
 controller/repository/DTO разделены. POST /api/v1/receipts → 201 draft/Location,
 POST /api/v1/receipts/:receiptId/post → 200 posted, GET того же документа → 200.
-Guard проверяет dev actor до каждого replay; production identity/warehouse ACL ещё нет.
+Guard проверяет сессию, authorize callback — warehouse policy до каждого replay; server sessions/warehouse ACL реализованы WMS-202.
 Миграции 0009/0010 создают header/строки, constraints и immutable guards.
 Приёмка 10 штук оставляет один balance, movement, ReceivingPosted v1 и pending delivery;
 до обработки consumer задания нет; после WMS-110 worker создаёт pending task. [Примеры/SQL](../../docs/receiving.md), [отчёт](../../docs/reports/wms-108.md).
-
 
 ## WMS-109
 
@@ -132,7 +129,6 @@ Guard проверяет dev actor до каждого replay; production identi
 Worker-only env/defaults — в .env.example и module README. Production ReceivingPostedHandler зарегистрирован WMS-110; создаёт task/audit в общем processing context.
 [Отчёт/проверки](../../docs/reports/wms-109.md), [ADR-0015](../../docs/adr/0015-postgres-worker.md).
 
-
 ## WMS-110
 
 ReceivingPostedHandler в worker вызывает публичный InventoryService.createPutawayTasks.
@@ -141,7 +137,6 @@ Migrations 0013/0014/0015, pending tasks с immutable provenance и source FK. T
 cursors/ack атомарны; новых stock movements/outbox events при создании task нет.
 No-op для будущих известных неинтересных типов не означает принятие unknown schema/version.
 [Флоу/диагностика](../../docs/flows/putaway.md), [ADR-0016](../../docs/adr/0016-durable-putaway-handler.md).
-
 
 ## WMS-111
 
@@ -158,7 +153,18 @@ build/tests и проверяет runbook. Raw JSON automation запускае�
 24.22.1. Один non-root image, Node PID 1, команды dist/main.js / dist/worker.js /
 dist/infrastructure/database/migrate.js; только prod dependencies, dist и drizzle.
 Нет .env/исходников/tests/dev tooling из build stage. Runtime env передаёт Compose,
-rootfs read-only; backend пишет в PostgreSQL. Без production auth обычный Compose
-не открывает receiving commands; test-only gate использует container loopback actor.
+rootfs read-only; backend пишет в PostgreSQL. Receiving требует session/roles/CSRF; Docker gate проходит настоящий bootstrap/login
+на container loopback, без actor bypass.
 [Подробный flow и границы процессов/commit/shutdown](../../docs/flows/docker-gate.md),
 [команды и конфигурация](../../infra/compose/README.md), [проверки](../../docs/reports/wms-112.md).
+
+## Реализация identity WMS-202
+
+[Модуль](src/modules/identity/README.md) содержит DTO по одному контракту и schemas по
+одной таблице/файлу; экспортируются AuthService, SessionsService, UsersService и AccessService; repository/
+IdentityTransactionsService private. Password scrypt
+и token/CSRF primitives находятся в shared/security. AuthGuard заменил удалённый
+DevActorGuard. Worker отдельным graph не требует human session policy. Seed CLI не создаёт
+HTTP graph. API/bootstrap требуют явные AUTH_ORIGIN и absolute/idle seconds; без них startup
+отказывает, не подставляя предложенные сроки. [Полный flow](../../docs/flows/identity.md).
+Prettier root scripts format/format:check применяются и к backend; generated/SQL исключены.

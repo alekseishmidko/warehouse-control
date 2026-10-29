@@ -11,7 +11,10 @@ export class AuditRepository {
   /** Добавляет подготовленную запись и возвращает UUID; отсутствие активного context/SQL ошибка отклоняет Promise. */
   async insert(context: TransactionContext, entry: PreparedAuditEntry): Promise<string> {
     const client = transactionClient(context);
-    const [record] = await client.insert(auditEntries).values(entry).returning({ id: auditEntries.id });
+    const [record] = await client
+      .insert(auditEntries)
+      .values(entry)
+      .returning({ id: auditEntries.id });
     return record.id;
   }
 }

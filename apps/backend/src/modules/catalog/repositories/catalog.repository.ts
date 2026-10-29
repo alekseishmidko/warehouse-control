@@ -10,10 +10,19 @@ import type { ProductDto } from '../dto/product.dto';
 export class CatalogRepository {
   /** INSERT, без собственного commit; unique violation передаётся вызывающему. */
   async create(context: TransactionContext, sku: string, name: string): Promise<ProductDto> {
-    const [row] = await transactionClient(context).insert(products).values({ sku, name }).returning(); return row;
+    const [row] = await transactionClient(context)
+      .insert(products)
+      .values({ sku, name })
+      .returning();
+    return row;
   }
   /** Читает только product table владельца; null если товар отсутствует. */
   async findById(context: TransactionContext, id: string): Promise<ProductDto | null> {
-    const [row] = await transactionClient(context).select().from(products).where(eq(products.id, id)).limit(1); return row ?? null;
+    const [row] = await transactionClient(context)
+      .select()
+      .from(products)
+      .where(eq(products.id, id))
+      .limit(1);
+    return row ?? null;
   }
 }

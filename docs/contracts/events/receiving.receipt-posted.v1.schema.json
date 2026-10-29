@@ -66,12 +66,7 @@
     },
     "payload": {
       "type": "object",
-      "required": [
-        "receiptId",
-        "warehouseId",
-        "receivingLocationId",
-        "lines"
-      ],
+      "required": ["receiptId", "warehouseId", "receivingLocationId", "lines"],
       "properties": {
         "receiptId": {
           "type": "string",
@@ -94,11 +89,7 @@
           "maxItems": 1000,
           "items": {
             "type": "object",
-            "required": [
-              "receiptLineId",
-              "productId",
-              "quantity"
-            ],
+            "required": ["receiptLineId", "productId", "quantity"],
             "properties": {
               "receiptLineId": {
                 "type": "string",

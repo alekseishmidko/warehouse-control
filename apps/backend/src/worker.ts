@@ -9,8 +9,15 @@ import { runWorkerProcess } from './infrastructure/worker/worker-process';
 async function bootstrapWorker(): Promise<void> {
   try {
     const config = loadWorkerConfig();
-    await runWorkerProcess(() => NestFactory.createApplicationContext(WorkerModule, { logger: false, abortOnError: false }), config);
-  } catch { process.exitCode = 1; console.error('Worker startup failed'); }
+    await runWorkerProcess(
+      () =>
+        NestFactory.createApplicationContext(WorkerModule, { logger: false, abortOnError: false }),
+      config,
+    );
+  } catch {
+    process.exitCode = 1;
+    console.error('Worker startup failed');
+  }
 }
 // Импорт файла инструментами не запускает polling; только executable entrypoint.
 if (require.main === module) void bootstrapWorker();

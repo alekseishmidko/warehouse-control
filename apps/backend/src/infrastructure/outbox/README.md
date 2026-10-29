@@ -25,23 +25,23 @@ HTTP controller не нужен: пользовательского маршру
 в infrastructure; общая JSON validation переиспользуется из shared/events.
 Новых tokens/interfaces для каждого класса и собственного pool нет.
 
-| Файл | Назначение |
-|---|---|
-| outbox.module.ts | Nest providers/export без фонового запуска |
-| services/outbox.service.ts | Проверка context, UUID, предварительный snapshot, версия, финальная validation |
-| repositories/outbox.repository.ts | Guarded upsert счётчика и последовательные INSERT в той же транзакции |
-| dto/append-event.dto.ts | Внутренняя команда без producer-controlled eventId/aggregateVersion |
-| outbox-destinations.ts | Единственный destination, подписка на полный receipt stream и безопасный version maximum |
-| outbox.schema.ts | Четыре Drizzle-таблицы, constraints, FK, индексы |
+| Файл                              | Назначение                                                                               |
+| --------------------------------- | ---------------------------------------------------------------------------------------- |
+| outbox.module.ts                  | Nest providers/export без фонового запуска                                               |
+| services/outbox.service.ts        | Проверка context, UUID, предварительный snapshot, версия, финальная validation           |
+| repositories/outbox.repository.ts | Guarded upsert счётчика и последовательные INSERT в той же транзакции                    |
+| dto/append-event.dto.ts           | Внутренняя команда без producer-controlled eventId/aggregateVersion                      |
+| outbox-destinations.ts            | Единственный destination, подписка на полный receipt stream и безопасный version maximum |
+| outbox.schema.ts                  | Четыре Drizzle-таблицы, constraints, FK, индексы                                         |
 
 ### Данные и инварианты
 
-| Таблица | Identity / инварианты |
-|---|---|
-| outbox_aggregate_sequences | PK `(aggregate_type,aggregate_id)`, last_version 1..9007199254740991 |
-| outbox_events | event_id PK, UNIQUE `(aggregate_type,aggregate_id,aggregate_version)`, immutable envelope JSONB |
-| outbox_deliveries | PK `(event_id,destination)`, FK события, pending/processing/retry/completed/dead, attempts>=0 |
-| delivery_streams | PK `(destination,aggregate_type,aggregate_id)`, cursor 0..MAX, FK счётчика |
+| Таблица                    | Identity / инварианты                                                                           |
+| -------------------------- | ----------------------------------------------------------------------------------------------- |
+| outbox_aggregate_sequences | PK `(aggregate_type,aggregate_id)`, last_version 1..9007199254740991                            |
+| outbox_events              | event_id PK, UNIQUE `(aggregate_type,aggregate_id,aggregate_version)`, immutable envelope JSONB |
+| outbox_deliveries          | PK `(event_id,destination)`, FK события, pending/processing/retry/completed/dead, attempts>=0   |
+| delivery_streams           | PK `(destination,aggregate_type,aggregate_id)`, cursor 0..MAX, FK счётчика                      |
 
 Счётчик — дополнительная физическая таблица к логической модели WMS-106, не
 бизнес-версия Receipt. SQL bigint читается как number только в безопасном диапазоне
@@ -138,7 +138,7 @@ sequenceDiagram
 убрать eventId/aggregateVersion и передать оставшиеся поля как AppendEventDto:
 
 ```ts
-const event = await runner.run(context => outbox.append(context, command));
+const event = await runner.run((context) => outbox.append(context, command));
 // Первый append: aggregateVersion=1, новый eventId;
 // в БД 1 event + 1 pending delivery inventory.putaway + 1 stream cursor=0 + counter=1.
 ```
@@ -177,7 +177,6 @@ Worker redelivery, crash после claim и конкуренция провер
 Связанные документы: [ADR-0012](../../../../../docs/adr/0012-outbox-writer.md),
 [outbox protocol](../../../../../docs/outbox.md),
 [проверенный локальный recovery runbook](../../../../../docs/runbooks/event-recovery.md).
-
 
 ## Локальное восстановление WMS-111
 

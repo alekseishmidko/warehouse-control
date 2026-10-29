@@ -3,7 +3,12 @@
 export const MAX_STOCK_QUANTITY = 2147483647;
 /** Допускает остаток 0..MAX; положительные movements проверяются отдельно. */
 export function isStockQuantity(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= MAX_STOCK_QUANTITY;
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value <= MAX_STOCK_QUANTITY
+  );
 }
 /** Начисление должно быть целым 1..MAX, без неявного преобразования строк. */
 export function requirePositiveQuantity(value: unknown): asserts value is number {

@@ -15,21 +15,31 @@ describe('runtime configuration', () => {
     expect(validateEnvironment({ ...valid, NODE_ENV: 'production' }).nodeEnv).toBe('production');
   });
 
-  test.each(['', '0', '-1', '65536', '3.5', '3000junk', ' 3000', '1e3'])('rejects PORT %j', PORT => {
-    expect(() => validateEnvironment({ ...valid, PORT })).toThrow('Invalid PORT');
-  });
+  test.each(['', '0', '-1', '65536', '3.5', '3000junk', ' 3000', '1e3'])(
+    'rejects PORT %j',
+    (PORT) => {
+      expect(() => validateEnvironment({ ...valid, PORT })).toThrow('Invalid PORT');
+    },
+  );
 
   test('accepts upper port boundary', () => {
     expect(validateEnvironment({ ...valid, PORT: '65535' }).port).toBe(65535);
   });
 
-  test.each(['', 'prod', 'staging'])('rejects NODE_ENV %j', NODE_ENV => {
+  test.each(['', 'prod', 'staging'])('rejects NODE_ENV %j', (NODE_ENV) => {
     expect(() => validateEnvironment({ ...valid, NODE_ENV })).toThrow('Invalid NODE_ENV');
   });
 
-  test.each([undefined, '', 'not-a-url', 'http://user:secret@localhost/db',
-    'postgresql://localhost/db', 'postgresql://user@localhost/',
-    'postgresql://user@localhost:99999/db', 'postgresql://user@localhost/db#secret'])('rejects DATABASE_URL %j', DATABASE_URL => {
+  test.each([
+    undefined,
+    '',
+    'not-a-url',
+    'http://user:secret@localhost/db',
+    'postgresql://localhost/db',
+    'postgresql://user@localhost/',
+    'postgresql://user@localhost:99999/db',
+    'postgresql://user@localhost/db#secret',
+  ])('rejects DATABASE_URL %j', (DATABASE_URL) => {
     expect(() => validateEnvironment({ DATABASE_URL })).toThrow('Invalid DATABASE_URL');
   });
 
@@ -38,11 +48,17 @@ describe('runtime configuration', () => {
   });
 
   test('does not reveal invalid values in errors', () => {
-    for (const env of [{ DATABASE_URL: 'http://user:private-password@localhost/db' },
-      { ...valid, PORT: 'private-password' }, { ...valid, NODE_ENV: 'private-password' }]) {
+    for (const env of [
+      { DATABASE_URL: 'http://user:private-password@localhost/db' },
+      { ...valid, PORT: 'private-password' },
+      { ...valid, NODE_ENV: 'private-password' },
+    ]) {
       let caught: unknown;
-      try { validateEnvironment(env); }
-      catch (error) { caught = error; }
+      try {
+        validateEnvironment(env);
+      } catch (error) {
+        caught = error;
+      }
       expect(caught).toBeInstanceOf(Error);
       expect(String(caught)).not.toContain('private-password');
     }
@@ -51,7 +67,8 @@ describe('runtime configuration', () => {
   test('entrypoint fails before bind without revealing credentials', () => {
     const result = spawnSync(process.execPath, [resolve('dist/main.js')], {
       env: { ...process.env, DATABASE_URL: 'http://user:private-password@localhost/db' },
-      encoding: 'utf8', timeout: 10000,
+      encoding: 'utf8',
+      timeout: 10000,
     });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('Application startup failed');

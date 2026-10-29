@@ -10,7 +10,8 @@
  * Повтор без изменения данных или обновления поддерживаемых версий не поможет.
  * Worker сохраняет permanent code в dead delivery; отдельной quarantine table нет.
  */
-export type EventContractErrorCode = 'INVALID_JSON' | 'INVALID_EVENT' | 'UNSUPPORTED_EVENT' | 'MESSAGE_TOO_LARGE';
+export type EventContractErrorCode =
+  'INVALID_JSON' | 'INVALID_EVENT' | 'UNSUPPORTED_EVENT' | 'MESSAGE_TOO_LARGE';
 
 /** Ошибка до бизнес-эффекта. Не означает успешную обработку или существование durable quarantine. */
 export class EventContractError extends Error {

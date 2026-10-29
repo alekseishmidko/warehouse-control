@@ -4,5 +4,9 @@ import { AuditModule } from '../audit/audit.module';
 import { CatalogService } from './services/catalog.service';
 import { CatalogRepository } from './repositories/catalog.repository';
 /** Публикует только сервис владельца товара. */
-@Module({ imports: [AuditModule], providers: [CatalogRepository, CatalogService], exports: [CatalogService] })
+@Module({
+  imports: [AuditModule],
+  providers: [CatalogRepository, CatalogService],
+  exports: [CatalogService],
+})
 export class CatalogModule {}

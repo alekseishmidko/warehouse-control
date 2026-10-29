@@ -121,14 +121,12 @@ pnpm db:seed    # только development, создаёт новый товар
 Повтор db:seed создаёт новый demo set, не обновляет существующие записи.
 [Модели и сценарий](docs/stock-baseline.md), [проверки WMS-104](docs/reports/wms-104.md).
 
-
 ## Приёмка WMS-108
 
 [Локальный запуск, HTTP request/response и SQL proof](docs/receiving.md).
 Доступны создание draft, GET документа и posting с обязательным Idempotency-Key;
 бизнес-routes только для isolated dev/test actor. Остаток/movement/audit/outbox/HTTP result
 атомарны, повтор posted с новым key даёт 409. Worker protocol готов; business handler и pending PutawayTask готовы WMS-110.
-
 
 ## Worker WMS-109
 
@@ -137,7 +135,6 @@ pnpm db:seed    # только development, создаёт новый товар
 Claim/lease/token, durable markers/cursors, retry/dead и SIGTERM готовы. WMS-110
 регистрирует inventory.putaway: delivery completed, task pending, stock не начисляется повторно.
 
-
 ## Durable putaway WMS-110
 
 `pnpm db:migrate`, `pnpm build`, затем API и отдельный `pnpm worker` с одной БД.
@@ -145,12 +142,11 @@ Production inventory.putaway создаёт pending task на строку poste
 приёмки не повторяются. Delivery completed означает, что task создана; физическое размещение
 ещё не реализовано. [Подробный flow/SQL](docs/flows/putaway.md), [отчёт](docs/reports/wms-110.md).
 
-
 ## Local recovery WMS-111
 
 [Проверенный runbook](docs/runbooks/event-recovery.md): pnpm outbox:inspect/retry/signal,
 operator/reason/audit/history, safe JSON и local dead/backlog signal. Команды требуют local
-opt-in и DB admin role; production auth/внешние уведомления ещё нет. Адресный retry сохраняет
+opt-in и DB admin role; внешних уведомлений и admin HTTP для recovery ещё нет; session auth готова WMS-202. Адресный retry сохраняет
 UUID и total attempts, не сбрасывает markers/cursors. `pnpm outbox:recovery-check` воспроизводит
 реальный recovery с CLI в отдельной PostgreSQL, не меняя dev volume.
 
@@ -165,11 +161,32 @@ pnpm app:up
 pnpm app:down # данные сохраняются
 ```
 
-API health публикуется на localhost:3000; business routes закрыты до production auth.
+API health публикуется на localhost:3000; business routes требуют session/warehouse role.
 Учебный сценарий приёмки: `pnpm docker:gate` (отдельные БД/project/volume с loopback
-actor). Проверка чистой сборки и исключения secret canary: `pnpm docker:image-check`.
+auth). Проверка чистой сборки и исключения secret canary: `pnpm docker:image-check`.
 Все новые файлы/команды и Mermaid flow — [Docker gate](docs/flows/docker-gate.md),
 конфигурация — [Compose](infra/compose/README.md), evidence — [WMS-112](docs/reports/wms-112.md).
 Скрипты scripts/docker-gate.cjs и scripts/docker-image-check.cjs — host-only проверки,
 не runtime image; первый очищает только свой UUID project/volume, второй — только
 свой временный context/archive. Реальная .env ими не загружается.
+
+## Auth WMS-202 и форматирование
+
+Login/password + серверные sessions/warehouse roles реализованы. Dev actor больше не
+поддержан. Перед API startup заполнить AUTH_ORIGIN и оба AUTH_SESSION_*_SECONDS в .env:
+числовых defaults нет, idle<=absolute, диапазон 30..86400. Сроки товарных резервов не меняются.
+После migrations/build первый admin создаётся отдельным `pnpm identity:bootstrap` с
+private stdin и one-time opt-in, не публичной регистрацией. [Флоу и безопасный запуск](docs/flows/identity.md),
+[API/модуль](apps/backend/src/modules/identity/README.md), [результаты](docs/reports/wms-202.md).
+Для обычного Compose NODE_ENV=production нужен HTTPS origin и TLS перед внешним доступом;
+изолированный Docker gate использует настоящие bootstrap/login/CSRF/roles на loopback.
+
+Prettier 3.9.10 закреплён как root devDependency, конфигурация .prettierrc.cjs едина для
+всего проекта. `pnpm format` форматирует собственные исходники/документы, `pnpm format:check`
+проверяет без изменения файлов. .prettierignore исключает dependencies/build outputs,
+credentials, applied/generated migrations, generated event artifacts/OpenAPI и lockfile.
+DTO identity разделены по контрактам, ORM-таблицы — по файлам в identity/schemas/.
+
+Для покрытия identity: `pnpm test:identity:coverage` (нужен Docker). Порог IdentityController —
+100% строк/веток/функций/statements; HTML — apps/backend/coverage/identity/index.html.
+[Состав проверок и ограничения](apps/backend/test/README.md#проверка-покрытия-identity).

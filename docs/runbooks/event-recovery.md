@@ -113,15 +113,15 @@ recovery record, ставится retry/available now и budget base=текущ�
 Исходный correlationId event не заменяется. При потере ответа сначала inspect: повтор той же
 команды на уже retry/processing/completed будет отклонён, новая история не создаётся автоматически.
 
-| Code | Действие |
-|---|---|
-| LOCAL_ACCESS_REQUIRED / ADMIN_ROLE_REQUIRED | Проверить локальный режим и DB membership; не обходить guard |
-| DELIVERY_NOT_FOUND / INVALID_ARGUMENTS | Проверить UUID и consumer, не выбирать другой event наугад |
-| DELIVERY_BUSY / LEASE_ACTIVE | Дождаться штатного завершения/автоматического lease recovery |
-| NOT_DEAD | Processing/retry/pending не являются целью административного dead retry |
-| PREDECESSOR_REQUIRED | Устранить предыдущую ошибку потока, не продвигать cursors вручную |
-| ALREADY_PROCESSED | Исследовать состояние, не сбрасывать marker/task |
-| ATTEMPT_LIMIT_REACHED | Требуется отдельное решение по исчерпанному int4 counter, reset не предлагается |
+| Code                                        | Действие                                                                        |
+| ------------------------------------------- | ------------------------------------------------------------------------------- |
+| LOCAL_ACCESS_REQUIRED / ADMIN_ROLE_REQUIRED | Проверить локальный режим и DB membership; не обходить guard                    |
+| DELIVERY_NOT_FOUND / INVALID_ARGUMENTS      | Проверить UUID и consumer, не выбирать другой event наугад                      |
+| DELIVERY_BUSY / LEASE_ACTIVE                | Дождаться штатного завершения/автоматического lease recovery                    |
+| NOT_DEAD                                    | Processing/retry/pending не являются целью административного dead retry         |
+| PREDECESSOR_REQUIRED                        | Устранить предыдущую ошибку потока, не продвигать cursors вручную               |
+| ALREADY_PROCESSED                           | Исследовать состояние, не сбрасывать marker/task                                |
+| ATTEMPT_LIMIT_REACHED                       | Требуется отдельное решение по исчерпанному int4 counter, reset не предлагается |
 
 ## 4. Проверить итог
 

@@ -1,7 +1,7 @@
 # 0013. HTTP boundaries и атомарная идемпотентность команд
 
 - Дата: 2026-10-23
-- Статус: Accepted
+- Статус: Частично заменён ADR-0020 (временная identity); HTTP/idempotency гарантии сохранены.
 - Уточняет реализацию ADR-0004, использует гарантии ADR-0008/0012, не заменяет их.
 
 ## Контекст
@@ -73,3 +73,10 @@ runtime grants и запреты dev режима. Источники: [Nest val
 [PostgreSQL INSERT](https://www.postgresql.org/docs/17/sql-insert.html).
 [HTTP README](../../apps/backend/src/infrastructure/http/README.md),
 [storage README](../../apps/backend/src/infrastructure/idempotency/README.md).
+
+## Направление замены временной identity — ADR-0018
+
+2026-10-29 приняты логин/пароль с серверными сессиями и threat assumptions
+[ADR-0018](0018-server-sessions.md). Замена dev actor выполнена WMS-202 по ADR-0020: AuthGuard/session/warehouse policy
+работают без fallback; прежний DevActorGuard удалён. HTTP validation, transaction scope, dedup и проверка доступа
+перед replay сохраняются; dev actor не должен стать fallback для обхода новой auth.

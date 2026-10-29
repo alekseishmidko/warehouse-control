@@ -1,10 +1,18 @@
 /** @file Владелец claim/process/failure transactions; handler effect и durable ack имеют одну границу commit. */
 import { Inject, Injectable } from '@nestjs/common';
-import { TRANSACTION_RUNNER, TransactionRunner } from '../../../shared/transactions/transaction.port';
+import {
+  TRANSACTION_RUNNER,
+  TransactionRunner,
+} from '../../../shared/transactions/transaction.port';
 import { EventContracts } from '../../../shared/events/services/event-contracts';
 import { WORKER_CONFIG, WorkerConfig } from '../worker.config';
 import type { DeliveryClaim } from '../dto/delivery.dto';
-import { classifyDeliveryError, PermanentDeliveryError, retryDelayMs, StaleDeliveryError } from '../delivery-policy';
+import {
+  classifyDeliveryError,
+  PermanentDeliveryError,
+  retryDelayMs,
+  StaleDeliveryError,
+} from '../delivery-policy';
 import { WorkerRepository } from '../repositories/worker.repository';
 import { HandlerRegistry } from './handler-registry';
 import { deliveryDiagnostic } from '../../../shared/diagnostics/delivery-diagnostic';
@@ -15,16 +23,19 @@ import { logDelivery } from '../delivery-logger';
 export class WorkerService {
   private readonly contracts = new EventContracts();
   /** DI config/registry можно безопасно заменить в tests без env; repositories наружу не экспортируются. */
-  constructor(@Inject(TRANSACTION_RUNNER) private readonly transactions: TransactionRunner,
-    private readonly repository: WorkerRepository, private readonly registry: HandlerRegistry,
-    @Inject(WORKER_CONFIG) private readonly config: WorkerConfig) {}
+  constructor(
+    @Inject(TRANSACTION_RUNNER) private readonly transactions: TransactionRunner,
+    private readonly repository: WorkerRepository,
+    private readonly registry: HandlerRegistry,
+    @Inject(WORKER_CONFIG) private readonly config: WorkerConfig,
+  ) {}
 
   /** Выполняет короткую транзакцию назначения доставок. Пустой registry ничего не захватывает.
    * @returns Claims после commit; исчерпанные доставки переведены в dead и отдельно залогированы.
    * Ошибка commit не даёт вывести успешный claimed/dead; внешнего I/O в callback нет. */
   async claim(): Promise<DeliveryClaim[]> {
     if (!this.registry.destinations().length) return [];
-    const batch = await this.transactions.run(async context => {
+    const batch = await this.transactions.run(async (context) => {
       await this.repository.boundTransaction(context, this.config.transactionTimeoutMs);
       return this.repository.claim(context, this.registry.destinations(), this.config);
     });
@@ -43,17 +54,22 @@ export class WorkerService {
    */
   async process(claim: DeliveryClaim): Promise<'completed' | 'retry' | 'dead' | 'stale'> {
     try {
-      await this.transactions.run(async context => {
+      await this.transactions.run(async (context) => {
         await this.repository.boundTransaction(context, this.config.transactionTimeoutMs);
         const delivery = await this.repository.lock(context, claim);
         if (!delivery) throw new StaleDeliveryError();
         const event = this.contracts.parseForHandler(JSON.stringify(delivery.envelope));
         // Защищаем routing identity дополнительно к SQL CHECK, до handler/marker.
-        if (event.eventId.toLowerCase() !== claim.eventId || event.aggregateId.toLowerCase() !== claim.aggregateId
-          || event.aggregateType !== claim.aggregateType || event.aggregateVersion !== claim.version) throw new PermanentDeliveryError('IDENTITY_MISMATCH');
+        if (
+          event.eventId.toLowerCase() !== claim.eventId ||
+          event.aggregateId.toLowerCase() !== claim.aggregateId ||
+          event.aggregateType !== claim.aggregateType ||
+          event.aggregateVersion !== claim.version
+        )
+          throw new PermanentDeliveryError('IDENTITY_MISMATCH');
         const handler = this.registry.get(claim.destination);
         if (!handler) throw new PermanentDeliveryError('HANDLER_MISSING');
-        if (!await this.repository.prepareConsumer(context, claim)) {
+        if (!(await this.repository.prepareConsumer(context, claim))) {
           await handler.handle(context, event);
           await this.repository.markProcessed(context, claim);
         }
@@ -61,13 +77,17 @@ export class WorkerService {
         // reclaim SKIP LOCKED не сменит token до commit, повторной проверки wall clock не нужно.
         await this.repository.complete(context, claim);
       });
-      logDelivery('completed', deliveryDiagnostic({ ...claim, lastError: null })); return 'completed';
+      logDelivery('completed', deliveryDiagnostic({ ...claim, lastError: null }));
+      return 'completed';
     } catch (error) {
-      if (error instanceof StaleDeliveryError) { logDelivery('stale', deliveryDiagnostic(claim)); return 'stale'; }
+      if (error instanceof StaleDeliveryError) {
+        logDelivery('stale', deliveryDiagnostic(claim));
+        return 'stale';
+      }
       const classification = classifyDeliveryError(error);
       // Callback уже rollback-нут. При потере commit ack эта проверка увидит completed
       // и не перепишет результат; при reclaim новым worker старый token тоже будет отклонён.
-      const result = await this.transactions.run(async context => {
+      const result = await this.transactions.run(async (context) => {
         await this.repository.boundTransaction(context, this.config.transactionTimeoutMs);
         const delivery = await this.repository.lock(context, claim);
         if (!delivery) return 'stale';
@@ -76,10 +96,17 @@ export class WorkerService {
         // сразу исчерпал бы тот же лимит повторно.
         const budgetAttempt = delivery.attempts - delivery.retryAttemptBase;
         const dead = classification.permanent || budgetAttempt >= this.config.maxAttempts;
-        await this.repository.fail(context, claim, dead, classification.code, retryDelayMs(budgetAttempt, this.config));
-        return dead ? 'dead' as const : 'retry' as const;
+        await this.repository.fail(
+          context,
+          claim,
+          dead,
+          classification.code,
+          retryDelayMs(budgetAttempt, this.config),
+        );
+        return dead ? ('dead' as const) : ('retry' as const);
       });
-      logDelivery(result, deliveryDiagnostic({ ...claim, lastError: classification.code })); return result;
+      logDelivery(result, deliveryDiagnostic({ ...claim, lastError: classification.code }));
+      return result;
     }
   }
 }

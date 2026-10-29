@@ -56,6 +56,44 @@
               }
             }
           },
+          "401": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Безопасный problem response; stack/driver input не раскрываются.",
             "content": {
@@ -165,6 +203,44 @@
               }
             }
           },
+          "401": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Безопасный problem response; stack/driver input не раскрываются.",
             "content": {
@@ -209,6 +285,1316 @@
         ]
       }
     },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "IdentityController_login",
+        "parameters": [
+          {
+            "name": "X-CSRF-Protection",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Безопасный user и csrfToken; session token только в HttpOnly Set-Cookie.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponseDto"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Неверные credentials или заблокированный пользователь.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Окно попыток входа исчерпано.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Войти по логину/паролю; серверная cookie-сессия",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "IdentityController_me",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Текущий user, его warehouseRoles, csrfToken.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentUserDto"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "IdentityController_logout",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Точное значение AUTH_ORIGIN."
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Текущая сессия отозвана, cookie очищена.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/identity/users": {
+      "post": {
+        "operationId": "IdentityAdminController_create",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Точное значение AUTH_ORIGIN."
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Созданный безопасный профиль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileDto"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "identity-administration"
+        ]
+      }
+    },
+    "/api/v1/identity/users/{userId}": {
+      "patch": {
+        "operationId": "IdentityAdminController_update",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Точное значение AUTH_ORIGIN."
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Обновлённый безопасный профиль.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileDto"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "identity-administration"
+        ]
+      }
+    },
+    "/api/v1/identity/users/{userId}/warehouses/{warehouseId}/roles": {
+      "post": {
+        "operationId": "IdentityAdminController_roles",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "warehouseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Точное значение AUTH_ORIGIN."
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetWarehouseRolesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Роли целевого склада заменены.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "identity-administration"
+        ]
+      }
+    },
+    "/api/v1/identity/users/{userId}/sessions": {
+      "delete": {
+        "operationId": "IdentityAdminController_revokeAll",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Точное значение AUTH_ORIGIN."
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Все сессии пользователя отозваны.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "identity-administration"
+        ]
+      }
+    },
+    "/api/v1/identity/users/{userId}/sessions/{sessionId}": {
+      "delete": {
+        "operationId": "IdentityAdminController_revoke",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Точное значение AUTH_ORIGIN."
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Сессия адресно отозвана.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "identity-administration"
+        ]
+      }
+    },
     "/api/v1/receipts": {
       "post": {
         "operationId": "ReceivingController_create",
@@ -222,6 +1608,24 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Точное значение AUTH_ORIGIN."
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF текущей сессии из login/me."
           },
           {
             "in": "header",
@@ -271,6 +1675,25 @@
             }
           },
           "400": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
             "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
             "content": {
               "application/problem+json": {
@@ -423,9 +1846,14 @@
             }
           }
         },
-        "summary": "Создать draft (только изолированный dev/test actor)",
+        "summary": "Создать draft (сессия и роль склада)",
         "tags": [
           "receiving"
+        ],
+        "security": [
+          {
+            "session": []
+          }
         ]
       }
     },
@@ -451,6 +1879,24 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Точное значение AUTH_ORIGIN."
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF текущей сессии из login/me."
           },
           {
             "in": "header",
@@ -496,6 +1942,25 @@
             }
           },
           "400": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
             "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
             "content": {
               "application/problem+json": {
@@ -651,6 +2116,11 @@
         "summary": "Провести draft; posted с новым ключом → RECEIPT_ALREADY_POSTED",
         "tags": [
           "receiving"
+        ],
+        "security": [
+          {
+            "session": []
+          }
         ]
       }
     },
@@ -717,8 +2187,27 @@
               }
             }
           },
+          "401": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
           "403": {
-            "description": "DEV_ACTOR_UNAVAILABLE",
+            "description": "FORBIDDEN",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -775,23 +2264,206 @@
             }
           }
         },
-        "summary": "Прочитать документ (только изолированный dev/test actor)",
+        "summary": "Прочитать документ (сессия и роль склада)",
         "tags": [
           "receiving"
+        ],
+        "security": [
+          {
+            "session": []
+          }
         ]
       }
     }
   },
   "info": {
     "title": "Warehouse Controller API",
-    "description": "Технические endpoints и приёмка draft → posted. Бизнес-routes доступны только с изолированным server-side dev/test actor; production authentication ещё нет.",
+    "description": "Технические endpoints и приёмка draft → posted. Session auth, CSRF и роли конкретного склада; dev actor отсутствует.",
     "version": "1.0.0",
     "contact": {}
   },
   "tags": [],
   "servers": [],
   "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Host-wms_session",
+        "description": "HTTPS session cookie; локальный HTTP использует wms_session."
+      }
+    },
     "schemas": {
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "login": {
+            "type": "string",
+            "example": "operator.one",
+            "minLength": 3,
+            "maxLength": 64
+          },
+          "password": {
+            "type": "string",
+            "writeOnly": true,
+            "minLength": 15,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "login",
+          "password"
+        ]
+      },
+      "UserProfileDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "login": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "systemAdmin": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "login",
+          "active",
+          "systemAdmin"
+        ]
+      },
+      "LoginResponseDto": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserProfileDto"
+          },
+          "csrfToken": {
+            "type": "string",
+            "minLength": 43,
+            "maxLength": 43
+          }
+        },
+        "required": [
+          "user",
+          "csrfToken"
+        ]
+      },
+      "WarehouseGrantDto": {
+        "type": "object",
+        "properties": {
+          "warehouseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "warehouse_operator",
+              "order_manager",
+              "warehouse_supervisor"
+            ]
+          }
+        },
+        "required": [
+          "warehouseId",
+          "role"
+        ]
+      },
+      "CurrentUserDto": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserProfileDto"
+          },
+          "csrfToken": {
+            "type": "string",
+            "minLength": 43,
+            "maxLength": 43
+          },
+          "warehouseRoles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WarehouseGrantDto"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "csrfToken",
+          "warehouseRoles"
+        ]
+      },
+      "CreateUserDto": {
+        "type": "object",
+        "properties": {
+          "login": {
+            "type": "string",
+            "example": "operator.one",
+            "minLength": 3,
+            "maxLength": 64
+          },
+          "password": {
+            "type": "string",
+            "writeOnly": true,
+            "minLength": 15,
+            "maxLength": 128
+          },
+          "systemAdmin": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "login",
+          "password"
+        ]
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "systemAdmin": {
+            "type": "boolean"
+          },
+          "password": {
+            "type": "string",
+            "writeOnly": true,
+            "minLength": 15,
+            "maxLength": 128
+          }
+        }
+      },
+      "SetWarehouseRolesDto": {
+        "type": "object",
+        "properties": {
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "viewer",
+                "warehouse_operator",
+                "order_manager",
+                "warehouse_supervisor"
+              ]
+            }
+          }
+        },
+        "required": [
+          "roles"
+        ]
+      },
       "CreateReceiptLineDto": {
         "type": "object",
         "properties": {
@@ -954,6 +2626,10 @@
           "code": {
             "type": "string",
             "enum": [
+              "USER_NOT_FOUND",
+              "LAST_ADMIN_REQUIRED",
+              "CSRF_REJECTED",
+              "TOO_MANY_REQUESTS",
               "RECEIPT_NOT_FOUND",
               "RECEIPT_ALREADY_POSTED",
               "INVALID_RECEIPT",

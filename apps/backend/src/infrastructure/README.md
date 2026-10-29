@@ -27,7 +27,6 @@ WMS-104 добавляет dev fixture builder/CLI и агрегацию module-
 Builder вызывает экспортируемые сервисы, не пишет в чужие таблицы напрямую.
 Справочники/stock модели: [baseline](../../../../docs/stock-baseline.md).
 
-
 WMS-107 добавляет [HTTP](http/README.md) и [idempotency](idempotency/README.md):
 DTO/guards/problem mapper, изолированный dev actor, command transaction и saved response.
 Production business endpoints ещё нет. JSON hashing/error codes — в shared,

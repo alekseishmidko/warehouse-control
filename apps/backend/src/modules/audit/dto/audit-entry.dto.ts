@@ -11,8 +11,8 @@ export interface AuditEntryInput extends OperationMetadata {
 
 /** Допустимое изменение: разрешённый scalar before/after; произвольные вложенные payload запрещены. */
 export interface SafeAuditChange {
-  readonly before?: string | number | null;
-  readonly after?: string | number | null;
+  readonly before?: string | number | boolean | null;
+  readonly after?: string | number | boolean | null;
 }
 
 /** Проверенная запись для хранения; id и occurredAt генерируются PostgreSQL. */
@@ -20,4 +20,3 @@ export interface PreparedAuditEntry extends Omit<AuditEntryInput, 'changes'> {
   readonly changes: Record<string, SafeAuditChange>;
   readonly hasRedactedChanges: boolean;
 }
-

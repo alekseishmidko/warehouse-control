@@ -10,7 +10,9 @@ const database = useDatabaseSuite();
 
 test('GET / and /health work with real database-backed application', async () => {
   const app = await database().createHttpApplication();
-  const connected = await app.get(DatabaseService).db.execute<{ name: string }>(sql`select current_database() as name`);
+  const connected = await app
+    .get(DatabaseService)
+    .db.execute<{ name: string }>(sql`select current_database() as name`);
   expect(connected.rows[0].name).toBe(new URL(database().config.databaseUrl).pathname.slice(1));
   await request(app.getHttpServer()).get('/').expect(200).expect('Warehouse Controller API');
   await request(app.getHttpServer()).get('/health').expect(200).expect({ status: 'ok' });
@@ -25,5 +27,7 @@ test('GET / and /health work with real database-backed application', async () =>
 test('fixture data belongs only to this suite database', async () => {
   const fixture = metadataFixture();
   await database().connection.db.insert(applicationMetadata).values(fixture);
-  expect(await database().connection.db.select().from(applicationMetadata)).toEqual([expect.objectContaining(fixture)]);
+  expect(await database().connection.db.select().from(applicationMetadata)).toEqual([
+    expect.objectContaining(fixture),
+  ]);
 });
