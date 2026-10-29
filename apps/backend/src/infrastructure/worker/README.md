@@ -26,21 +26,21 @@ WorkerModule — отдельный Nest graph, не импортирует AppM
 не требует обязательного domain/application слоя. Общие transaction/event contracts
 переиспользуются; бизнес-операции вызываются через сервисы владельцев.
 
-| Файл | Ответственность |
-|---|---|
-| ../../worker.ts | Executable bootstrap без HTTP, validated config |
-| worker.module.ts | DatabaseModule/InventoryModule и явная регистрация ReceivingPostedHandler |
-| worker.config.ts | Worker-only env validation/defaults, DI token |
-| worker.schema.ts | Source processed_events/consumer_streams для Drizzle |
-| dto/delivery.dto.ts | Frozen scalar claim и LocalEventHandler contract |
-| delivery-policy.ts | Permanent/stale errors, safe classification, equal jitter |
+| Файл                                 | Ответственность                                                             |
+| ------------------------------------ | --------------------------------------------------------------------------- |
+| ../../worker.ts                      | Executable bootstrap без HTTP, validated config                             |
+| worker.module.ts                     | DatabaseModule/InventoryModule и явная регистрация ReceivingPostedHandler   |
+| worker.config.ts                     | Worker-only env validation/defaults, DI token                               |
+| worker.schema.ts                     | Source processed_events/consumer_streams для Drizzle                        |
+| dto/delivery.dto.ts                  | Frozen scalar claim и LocalEventHandler contract                            |
+| delivery-policy.ts                   | Permanent/stale errors, safe classification, equal jitter                   |
 | services/receiving-posted.handler.ts | Production inventory.putaway, server actor и вызов публичного inventory API |
-| services/handler-registry.ts | Регистрация стабильных destinations, duplicate guard |
-| services/worker.service.ts | Владелец claim/process/failure transactions |
-| repositories/worker.repository.ts | SKIP LOCKED, token locks, markers/cursors/ack SQL |
-| services/worker-loop.ts | Последовательные polls, bounded batch parallelism, stop/drain |
-| worker-process.ts | SIGTERM/SIGINT, hard deadline и pool/context cleanup |
-| README.md | Этот контракт; [общий каталог](../../../../../docs/file-catalog.md) |
+| services/handler-registry.ts         | Регистрация стабильных destinations, duplicate guard                        |
+| services/worker.service.ts           | Владелец claim/process/failure transactions                                 |
+| repositories/worker.repository.ts    | SKIP LOCKED, token locks, markers/cursors/ack SQL                           |
+| services/worker-loop.ts              | Последовательные polls, bounded batch parallelism, stop/drain               |
+| worker-process.ts                    | SIGTERM/SIGINT, hard deadline и pool/context cleanup                        |
+| README.md                            | Этот контракт; [общий каталог](../../../../../docs/file-catalog.md)         |
 
 ### Данные, миграции и права
 
@@ -161,16 +161,16 @@ lease recovery, graceful shutdown не гарантируется. Миграц�
 DATABASE_URL чувствителен; root .env optional, env процесса приоритетен. Новые worker-only
 settings проверяются отдельно и не делают API зависимым от конфигурации worker.
 
-| Env | Default | Диапазон / смысл |
-|---|---|---|
-| WORKER_BATCH_SIZE | 4 | 1..4; число параллельных streams, pool=5 оставляет резерв |
-| WORKER_POLL_INTERVAL_MS | 1000 | 10..60000, пауза после batch/ошибки |
-| WORKER_LEASE_MS | 30000 | 100..300000, больше transaction timeout |
-| WORKER_RETRY_BASE_MS | 1000 | 1..60000 |
-| WORKER_RETRY_MAX_MS | 60000 | 1..3600000, не меньше base |
-| WORKER_MAX_ATTEMPTS | 10 | 1..1000, включая claim до crash |
-| WORKER_TRANSACTION_TIMEOUT_MS | 10000 | 50..300000, PostgreSQL 17 whole transaction |
-| WORKER_SHUTDOWN_TIMEOUT_MS | 15000 | 100..300000, больше transaction timeout |
+| Env                           | Default | Диапазон / смысл                                          |
+| ----------------------------- | ------- | --------------------------------------------------------- |
+| WORKER_BATCH_SIZE             | 4       | 1..4; число параллельных streams, pool=5 оставляет резерв |
+| WORKER_POLL_INTERVAL_MS       | 1000    | 10..60000, пауза после batch/ошибки                       |
+| WORKER_LEASE_MS               | 30000   | 100..300000, больше transaction timeout                   |
+| WORKER_RETRY_BASE_MS          | 1000    | 1..60000                                                  |
+| WORKER_RETRY_MAX_MS           | 60000   | 1..3600000, не меньше base                                |
+| WORKER_MAX_ATTEMPTS           | 10      | 1..1000, включая claim до crash                           |
+| WORKER_TRANSACTION_TIMEOUT_MS | 10000   | 50..300000, PostgreSQL 17 whole transaction               |
+| WORKER_SHUTDOWN_TIMEOUT_MS    | 15000   | 100..300000, больше transaction timeout                   |
 
 Пример input claim: eventId UUID, destination inventory.putaway, aggregateType receipt,
 aggregateId UUID, version=1, token новый UUID. При явно отключённом registry в tests claim возвращает []. При
@@ -195,7 +195,6 @@ key-value логи/метрики/tracing — WMS-401/402; HTTP readiness worker
 Диагностика: eventId/destination/attempts/last_error/lease/token и оба cursors;
 не сбрасывать lease/cursor/markers руками. [Runbook](../../../../../docs/runbooks/event-recovery.md),
 [ADR-0015](../../../../../docs/adr/0015-postgres-worker.md), [outbox](../outbox/README.md).
-
 
 ## Диагностика и administrative budget WMS-111
 

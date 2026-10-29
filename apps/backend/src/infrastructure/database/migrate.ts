@@ -16,6 +16,8 @@ async function main(): Promise<void> {
 }
 
 void main().catch(() => {
-  console.error('Database migration failed. Check configuration, database availability and migration files.');
+  console.error(
+    'Database migration failed. Check configuration, database availability and migration files.',
+  );
   process.exitCode = 1;
 });

@@ -26,19 +26,32 @@ export class OutboxService {
   async append(context: TransactionContext, input: AppendEventDto): Promise<KnownEvent> {
     // Проверяем capability до подготовки данных; не создаём fallback transaction/pool.
     transactionClient(context);
-    if (!input || typeof input !== 'object' || Array.isArray(input)
-      || Object.hasOwn(input, 'eventId') || Object.hasOwn(input, 'aggregateVersion')) {
+    if (
+      !input ||
+      typeof input !== 'object' ||
+      Array.isArray(input) ||
+      Object.hasOwn(input, 'eventId') ||
+      Object.hasOwn(input, 'aggregateVersion')
+    ) {
       throw new EventContractError('INVALID_EVENT');
     }
     // Первый snapshot фиксирует вход до первого await и проверяет payload до счётчика.
     // UUID создаётся локально, без сетевого I/O. После rollback UUID не считается опубликованным.
     const eventId = randomUUID();
     const candidate = this.contracts.prepareForOutbox({ ...input, eventId, aggregateVersion: 1 });
-    const version = await this.repository.nextVersion(context, candidate.event.aggregateType, candidate.event.aggregateId);
+    const version = await this.repository.nextVersion(
+      context,
+      candidate.event.aggregateType,
+      candidate.event.aggregateId,
+    );
     // Повторная проверка обязательна: окончательная версия может увеличить число bytes сообщения.
     // Writer metadata задаётся повторно после JSON snapshot: даже input.toJSON не может
     // подменить выделенный UUID/sequence. Parsed snapshot уже не содержит исполняемых методов.
-    const prepared = this.contracts.prepareForOutbox({ ...candidate.event, eventId, aggregateVersion: version });
+    const prepared = this.contracts.prepareForOutbox({
+      ...candidate.event,
+      eventId,
+      aggregateVersion: version,
+    });
     await this.repository.insert(context, prepared);
     return prepared.event;
   }

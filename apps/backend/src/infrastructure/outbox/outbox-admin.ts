@@ -19,22 +19,44 @@ async function main(): Promise<void> {
   try {
     // Новый UUID относится к вмешательству, а не к исходной корреляции события.
     const options = parseRecoveryOptions(process.argv.slice(2), randomUUID());
-    const config = loadEnvironment(); requireLocalRecovery(config, process.env);
+    const config = loadEnvironment();
+    requireLocalRecovery(config, process.env);
     // Таймер ограничивает весь CLI, включая запуск Nest и app.close; SQL дополнительно ограничен сервисом.
-    timer = setTimeout(() => { console.error(JSON.stringify({ code: 'ADMIN_DEADLINE_EXCEEDED' })); process.exit(1); }, 15000);
-    app = await NestFactory.createApplicationContext(OutboxModule, { logger: false, abortOnError: false });
+    timer = setTimeout(() => {
+      console.error(JSON.stringify({ code: 'ADMIN_DEADLINE_EXCEEDED' }));
+      process.exit(1);
+    }, 15000);
+    app = await NestFactory.createApplicationContext(OutboxModule, {
+      logger: false,
+      abortOnError: false,
+    });
     const service = app.get(OutboxRecoveryService);
-    const result = options.command === 'inspect' ? await service.inspect(options.address, options.payload)
-      : options.command === 'retry' ? await service.retry(options.input) : await service.signal(options.thresholds);
+    const result =
+      options.command === 'inspect'
+        ? await service.inspect(options.address, options.payload)
+        : options.command === 'retry'
+          ? await service.retry(options.input)
+          : await service.signal(options.thresholds);
     // Результат сервиса уже получен после завершения транзакции. Выводим только разрешённые поля;
     // ошибка stdout не отменяет состоявшийся commit. После неё оператор должен выполнить inspect.
     console.log(JSON.stringify(result));
-    if (options.command === 'signal' && 'status' in result && result.status === 'alert') process.exitCode = 2;
+    if (options.command === 'signal' && 'status' in result && result.status === 'alert')
+      process.exitCode = 2;
   } catch (error) {
-    console.error(JSON.stringify({ code: error instanceof RecoveryError ? error.code : 'ADMIN_COMMAND_FAILED' })); process.exitCode = 1;
+    console.error(
+      JSON.stringify({
+        code: error instanceof RecoveryError ? error.code : 'ADMIN_COMMAND_FAILED',
+      }),
+    );
+    process.exitCode = 1;
   } finally {
     // Сначала закрываем пул, затем снимаем общий таймер: зависание cleanup тоже имеет предел.
-    try { await app?.close(); } catch { console.error(JSON.stringify({ code: 'ADMIN_CLEANUP_FAILED' })); process.exitCode = 1; }
+    try {
+      await app?.close();
+    } catch {
+      console.error(JSON.stringify({ code: 'ADMIN_CLEANUP_FAILED' }));
+      process.exitCode = 1;
+    }
     if (timer) clearTimeout(timer);
   }
 }

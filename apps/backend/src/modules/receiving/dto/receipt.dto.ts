@@ -1,6 +1,15 @@
 /** @file HTTP input/output приёмки: transport DTO отделены от ORM и event envelope. */
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsInt, IsUUID, Max, Min, ValidateNested } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsInt,
+  IsUUID,
+  Max,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { MAX_RECEIPT_LINES } from '../../../shared/events/event-registry';
 import { MAX_STOCK_QUANTITY } from '../../../shared/quantities/quantity';
@@ -11,7 +20,10 @@ export class CreateReceiptLineDto {
   @ApiProperty({ format: 'uuid' }) @IsUUID() productId!: string;
   /** Штуки; строки/дроби/нулевые значения не преобразуются автоматически. */
   @ApiProperty({ type: 'integer', minimum: 1, maximum: MAX_STOCK_QUANTITY, example: 10 })
-  @IsInt() @Min(1) @Max(MAX_STOCK_QUANTITY) quantity!: number;
+  @IsInt()
+  @Min(1)
+  @Max(MAX_STOCK_QUANTITY)
+  quantity!: number;
 }
 /** Создание неизменяемого состава draft; максимум берётся из исходного event contract. */
 export class CreateReceiptDto {
@@ -21,8 +33,12 @@ export class CreateReceiptDto {
   @ApiProperty({ format: 'uuid' }) @IsUUID() receivingLocationId!: string;
   /** Порядок значим для hash; повтор одного productId запрещён, даже с другим регистром UUID. */
   @ApiProperty({ type: [CreateReceiptLineDto], minItems: 1, maxItems: MAX_RECEIPT_LINES })
-  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(MAX_RECEIPT_LINES) @ValidateNested({ each: true })
-  @Type(() => CreateReceiptLineDto) lines!: CreateReceiptLineDto[];
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(MAX_RECEIPT_LINES)
+  @ValidateNested({ each: true })
+  @Type(() => CreateReceiptLineDto)
+  lines!: CreateReceiptLineDto[];
 }
 /** Публичная строка результата; id — также стабильный operationId движения при posting. */
 export class ReceiptLineDto extends CreateReceiptLineDto {
@@ -48,5 +64,6 @@ export class ReceiptDto {
   /** Идентификатор сохранённого outbox event, null в draft. */
   @ApiProperty({ type: String, format: 'uuid', nullable: true }) postedEventId!: string | null;
   /** Состав документа; GET возвращает исходный порядок. */
-  @ApiProperty({ type: [ReceiptLineDto], minItems: 1, maxItems: MAX_RECEIPT_LINES }) lines!: ReceiptLineDto[];
+  @ApiProperty({ type: [ReceiptLineDto], minItems: 1, maxItems: MAX_RECEIPT_LINES })
+  lines!: ReceiptLineDto[];
 }

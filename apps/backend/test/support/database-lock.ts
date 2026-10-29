@@ -6,12 +6,18 @@ import type { DatabaseHarness } from './database-harness';
  * @param relation Серверное имя таблицы из test code, передаётся параметром, не SQL interpolation.
  * @throws Error если конкурентный statement не начал ждать; фиксированный sleep не доказывает race.
  */
-export async function waitForDatabaseLock(database: DatabaseHarness, relation: string): Promise<void> {
+export async function waitForDatabaseLock(
+  database: DatabaseHarness,
+  relation: string,
+): Promise<void> {
   const deadline = Date.now() + 5000;
   while (Date.now() < deadline) {
-    const result = await database.connection.pool.query(`select exists(select 1 from pg_stat_activity
+    const result = await database.connection.pool.query(
+      `select exists(select 1 from pg_stat_activity
       where datname=current_database() and wait_event_type='Lock' and position($1 in query)>0
-      and cardinality(pg_blocking_pids(pid))>0) as blocked`, [relation]);
+      and cardinality(pg_blocking_pids(pid))>0) as blocked`,
+      [relation],
+    );
     if (result.rows[0].blocked) return;
     await delay(10);
   }

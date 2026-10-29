@@ -12,26 +12,58 @@ import type { StockKeyDto, StockBalanceDto, ReceiveStockDto } from '../dto/stock
 export class InventoryRepository {
   /** Concurrent absent-key INSERT сериализуется unique/upsert; overflow отклоняется до integer addition. */
   async credit(context: TransactionContext, input: ReceiveStockDto): Promise<StockBalanceDto> {
-    const [row] = await transactionClient(context).insert(stockBalances).values({
-      warehouseId: input.warehouseId, locationId: input.locationId, productId: input.productId, onHand: input.quantity,
-    }).onConflictDoUpdate({
-      target: [stockBalances.warehouseId, stockBalances.locationId, stockBalances.productId],
-      set: { onHand: sql`${stockBalances.onHand} + ${input.quantity}` },
-      setWhere: sql`${stockBalances.onHand} <= ${MAX_STOCK_QUANTITY - input.quantity}`,
-    }).returning();
-    if (!row) throw new CommandError('STOCK_LIMIT_EXCEEDED'); return row;
+    const [row] = await transactionClient(context)
+      .insert(stockBalances)
+      .values({
+        warehouseId: input.warehouseId,
+        locationId: input.locationId,
+        productId: input.productId,
+        onHand: input.quantity,
+      })
+      .onConflictDoUpdate({
+        target: [stockBalances.warehouseId, stockBalances.locationId, stockBalances.productId],
+        set: { onHand: sql`${stockBalances.onHand} + ${input.quantity}` },
+        setWhere: sql`${stockBalances.onHand} <= ${MAX_STOCK_QUANTITY - input.quantity}`,
+      })
+      .returning();
+    if (!row) throw new CommandError('STOCK_LIMIT_EXCEEDED');
+    return row;
   }
   /** Movement и balance принадлежат тому же context; повтор operationId отклоняется unique constraint. */
-  async appendMovement(context: TransactionContext, input: ReceiveStockDto, auditId: string): Promise<string> {
-    const [row] = await transactionClient(context).insert(stockMovements).values({
-      operationId: input.operationId, warehouseId: input.warehouseId, locationId: input.locationId,
-      productId: input.productId, quantity: input.quantity, auditId,
-    }).returning({ id: stockMovements.id }); return row.id;
+  async appendMovement(
+    context: TransactionContext,
+    input: ReceiveStockDto,
+    auditId: string,
+  ): Promise<string> {
+    const [row] = await transactionClient(context)
+      .insert(stockMovements)
+      .values({
+        operationId: input.operationId,
+        warehouseId: input.warehouseId,
+        locationId: input.locationId,
+        productId: input.productId,
+        quantity: input.quantity,
+        auditId,
+      })
+      .returning({ id: stockMovements.id });
+    return row.id;
   }
   /** Внутреннее чтение текущего баланса; не является публичным stock API. */
-  async findBalance(context: TransactionContext, key: StockKeyDto): Promise<StockBalanceDto | null> {
-    const [row] = await transactionClient(context).select().from(stockBalances).where(and(
-      eq(stockBalances.warehouseId, key.warehouseId), eq(stockBalances.locationId, key.locationId), eq(stockBalances.productId, key.productId),
-    )).limit(1); return row ?? null;
+  async findBalance(
+    context: TransactionContext,
+    key: StockKeyDto,
+  ): Promise<StockBalanceDto | null> {
+    const [row] = await transactionClient(context)
+      .select()
+      .from(stockBalances)
+      .where(
+        and(
+          eq(stockBalances.warehouseId, key.warehouseId),
+          eq(stockBalances.locationId, key.locationId),
+          eq(stockBalances.productId, key.productId),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
   }
 }

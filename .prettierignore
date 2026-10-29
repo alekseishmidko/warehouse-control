@@ -1,0 +1,26 @@
+# Зависимости/outputs не являются собственными исходниками проекта.
+**/node_modules/**
+**/dist/**
+**/.test-dist/**
+**/coverage/**
+**/*.tsbuildinfo
+.git/**
+.idea/**
+.agents/**
+.codex/**
+# Credentials не читаются и не переписываются formatter.
+.env
+.env.*
+# Generated SQL/snapshots/journal и применённые миграции нельзя менять форматированием.
+apps/backend/drizzle/**
+# Эти артефакты создаются штатными generators, не редактируются вручную.
+apps/backend/src/shared/events/generated/**
+docs/contracts/openapi.json
+pnpm-lock.yaml
+
+# Локальные credential каталоги/ключи не являются source для форматирования.
+.aws/**
+.ssh/**
+secrets/**
+**/*.pem
+**/*.key

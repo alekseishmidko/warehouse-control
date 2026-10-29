@@ -17,12 +17,18 @@ export function canonicalJson(input: unknown): string {
   /** Рекурсивно кодирует один JSON value; depth ограничивает глубину вложения до обхода детей. */
   const visit = (value: unknown, depth: number): string => {
     if (depth > 64) throw new CommandError('VALIDATION_FAILED');
-    if (value === null || typeof value === 'string' || typeof value === 'boolean') return JSON.stringify(value);
+    if (value === null || typeof value === 'string' || typeof value === 'boolean')
+      return JSON.stringify(value);
     if (typeof value === 'number' && Number.isFinite(value)) return JSON.stringify(value);
-    if (typeof value !== 'object' || value === null || ancestors.has(value)) throw new CommandError('VALIDATION_FAILED');
+    if (typeof value !== 'object' || value === null || ancestors.has(value))
+      throw new CommandError('VALIDATION_FAILED');
     // Date/class instances могли бы менять wire data через toJSON. Принимаем только
     // plain records (включая Object.create(null)), их данные выбирает сам обход.
-    if (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) {
+    if (
+      !Array.isArray(value) &&
+      Object.getPrototypeOf(value) !== Object.prototype &&
+      Object.getPrototypeOf(value) !== null
+    ) {
       throw new CommandError('VALIDATION_FAILED');
     }
     ancestors.add(value);
@@ -36,13 +42,18 @@ export function canonicalJson(input: unknown): string {
         }).join(',')}]`;
       }
       // Сортировка делает hash независимым от порядка вставки полей. Array order выше сохранён.
-      return `{${Object.keys(value).sort().map(key => {
-        const property = Object.getOwnPropertyDescriptor(value, key)!;
-        // Getter не выполняется: hashing не должен иметь пользовательских эффектов.
-        if (!('value' in property)) throw new CommandError('VALIDATION_FAILED');
-        return `${JSON.stringify(key)}:${visit(property.value, depth + 1)}`;
-      }).join(',')}}`;
-    } finally { ancestors.delete(value); }
+      return `{${Object.keys(value)
+        .sort()
+        .map((key) => {
+          const property = Object.getOwnPropertyDescriptor(value, key)!;
+          // Getter не выполняется: hashing не должен иметь пользовательских эффектов.
+          if (!('value' in property)) throw new CommandError('VALIDATION_FAILED');
+          return `${JSON.stringify(key)}:${visit(property.value, depth + 1)}`;
+        })
+        .join(',')}}`;
+    } finally {
+      ancestors.delete(value);
+    }
   };
   const result = visit(input, 0);
   // Размер считается после сериализации, включая escape sequences и UTF-8, не по string.length.

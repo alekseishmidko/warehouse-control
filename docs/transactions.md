@@ -30,7 +30,7 @@ Nest: TRANSACTION_RUNNER экспортируется DatabaseModule, AuditServi
 тестовым interface и audit — `test/integration/transactions-audit.spec.ts`.
 
 ```ts
-await transactions.run(async context => {
+await transactions.run(async (context) => {
   await businessModule.change(context, command);
   await audit.write(context, auditInput);
 });
@@ -98,11 +98,11 @@ id генерируется PostgreSQL, occurredAt — timestamptz default now()
 
 Allowlist changes:
 
-| Поля | Допустимые before/after |
-|---|---|
-| status | draft, posted, active, consumed, released или null |
-| quantity, onHand, reserved | Целое 0..2147483647 или null |
-| warehouseId, locationId, productId | UUID или null |
+| Поля                               | Допустимые before/after                            |
+| ---------------------------------- | -------------------------------------------------- |
+| status                             | draft, posted, active, consumed, released или null |
+| quantity, onHand, reserved         | Целое 0..2147483647 или null                       |
+| warehouseId, locationId, productId | UUID или null                                      |
 
 Другие поля и небезопасные scalar удаляются, включая их неизвестные имена.
 `hasRedactedChanges=true` сообщает о фильтрации без сохранения исходных секретов.
@@ -150,7 +150,6 @@ Admin reset disposable harness отключает trigger и очищает та
 [PostgreSQL SQLSTATE](https://www.postgresql.org/docs/17/errcodes-appendix.html),
 [PostgreSQL triggers](https://www.postgresql.org/docs/17/sql-createtrigger.html).
 
-
 ## HTTP command owner WMS-107
 
 HttpCommandsService.execute владеет transaction для HTTP сценария и передаёт callback
@@ -160,7 +159,6 @@ HttpCommandsService.execute владеет transaction для HTTP сценар�
 кешируются; сетевой timeout не означает отменённую DB транзакцию. После неизвестного
 исхода commit повтор с исходным key разрешает replay, новый key может повторить эффект.
 Подробнее — [storage protocol](../apps/backend/src/infrastructure/idempotency/README.md).
-
 
 ## Worker owner WMS-109
 

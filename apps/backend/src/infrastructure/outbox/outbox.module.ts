@@ -8,6 +8,9 @@ import { RecoveryRepository } from './repositories/recovery.repository';
 import { OutboxRecoveryService } from './services/outbox-recovery.service';
 
 /** Использует общий DatabaseModule/AuditModule; repositories получают client только из обязательного context. */
-@Module({ imports: [DatabaseModule, AuditModule], providers: [OutboxService, OutboxRepository, RecoveryRepository, OutboxRecoveryService],
-  exports: [OutboxService, OutboxRecoveryService] })
+@Module({
+  imports: [DatabaseModule, AuditModule],
+  providers: [OutboxService, OutboxRepository, RecoveryRepository, OutboxRecoveryService],
+  exports: [OutboxService, OutboxRecoveryService],
+})
 export class OutboxModule {}

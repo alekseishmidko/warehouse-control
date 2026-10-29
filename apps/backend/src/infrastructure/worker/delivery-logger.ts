@@ -6,6 +6,9 @@ import type { DeliveryDiagnostic } from '../../shared/diagnostics/delivery-diagn
  * @param diagnostic Отфильтрованный результат deliveryDiagnostic без токена и payload.
  * @returns Ничего; исключение console.info подавляется. Долговечная история остаётся в БД. */
 export function logDelivery(status: string, diagnostic: DeliveryDiagnostic): void {
-  try { console.info(JSON.stringify({ event: 'worker.delivery', status, ...diagnostic })); }
-  catch { /* Закрытый stdout не меняет результат БД; повторный вывод здесь мог бы вызвать рекурсивную ошибку. */ }
+  try {
+    console.info(JSON.stringify({ event: 'worker.delivery', status, ...diagnostic }));
+  } catch {
+    /* Закрытый stdout не меняет результат БД; повторный вывод здесь мог бы вызвать рекурсивную ошибку. */
+  }
 }

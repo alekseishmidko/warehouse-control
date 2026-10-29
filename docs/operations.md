@@ -80,7 +80,6 @@ Audit migrations создают NOLOGIN permission group warehouse_app и append
 credential provisioning не включён в schema migration. Текущий dev Compose admin URL
 не становится runtime login автоматически. Правила: [transactions](transactions.md).
 
-
 ## Локальный worker WMS-109
 
 После явных migrations/build запуск `pnpm worker` отдельным процессом, API отдельно.
@@ -91,7 +90,6 @@ Config/defaults, DB timeout, диагностика и ограничения �
 [worker README](../apps/backend/src/infrastructure/worker/README.md).
 Не сбрасывать markers/cursors/lease вручную; локальный recovery CLI реализован WMS-111,
 использовать проверенный runbook с role/lease/cursor checks.
-
 
 ## Durable handler WMS-110
 
@@ -114,3 +112,12 @@ API/worker/migrate используют один multi-stage non-root image. З�
 [Docker flow](flows/docker-gate.md), [Compose](../infra/compose/README.md),
 [evidence](reports/wms-112.md). Локальные image не публиковались, production login/
 секреты/Kubernetes/NGINX остаются будущими задачами.
+
+## Identity и эксплуатация WMS-202
+
+Sessions/warehouse ACL готовы, dev actor удалён. API/bootstrap требуют явные AUTH_ORIGIN
+и absolute/idle seconds; production origin HTTPS, TLS gateway нужен до внешнего доступа.
+В логах/ответах нет пароля/hash/session token; auth/admin credential commands не проходят
+через saved HTTP request fingerprint. One-time bootstrap — отдельный stdin CLI с DB group
+и retained marker, а не API startup hook. Подробный [run flow](flows/identity.md),
+[модуль](../apps/backend/src/modules/identity/README.md), [отчёт](reports/wms-202.md).

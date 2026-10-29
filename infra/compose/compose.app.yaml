@@ -20,6 +20,8 @@
 # 1. Если .env отсутствует, скопировать .env.example; существующую .env не перезаписывать.
 # 2. Добавить CONTAINER_DATABASE_URL: те же локальные credentials/база, но host=postgres и port=5432.
 #    Пароль в URL кодируется. Host DATABASE_URL остаётся 127.0.0.1:15432 для команд вне контейнеров.
+#    Также заполнить AUTH_ORIGIN и оба AUTH_SESSION_*_SECONDS. Здесь NODE_ENV=production: origin HTTPS.
+#    Host pnpm dev может использовать loopback HTTP; для Compose задавайте отдельный HTTPS origin.
 #    Смена POSTGRES_PASSWORD в .env не меняет пароль уже существующего PostgreSQL volume.
 # 3. pnpm app:up — собрать image, запустить PostgreSQL, применить миграции, запустить API/worker.
 #    Скрипт выполняет:
@@ -33,7 +35,7 @@
 # Один image запускается тремя командами: migrate — одноразовый процесс, api и worker — отдельные процессы.
 # Порядок старта: PostgreSQL healthy → migrate exit=0 → независимый старт API и worker.
 # API публикуется только на localhost host-машины, внутри контейнера слушает 0.0.0.0:3000.
-# Dev actor выключен: технические GET доступны, складские HTTP-команды получают 403 до production auth.
+# Без session business API возвращает 401, без warehouse role/CSRF — 403; dev actor удалён.
 # NODE_ENV=production здесь проверяет поведение приложения, но не превращает локальный стенд в production:
 # DB login пока локальный owner, постоянной DB readiness и production identity ещё нет.
 # Для выполнения учебной приёмки используйте pnpm docker:gate — назначение соседнего compose.gate.yaml.
@@ -56,6 +58,9 @@ x-backend: &backend
     HTTP_HOST: 0.0.0.0
     DEV_ACTOR_ENABLED: 'false'
     OUTBOX_ADMIN_ENABLED: 'false'
+    AUTH_ORIGIN: ${AUTH_ORIGIN:?Set AUTH_ORIGIN; HTTPS for production mode}
+    AUTH_SESSION_ABSOLUTE_SECONDS: ${AUTH_SESSION_ABSOLUTE_SECONDS:?Set explicit absolute session seconds}
+    AUTH_SESSION_IDLE_SECONDS: ${AUTH_SESSION_IDLE_SECONDS:?Set explicit idle session seconds}
   # Rootfs неизменяем; единственный временный каталог ограничен tmpfs. Данные хранит PostgreSQL.
   read_only: true
   tmpfs:
@@ -83,7 +88,13 @@ services:
     healthcheck:
       # Только liveness процесса. Health PostgreSQL и migration exit=0 проверяются при запуске,
       # а не непрерывно: этот endpoint не обещает готовность БД после её последующего отказа.
-      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/health',{signal:AbortSignal.timeout(2000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/health',{signal:AbortSignal.timeout(2000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 3s
       timeout: 3s
       retries: 20

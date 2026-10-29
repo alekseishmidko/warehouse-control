@@ -16,7 +16,7 @@ async function bootstrap(): Promise<void> {
   configureHttp(app);
   app.enableShutdownHooks();
   try {
-    // Bind использует validated IP; при включённом dev actor config разрешает только loopback.
+    // Bind использует validated IP; auth/ACL действуют независимо от адреса listener.
     await app.listen(config.port, config.httpHost);
   } catch {
     await app.close();
@@ -25,6 +25,8 @@ async function bootstrap(): Promise<void> {
 }
 
 void bootstrap().catch(() => {
-  console.error('Application startup failed. Check NODE_ENV, PORT, DATABASE_URL and database availability.');
+  console.error(
+    'Application startup failed. Check NODE_ENV, PORT, DATABASE_URL and database availability.',
+  );
   process.exitCode = 1;
 });

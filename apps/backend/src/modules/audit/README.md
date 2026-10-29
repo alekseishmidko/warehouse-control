@@ -14,14 +14,14 @@
 
 ## Для разработчика
 
-| Файл | Назначение |
-|---|---|
-| audit.module.ts | Nest composition, private AuditRepository и экспорт AuditService |
-| [services/audit.service.ts](services/audit.service.ts) | Сценарий записи: validation/redaction, вызов repository |
+| Файл                                                                 | Назначение                                                             |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| audit.module.ts                                                      | Nest composition, private AuditRepository и экспорт AuditService       |
+| [services/audit.service.ts](services/audit.service.ts)               | Сценарий записи: validation/redaction, вызов repository                |
 | [repositories/audit.repository.ts](repositories/audit.repository.ts) | SQL INSERT с обязательным действующим context, без собственного commit |
-| [dto/audit-entry.dto.ts](dto/audit-entry.dto.ts) | Внутренние AuditEntryInput/PreparedAuditEntry/SafeAuditChange |
-| [audit-entry.ts](audit-entry.ts) | Чистые helpers валидации/маскирования |
-| audit.schema.ts | Drizzle таблица, constraints и индексы |
+| [dto/audit-entry.dto.ts](dto/audit-entry.dto.ts)                     | Внутренние AuditEntryInput/PreparedAuditEntry/SafeAuditChange          |
+| [audit-entry.ts](audit-entry.ts)                                     | Чистые helpers валидации/маскирования                                  |
+| audit.schema.ts                                                      | Drizzle таблица, constraints и индексы                                 |
 
 Внешние модули вызывают AuditService.write(context,input), который возвращает UUID.
 Сервис использует конкретный repository через Nest DI; отдельного AuditWriter port/token нет.
@@ -97,14 +97,14 @@ Validation error останавливает исполнение до repository
 
 ## Движение данных по шагам
 
-| Шаг | Вход → результат | Ответственность |
-|---|---|---|
-| 1 | Команда/доверенный actor → AuditEntryInput | Вызывающий сервис формирует коды действия/основания, UUID объекта и correlationId; actor не берётся из произвольного body |
-| 2 | run(callback) → TransactionContext | Runner открывает одну транзакцию; context передаётся явно, не является сериализуемым DTO |
-| 3 | AuditEntryInput → PreparedAuditEntry | AuditService вызывает prepareAuditEntry: проверяет обязательные поля, оставляет безопасные changes, ставит redaction flag |
-| 4 | context + PreparedAuditEntry → SQL INSERT | AuditRepository разрешает только активный context; schema задаёт колонки/defaults, SQL constraints защищают форму записи |
-| 5 | INSERT → UUID | PostgreSQL создаёт id и occurredAt; repository возвращает только id, не ORM row; durable commit ещё не произошёл |
-| 6 | Успешный callback → COMMIT → результат run | Владелец сценария может сообщить успех только после завершения run; ошибка откатывает основную запись и audit вместе |
+| Шаг | Вход → результат                           | Ответственность                                                                                                           |
+| --- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Команда/доверенный actor → AuditEntryInput | Вызывающий сервис формирует коды действия/основания, UUID объекта и correlationId; actor не берётся из произвольного body |
+| 2   | run(callback) → TransactionContext         | Runner открывает одну транзакцию; context передаётся явно, не является сериализуемым DTO                                  |
+| 3   | AuditEntryInput → PreparedAuditEntry       | AuditService вызывает prepareAuditEntry: проверяет обязательные поля, оставляет безопасные changes, ставит redaction flag |
+| 4   | context + PreparedAuditEntry → SQL INSERT  | AuditRepository разрешает только активный context; schema задаёт колонки/defaults, SQL constraints защищают форму записи  |
+| 5   | INSERT → UUID                              | PostgreSQL создаёт id и occurredAt; repository возвращает только id, не ORM row; durable commit ещё не произошёл          |
+| 6   | Успешный callback → COMMIT → результат run | Владелец сценария может сообщить успех только после завершения run; ошибка откатывает основную запись и audit вместе      |
 
 DTO в dto/audit-entry.dto.ts — внутренние TypeScript interfaces, не HTTP DTO
 с class-validator. Runtime validation реализована prepareAuditEntry в сервисном
@@ -146,7 +146,7 @@ DTO в dto/audit-entry.dto.ts — внутренние TypeScript interfaces, н
 их создаёт PostgreSQL. Пример вызова из тестового/будущего вызывающего сервиса:
 
 ```ts
-const id = await transactions.run(async context => {
+const id = await transactions.run(async (context) => {
   // Основное изменение через repository своего модуля получает этот же context.
   return auditService.write(context, input);
 });
@@ -158,14 +158,14 @@ input — объект выше. Пример показывает вызов, �
 
 ## Ошибки и повтор
 
-| Отказ | Где останавливается цепочка | Результат |
-|---|---|---|
-| Неверный actorId/action/reasonCode | AuditService, до repository | Ошибка без значения input; при распространении ошибки сценарий откатывается |
-| Неизвестное/небезопасное changes-поле | Подготовка DTO в сервисе | Поле удаляется, hasRedactedChanges=true; допустимая запись продолжается |
-| Поддельный, чужой или завершённый context | AuditRepository до SQL | Нет отдельной транзакции или fallback-подключения, Promise отклоняется |
-| SQL/constraint error | PostgreSQL/repository | Ошибка передаётся наверх; вызывающий сервис не игнорирует её, runner выполняет rollback |
-| Ошибка после успешного audit INSERT | Вызывающий сценарий | Audit и основная запись откатываются вместе |
-| Повтор write в новом run | Новый вызов сервиса | Новая запись с новым UUID; deduplication пока не реализована |
+| Отказ                                     | Где останавливается цепочка | Результат                                                                               |
+| ----------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------- |
+| Неверный actorId/action/reasonCode        | AuditService, до repository | Ошибка без значения input; при распространении ошибки сценарий откатывается             |
+| Неизвестное/небезопасное changes-поле     | Подготовка DTO в сервисе    | Поле удаляется, hasRedactedChanges=true; допустимая запись продолжается                 |
+| Поддельный, чужой или завершённый context | AuditRepository до SQL      | Нет отдельной транзакции или fallback-подключения, Promise отклоняется                  |
+| SQL/constraint error                      | PostgreSQL/repository       | Ошибка передаётся наверх; вызывающий сервис не игнорирует её, runner выполняет rollback |
+| Ошибка после успешного audit INSERT       | Вызывающий сценарий         | Audit и основная запись откатываются вместе                                             |
+| Повтор write в новом run                  | Новый вызов сервиса         | Новая запись с новым UUID; deduplication пока не реализована                            |
 
 Общий retry/recovery-контекст — [transactions](../../../../../docs/transactions.md),
 а [event-recovery](../../../../../docs/runbooks/event-recovery.md) описывает локальное
@@ -179,3 +179,11 @@ WMS-104: OperationMetadata переиспользуется из shared/operatio
 quantity validation — из shared/validation и shared/quantities. Для quantity,
 onHand/reserved allowlist теперь также ограничен int4 максимумом 2147483647.
 Прочие audit поля/маскирование не меняются. Movement хранит FK на audit UUID.
+
+## Identity audit WMS-202
+
+Allowlist дополнен bool active/systemAdmin и UUID sessionId. Это безопасные scalar changes,
+не произвольный request. Grant set сохраняет warehouseId, каждое добавление/снятие роли —
+отдельный фиксированный action/reason, смена пароля — отдельный факт без hash/пароля.
+Admin mutation и audit остаются в одном context; failure откатывает пользователя/grants/revoke.
+SQL/JSONB модель аудита не менялась, старые applied migrations не редактировались.

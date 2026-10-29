@@ -2,13 +2,13 @@
 
 ## Источники истины
 
-| Контракт | Источник | Потребитель |
-|---|---|---|
-| HTTP API | NestJS DTO + runtime validation + OpenAPI decorators | Web и интеграции |
+| Контракт         | Источник                                                       | Потребитель                  |
+| ---------------- | -------------------------------------------------------------- | ---------------------------- |
+| HTTP API         | NestJS DTO + runtime validation + OpenAPI decorators           | Web и интеграции             |
 | Документ OpenAPI | Генерируется из приложения, локальный diff check; CI предстоит | Будущий генератор api-client |
-| События | Версионированные JSON Schema в этой директории | Workers и Kafka consumers |
-| Типы событий | Генерируются из JSON Schema | Backend и consumers |
-| Данные БД | SQL/Drizzle migrations | Только backend |
+| События          | Версионированные JSON Schema в этой директории                 | Workers и Kafka consumers    |
+| Типы событий     | Генерируются из JSON Schema                                    | Backend и consumers          |
+| Данные БД        | SQL/Drizzle migrations                                         | Только backend               |
 
 TypeScript-типы сами по себе не валидируют вход. События проверяются по JSON
 Schema перед записью outbox и на границе consumer. WMS-105 реализует общий
@@ -38,7 +38,7 @@ JSON использует camelCase, идентификаторы — UUID, вр
 первоначально записи не удаляем. Идемпотентность HTTP и consumer — разные механизмы.
 
 Целевая production запись защищается проверкой ролей и доступа к складу на backend.
-Сейчас business routes доступны только isolated dev/test actor одной dev-организации; ACL ещё нет.
+С WMS-202 business routes требуют server session, CSRF для unsafe и warehouse permission.
 `actorId` берётся из доверенного auth context, а не из пользовательского body.
 Входящие correlation IDs проверяем по формату и длине либо создаём новые.
 
@@ -50,17 +50,17 @@ JSON использует camelCase, идентификаторы — UUID, вр
 
 Обязательный конверт:
 
-| Поле | Правило |
-|---|---|
-| eventId | UUID, неизменен при всех повторах и переходе на Kafka |
-| type / schemaVersion | Тип факта и целая major-версия схемы |
-| aggregateType / aggregateId | Агрегат, определяющий порядок |
-| aggregateVersion | Последовательность опубликованных событий этого агрегата, от 1 |
-| occurredAt | Время бизнес-факта UTC |
-| correlationId | Идентификатор сквозного сценария |
-| causationId | UUID породившего события; отсутствует для корневой HTTP-команды |
-| traceparent | Необязательный W3C trace context, проверяется инструментарием OTel |
-| payload | Данные по схеме типа и версии |
+| Поле                        | Правило                                                            |
+| --------------------------- | ------------------------------------------------------------------ |
+| eventId                     | UUID, неизменен при всех повторах и переходе на Kafka              |
+| type / schemaVersion        | Тип факта и целая major-версия схемы                               |
+| aggregateType / aggregateId | Агрегат, определяющий порядок                                      |
+| aggregateVersion            | Последовательность опубликованных событий этого агрегата, от 1     |
+| occurredAt                  | Время бизнес-факта UTC                                             |
+| correlationId               | Идентификатор сквозного сценария                                   |
+| causationId                 | UUID породившего события; отсутствует для корневой HTTP-команды    |
+| traceparent                 | Необязательный W3C trace context, проверяется инструментарием OTel |
+| payload                     | Данные по схеме типа и версии                                      |
 
 `aggregateVersion` выделяется атомарно с блокировкой/версией агрегата и не имеет
 пропусков среди его событий. Одна версия — одно событие. Если позже понадобятся
@@ -77,8 +77,8 @@ JSON UTF-8, включая envelope и неизвестные поля. Боль
 первой публикации v1; дальнейшее сужение опубликованной версии — breaking change.
 
 Payload DTO берётся из generated ReceivingPostedV1, а MAX_RECEIPT_LINES — из
-generated schema. Будущий receiving HTTP DTO обязан использовать эти же limits;
-сейчас публичного DTO приёмки нет. Existing ReceiveStockDto принимает одну строку
+generated schema. Receiving HTTP DTO WMS-108 уже использует эти limits;
+create/post/get подключены с session/warehouse ACL WMS-202. Existing ReceiveStockDto принимает одну строку
 и использует тот же int4 quantity contract. Проверка UUID/UTC/quantity не заменяет
 проверку прав, существования справочников, уникальности строк или состояния документа.
 
@@ -142,7 +142,6 @@ check/tests. Команды не требуют Docker/БД. При двух р�
 Unit stock-quantity.spec.ts сверяет общий int4 contract, а event-contracts.spec.ts
 теперь проверяет этот диапазон полноценным runtime validator WMS-105 на обеих границах.
 
-
 ## Реализованные HTTP boundaries WMS-107
 
 ValidationPipe использует class-validator/class-transformer без implicit conversion,
@@ -162,7 +161,7 @@ Scope уточнён до actorType/actorId/operation/key; operation и actor з
 
 DEV_ACTOR_ENABLED по умолчанию false. Включение требует explicit NODE_ENV dev/test,
 loopback HTTP_HOST и server-side DEV_ACTOR_ID UUID; guard проверяет peer/proxy headers.
-Production auth ещё нет, business routes по умолчанию закрыты. Технические GET public.
+Session auth/ACL реализованы WMS-202, anonymous business routes закрыты. Технические GET public.
 
 [openapi.json](openapi.json) — generated из production controllers, не править вручную.
 Команды `pnpm openapi:generate` / `pnpm openapi:check` выполняют build, затем offline CLI
@@ -172,7 +171,6 @@ Swagger UI и frontend api-client пока не добавлены. Подроб
 [HTTP](../../apps/backend/src/infrastructure/http/README.md),
 [idempotency](../../apps/backend/src/infrastructure/idempotency/README.md),
 [ADR-0013](../adr/0013-http-idempotency.md).
-
 
 ## Receiving HTTP WMS-108
 
@@ -195,3 +193,31 @@ nullable postedAt/postedEventId, lines с id/position/productId/quantity.
 Известные неинтересные type в будущем проходят no-op handler и cursor. Сейчас registry знает
 только ReceivingPosted: surrogate unit test не добавляет реального контракта. Unknown type/version
 по-прежнему permanent dead до handler. [Схемы и диагностика](../flows/putaway.md).
+
+## WMS-201: границы будущих контрактов fulfillment
+
+[Проект команд и лимитов](fulfillment.md) отделяет действующие receiving contracts
+от будущих order/reservation/picking/shipment. Бизнес-выбор B1–B4 утверждён 2026-10-29;
+новые routes, события и схемы не зарегистрированы и не включаются в generated OpenAPI.
+Количество int4, предел ReceivingPosted 262144 bytes и receiving 1..1000 строк сохранены.
+Предложение тех же лимитов новым документам не означает их утверждения или реализации.
+Breaking change требует новой версии/миграции; текущие source schemas/generated artifacts
+этой задачей не изменяются. Числовые примеры — [будущие AC](../flows/fulfillment.md), не fixtures готового API.
+
+## Направление auth WMS-202
+
+Приняты логин/пароль и серверная сессия, а также threat assumptions, см.
+[ADR-0018](../adr/0018-server-sessions.md) и [identity](../identity.md). Auth endpoints, DTO, cookie/CSRF policy и permissions реализованы WMS-202
+и отражены в generated OpenAPI. Матрица ролей/складов принята ADR-0019; только сроки сессий
+ожидают отдельного ответа владельца продукта.
+Actor берётся только из проверенной сессии, доступ проверяется и до
+replay сохранённого HTTP result. Отзыв сессии не отменяет уже committed складской факт.
+
+WMS-202 implementation contract: login/me/logout и admin users/update/warehouse roles/
+revoke-all/revoke-one подключены; DTO output содержит только UserProfileDto/CSRF/grants.
+[Точные пути/коды](../../apps/backend/src/modules/identity/README.md#http-api-и-безопасные-результаты),
+[владелец исполнения](../flows/identity.md), source Swagger в controllers и DTO.
+Без session — 401; роль/CSRF — 403; duplicate/last admin — 409; login limit — 429.
+Новая cookie не кэшируется в http_idempotency; старый Idempotency-Key receiving не обходит
+актуальные ACL. Новых событий auth в registry нет: identity admin audit не warehouse outbox fact.
+ReceivingPosted v1/quantity/limits не изменены.

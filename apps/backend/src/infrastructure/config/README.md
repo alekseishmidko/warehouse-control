@@ -15,14 +15,14 @@
 пересмотреть loader. `validateEnvironment(env)` — чистая функция, не подключается к БД.
 Результат RuntimeConfig immutable, databaseUrl чувствителен и не логируется.
 
-| Параметр | Правило | Default | Секрет |
-|---|---|---|---|
-| NODE_ENV | development, test или production | development | Нет |
-| PORT | Целое десятичное число 1–65535 | 3000 | Нет |
-| HTTP_HOST | IP bind address, dev actor только 127.0.0.1/::1 | 127.0.0.1 | Нет |
-| DEV_ACTOR_ENABLED | true/false; включение только explicit development/test | false | Нет |
-| DEV_ACTOR_ID | Server UUID, обязателен только при enabled=true | Нет | Нет, синтетический ID |
-| DATABASE_URL | postgres/postgresql URL с пользователем, host и именем БД | Обязателен | Да |
+| Параметр          | Правило                                                   | Default     | Секрет                |
+| ----------------- | --------------------------------------------------------- | ----------- | --------------------- |
+| NODE_ENV          | development, test или production                          | development | Нет                   |
+| PORT              | Целое десятичное число 1–65535                            | 3000        | Нет                   |
+| HTTP_HOST         | IP bind address, dev actor только 127.0.0.1/::1           | 127.0.0.1   | Нет                   |
+| DEV_ACTOR_ENABLED | true/false; включение только explicit development/test    | false       | Нет                   |
+| DEV_ACTOR_ID      | Server UUID, обязателен только при enabled=true           | Нет         | Нет, синтетический ID |
+| DATABASE_URL      | postgres/postgresql URL с пользователем, host и именем БД | Обязателен  | Да                    |
 
 Проверка URL синтаксическая; доступность, SSL, права и наличие БД проверяет
 подключение, а не parser. Пароль в URL не обязателен: способ аутентификации
@@ -35,7 +35,6 @@
 не требуют Docker и проверяют реальный entrypoint с invalid URL.
 Integration harness переопределяет validated config через DATABASE_CONFIG provider
 без изменения process.env. Бизнес-транзакций и событий здесь нет.
-
 
 ## HTTP isolation WMS-107
 
@@ -54,3 +53,11 @@ dev/test identifier, не доверие body/headers и не production login. 
 Unit http-foundation.spec.ts проверяет invalid production/default-mode/host/UUID;
 HTTP integration проверяет guard повторно даже при вручную повреждённом DI override.
 [Правила HTTP](../http/README.md).
+
+## Identity WMS-202
+
+RuntimeConfig больше не содержит devActorId; DEV_ACTOR_ENABLED принимает только false/отсутствие,
+true отклоняет startup. Это не переключатель auth в development. Отдельный IdentityConfig
+валидирует AUTH_ORIGIN и обязательные absolute/idle seconds; в worker/seed graph эти
+HTTP-настройки не требуются. API/bootstrap требуют явных значений без defaults; подробнее
+[identity](../../../../../docs/identity.md) и module README. .env не перезаписывается автоматически.

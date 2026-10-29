@@ -25,7 +25,6 @@ flowchart LR
 должен откатить текущий сценарий. DTO не содержит TransactionContext или credentials.
 Собственных транзакций, env, events и методов нет; pnpm typecheck и integration/stock.spec.ts.
 
-
 ## Command scope WMS-107
 
 В dto/command-scope.dto.ts добавлены CommandScope и CommandResult. Первый содержит

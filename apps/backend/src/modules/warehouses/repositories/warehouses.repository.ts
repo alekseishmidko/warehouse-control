@@ -9,15 +9,37 @@ import type { LocationDto, LocationKind, WarehouseDto } from '../dto/warehouse.d
 @Injectable()
 export class WarehousesRepository {
   /** Создаёт склад, unique violation не скрывается. */
-  async createWarehouse(context: TransactionContext, code: string, name: string): Promise<WarehouseDto> {
-    const [row] = await transactionClient(context).insert(warehouses).values({ code, name }).returning(); return row;
+  async createWarehouse(
+    context: TransactionContext,
+    code: string,
+    name: string,
+  ): Promise<WarehouseDto> {
+    const [row] = await transactionClient(context)
+      .insert(warehouses)
+      .values({ code, name })
+      .returning();
+    return row;
   }
   /** Создаёт ячейку, FK защищает существование склада. */
-  async createLocation(context: TransactionContext, warehouseId: string, code: string, kind: LocationKind): Promise<LocationDto> {
-    const [row] = await transactionClient(context).insert(locations).values({ warehouseId, code, kind }).returning(); return row;
+  async createLocation(
+    context: TransactionContext,
+    warehouseId: string,
+    code: string,
+    kind: LocationKind,
+  ): Promise<LocationDto> {
+    const [row] = await transactionClient(context)
+      .insert(locations)
+      .values({ warehouseId, code, kind })
+      .returning();
+    return row;
   }
   /** Читает ячейку; warehouse ownership проверяется сервисом и composite FK. */
   async findLocation(context: TransactionContext, id: string): Promise<LocationDto | null> {
-    const [row] = await transactionClient(context).select().from(locations).where(eq(locations.id, id)).limit(1); return row ?? null;
+    const [row] = await transactionClient(context)
+      .select()
+      .from(locations)
+      .where(eq(locations.id, id))
+      .limit(1);
+    return row ?? null;
   }
 }

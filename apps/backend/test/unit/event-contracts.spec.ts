@@ -2,27 +2,43 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { EventContracts } from '@backend/shared/events/services/event-contracts';
-import { EventContractError, EventContractErrorCode } from '@backend/shared/events/event-contract.error';
-import { EVENT_REGISTRY, MAX_EVENT_BYTES, MAX_RECEIPT_LINES } from '@backend/shared/events/event-registry';
+import {
+  EventContractError,
+  EventContractErrorCode,
+} from '@backend/shared/events/event-contract.error';
+import {
+  EVENT_REGISTRY,
+  MAX_EVENT_BYTES,
+  MAX_RECEIPT_LINES,
+} from '@backend/shared/events/event-registry';
 import { eventSchemas } from '@backend/shared/events/generated/event-schemas';
 import { MAX_STOCK_QUANTITY } from '@backend/shared/quantities/quantity';
 
 const contracts = new EventContracts();
 // Каждый вызов читает новый объект: мутации негативного сценария не влияют на соседние tests.
-const example = () => JSON.parse(readFileSync(resolve('../../docs/contracts/examples/receiving.receipt-posted.v1.json'), 'utf8'));
+const example = () =>
+  JSON.parse(
+    readFileSync(resolve('../../docs/contracts/examples/receiving.receipt-posted.v1.json'), 'utf8'),
+  );
 // Полные fixtures фиксируют ожидаемую совместимость версии, а не только отдельное поле.
-const fixture = (name: string) => JSON.parse(readFileSync(resolve(`../../docs/contracts/fixtures/receiving.${name}.json`), 'utf8'));
+const fixture = (name: string) =>
+  JSON.parse(readFileSync(resolve(`../../docs/contracts/fixtures/receiving.${name}.json`), 'utf8'));
 
 test('every source schema is explicitly registered at its exact type/version', () => {
   // Генерация новой schema без регистрации должна ломать проверку, а не терять поддержку молча.
-  const expected = Object.values(eventSchemas).map(schema => `${schema.properties.type.const}:${schema.properties.schemaVersion.const}`);
+  const expected = Object.values(eventSchemas).map(
+    (schema) => `${schema.properties.type.const}:${schema.properties.schemaVersion.const}`,
+  );
   expect(Object.keys(EVENT_REGISTRY).sort()).toEqual(expected.sort());
 });
 
 /** Проверяет один и тот же отказ на producer и consumer; production callbacks/SQL здесь не имитируются. */
 function expectRejected(input: unknown, code: EventContractErrorCode = 'INVALID_EVENT') {
   // Один input проходит через реальные producer/consumer entrypoints: политики отказа совпадают.
-  for (const action of [() => contracts.prepareForOutbox(input), () => contracts.parseForHandler(JSON.stringify(input))]) {
+  for (const action of [
+    () => contracts.prepareForOutbox(input),
+    () => contracts.parseForHandler(JSON.stringify(input)),
+  ]) {
     expect(action).toThrow(expect.objectContaining({ name: 'EventContractError', code }));
   }
 }
@@ -48,62 +64,95 @@ test('separate fixtures reject unknown version and incorrect payload', () => {
   expectRejected(fixture('invalid-payload'));
 });
 
-test.each(['other.event', '__proto__', 'constructor'])('unknown type %s cannot select a registry member', type => {
-  expectRejected({ ...example(), type }, 'UNSUPPORTED_EVENT');
-});
+test.each(['other.event', '__proto__', 'constructor'])(
+  'unknown type %s cannot select a registry member',
+  (type) => {
+    expectRejected({ ...example(), type }, 'UNSUPPORTED_EVENT');
+  },
+);
 
-test.each([null, [], true, 1, 'event'])('rejects non-object envelope %j', input => expectRejected(input));
+test.each([null, [], true, 1, 'event'])('rejects non-object envelope %j', (input) =>
+  expectRejected(input),
+);
 
-test.each(['1', 0, -1, 1.5, null])('rejects malformed schemaVersion %j', schemaVersion => {
+test.each(['1', 0, -1, 1.5, null])('rejects malformed schemaVersion %j', (schemaVersion) => {
   expectRejected({ ...example(), schemaVersion });
 });
 
-test.each(['eventId', 'type', 'schemaVersion', 'aggregateType', 'aggregateId', 'aggregateVersion', 'occurredAt', 'correlationId', 'payload'])
-('requires envelope field %s', field => {
+test.each([
+  'eventId',
+  'type',
+  'schemaVersion',
+  'aggregateType',
+  'aggregateId',
+  'aggregateVersion',
+  'occurredAt',
+  'correlationId',
+  'payload',
+])('requires envelope field %s', (field) => {
   // Удаляем ровно одно обязательное поле из валидного сообщения, изолируя причину отказа.
   const input = example();
   delete input[field];
   expectRejected(input);
 });
 
-test.each(['receiptId', 'warehouseId', 'receivingLocationId', 'lines'])('requires payload field %s', field => {
-  const input = example();
-  delete input.payload[field];
-  expectRejected(input);
-});
+test.each(['receiptId', 'warehouseId', 'receivingLocationId', 'lines'])(
+  'requires payload field %s',
+  (field) => {
+    const input = example();
+    delete input.payload[field];
+    expectRejected(input);
+  },
+);
 
-test.each(['receiptLineId', 'productId', 'quantity'])('requires line field %s', field => {
+test.each(['receiptLineId', 'productId', 'quantity'])('requires line field %s', (field) => {
   const input = example();
   delete input.payload.lines[0][field];
   expectRejected(input);
 });
 
-test.each(['eventId', 'aggregateId', 'correlationId', 'causationId'])('checks envelope UUID %s', field => {
-  expectRejected({ ...example(), [field]: 'private-invalid-uuid' });
-});
+test.each(['eventId', 'aggregateId', 'correlationId', 'causationId'])(
+  'checks envelope UUID %s',
+  (field) => {
+    expectRejected({ ...example(), [field]: 'private-invalid-uuid' });
+  },
+);
 
-test.each(['receiptId', 'warehouseId', 'receivingLocationId'])('checks payload UUID %s', field => {
-  const input = example();
-  input.payload[field] = 'invalid';
-  expectRejected(input);
-});
+test.each(['receiptId', 'warehouseId', 'receivingLocationId'])(
+  'checks payload UUID %s',
+  (field) => {
+    const input = example();
+    input.payload[field] = 'invalid';
+    expectRejected(input);
+  },
+);
 
-test.each(['receiptLineId', 'productId'])('checks line UUID %s', field => {
+test.each(['receiptLineId', 'productId'])('checks line UUID %s', (field) => {
   const input = example();
   input.payload.lines[0][field] = 'invalid';
   expectRejected(input);
 });
 
-test.each(['2026-10-17T06:00:00+00:00', '2026-10-17T09:00:00+03:00', '2026-10-17T06:00:00', '2026-02-30T06:00:00Z', 'yesterday'])
-('requires real UTC Z timestamp %s', occurredAt => expectRejected({ ...example(), occurredAt }));
+test.each([
+  '2026-10-17T06:00:00+00:00',
+  '2026-10-17T09:00:00+03:00',
+  '2026-10-17T06:00:00',
+  '2026-02-30T06:00:00Z',
+  'yesterday',
+])('requires real UTC Z timestamp %s', (occurredAt) =>
+  expectRejected({ ...example(), occurredAt }),
+);
 
-test.each([0, -1, 0.5, MAX_STOCK_QUANTITY + 1, '10', null])('rejects line quantity %j without coercion', quantity => {
-  const input = example();
-  input.payload.lines[0].quantity = quantity;
-  expectRejected(input);
-});
+test.each([0, -1, 0.5, MAX_STOCK_QUANTITY + 1, '10', null])(
+  'rejects line quantity %j without coercion',
+  (quantity) => {
+    const input = example();
+    input.payload.lines[0].quantity = quantity;
+    expectRejected(input);
+  },
+);
 
-test.each([1, MAX_STOCK_QUANTITY])('allows int4 quantity boundary %s', quantity => {
+test.each([1, MAX_STOCK_QUANTITY])('allows int4 quantity boundary %s', (quantity) => {
   const input = example();
   input.payload.lines[0].quantity = quantity;
   expect(contracts.prepareForOutbox(input).event.payload.lines[0].quantity).toBe(quantity);
@@ -136,16 +185,25 @@ test('byte limit includes UTF-8 optional fields, accepts exact maximum and rejec
   input.future += 'a';
   expectRejected(input, 'MESSAGE_TOO_LARGE');
   // Oversized malformed JSON должен отклоняться по размеру ещё до попытки parse.
-  expect(() => contracts.parseForHandler(' '.repeat(MAX_EVENT_BYTES + 1))).toThrow(expect.objectContaining({ code: 'MESSAGE_TOO_LARGE' }));
+  expect(() => contracts.parseForHandler(' '.repeat(MAX_EVENT_BYTES + 1))).toThrow(
+    expect.objectContaining({ code: 'MESSAGE_TOO_LARGE' }),
+  );
 });
 
-test.each([0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])('rejects aggregateVersion %s', aggregateVersion => {
-  expectRejected({ ...example(), aggregateVersion });
-});
+test.each([0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
+  'rejects aggregateVersion %s',
+  (aggregateVersion) => {
+    expectRejected({ ...example(), aggregateVersion });
+  },
+);
 
 test('valid optional metadata and aggregateVersion maximum; traceparent length is bounded, not OTel-parsed', () => {
-  const input = { ...example(), aggregateVersion: Number.MAX_SAFE_INTEGER,
-    causationId: example().eventId, traceparent: 'a'.repeat(512) };
+  const input = {
+    ...example(),
+    aggregateVersion: Number.MAX_SAFE_INTEGER,
+    causationId: example().eventId,
+    traceparent: 'a'.repeat(512),
+  };
   expect(contracts.prepareForOutbox(input).event).toEqual(input);
   input.traceparent += 'a';
   expectRejected(input);
@@ -153,12 +211,22 @@ test('valid optional metadata and aggregateVersion maximum; traceparent length i
 
 test('malformed JSON and non-JSON producer input fail safely without payload in error', () => {
   // Вход специально содержит маркер секрета: диагностическая ошибка не должна его повторять.
-  expect(() => contracts.parseForHandler('{"secret":"private-value"')).toThrow(new EventContractError('INVALID_JSON'));
+  expect(() => contracts.parseForHandler('{"secret":"private-value"')).toThrow(
+    new EventContractError('INVALID_JSON'),
+  );
   const circular: Record<string, unknown> = {};
   circular.self = circular;
-  for (const input of [undefined, circular, { ...example(), future: BigInt(1) }, { ...example(), future: Infinity }]) {
+  for (const input of [
+    undefined,
+    circular,
+    { ...example(), future: BigInt(1) },
+    { ...example(), future: Infinity },
+  ]) {
     expect(() => contracts.prepareForOutbox(input)).toThrow(new EventContractError('INVALID_JSON'));
   }
-  try { contracts.prepareForOutbox({ ...example(), eventId: 'private-value' }); }
-  catch (error) { expect(String(error)).not.toContain('private-value'); }
+  try {
+    contracts.prepareForOutbox({ ...example(), eventId: 'private-value' });
+  } catch (error) {
+    expect(String(error)).not.toContain('private-value');
+  }
 });

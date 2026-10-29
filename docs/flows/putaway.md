@@ -47,17 +47,17 @@ ER показывает выбранный receipt-posted факт; outbox в ц
 и версии агрегата. FK task → posted receipt event транзитивно ведёт к outbox event;
 в task нет отдельного дублирующего FK непосредственно на outbox.
 
-| Поле задания | Источник / проверка |
-|---|---|
-| id | UUID создаёт inventory; отдельная identity задания |
-| sourceReceiptId | payload.receiptId; совпадает с event.aggregateId |
-| sourceReceiptLineId | lines.receiptLineId, unique глобально для tasks |
-| sourceEventId | immutable eventId; вместе с lineId явный unique origin key |
-| warehouseId/sourceLocationId | payload; composite FK сверяет с posted receipt |
-| productId/quantity | строка event; composite FK сверяет с receipt line |
-| status | server constant pending; SQL CHECK, без входного поля status |
-| auditId | обязательный результат AuditService.write в том же context |
-| createdAt | timestamp текущей DB transaction |
+| Поле задания                 | Источник / проверка                                          |
+| ---------------------------- | ------------------------------------------------------------ |
+| id                           | UUID создаёт inventory; отдельная identity задания           |
+| sourceReceiptId              | payload.receiptId; совпадает с event.aggregateId             |
+| sourceReceiptLineId          | lines.receiptLineId, unique глобально для tasks              |
+| sourceEventId                | immutable eventId; вместе с lineId явный unique origin key   |
+| warehouseId/sourceLocationId | payload; composite FK сверяет с posted receipt               |
+| productId/quantity           | строка event; composite FK сверяет с receipt line            |
+| status                       | server constant pending; SQL CHECK, без входного поля status |
+| auditId                      | обязательный результат AuditService.write в том же context   |
+| createdAt                    | timestamp текущей DB transaction                             |
 
 Первый FK связывает receiptId/warehouse/location/event с одной строкой receipts.
 Второй связывает receiptId/lineId/product/quantity с одной receipt line. Нельзя
@@ -190,13 +190,13 @@ sequenceDiagram
   end
 ```
 
-| Момент, одна line quantity=10 | Task / task audit | Marker / оба cursors | Stock / movements | Delivery |
-|---|---|---|---|---|
-| Receipt posted, worker ещё не работал | 0 / 0 | 0 / 0 | 10 / 1 | pending |
-| После claim commit | 0 / 0 | 0 / 0 | 10 / 1 | processing |
-| Во время handler до commit | Другому соединению ещё не видны | Ещё не подтверждены | 10 / 1 | processing |
-| Processing rollback | 0 / 0 | 0 / 0 | 10 / 1 | retry/dead либо processing до lease recovery |
-| Processing commit и любые обычные повторы | 1 / 1 | 1 / 1 | 10 / 1 | completed |
+| Момент, одна line quantity=10             | Task / task audit               | Marker / оба cursors | Stock / movements | Delivery                                     |
+| ----------------------------------------- | ------------------------------- | -------------------- | ----------------- | -------------------------------------------- |
+| Receipt posted, worker ещё не работал     | 0 / 0                           | 0 / 0                | 10 / 1            | pending                                      |
+| После claim commit                        | 0 / 0                           | 0 / 0                | 10 / 1            | processing                                   |
+| Во время handler до commit                | Другому соединению ещё не видны | Ещё не подтверждены  | 10 / 1            | processing                                   |
+| Processing rollback                       | 0 / 0                           | 0 / 0                | 10 / 1            | retry/dead либо processing до lease recovery |
+| Processing commit и любые обычные повторы | 1 / 1                           | 1 / 1                | 10 / 1            | completed                                    |
 
 Для двух строк task/audit создаются по две, marker — один на event, cursor продвигается
 на одну event version. Fault после второй строки отменяет обе tasks, но receipt stock=20
@@ -216,16 +216,16 @@ delivery status и оба cursors/marker. До handler task_id null, после 
 Local inspect/retry CLI готова WMS-111, [проверенные команды](../runbooks/event-recovery.md).
 UI пока нет; ручной reset marker/cursor не предлагается.
 
-| Проверяемый путь | Evidence |
-|---|---|
-| Настоящий registered handler, task pending, stock/movement/event неизменны | [putaway.spec.ts](../../apps/backend/test/integration/putaway.spec.ts), happy path и SQL proof |
-| Старый token, marker replay и прямой inventory repeat | putaway.spec.ts, duplicate delivery |
-| Два processors ждут реальные locks | putaway.spec.ts, two workers with same token |
-| Absent source-line race и rollback loser audit | putaway.spec.ts, concurrent direct inventory calls |
-| Task/audit/marker/cursors/completion fault и multi-line rollback | putaway.spec.ts, AFTER triggers и second line task |
-| Неверное основание, новый fact той же line, restricted runtime role | putaway.spec.ts, semantic/source/role cases |
-| Реальный SIGKILL до/после commit | [worker-process.spec.ts](../../apps/backend/test/integration/worker-process.spec.ts), production putaway cases |
-| Server actor, permanent mapping и future known no-op branch | [receiving-posted.handler.spec.ts](../../apps/backend/test/unit/receiving-posted.handler.spec.ts) |
+| Проверяемый путь                                                           | Evidence                                                                                                       |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Настоящий registered handler, task pending, stock/movement/event неизменны | [putaway.spec.ts](../../apps/backend/test/integration/putaway.spec.ts), happy path и SQL proof                 |
+| Старый token, marker replay и прямой inventory repeat                      | putaway.spec.ts, duplicate delivery                                                                            |
+| Два processors ждут реальные locks                                         | putaway.spec.ts, two workers with same token                                                                   |
+| Absent source-line race и rollback loser audit                             | putaway.spec.ts, concurrent direct inventory calls                                                             |
+| Task/audit/marker/cursors/completion fault и multi-line rollback           | putaway.spec.ts, AFTER triggers и second line task                                                             |
+| Неверное основание, новый fact той же line, restricted runtime role        | putaway.spec.ts, semantic/source/role cases                                                                    |
+| Реальный SIGKILL до/после commit                                           | [worker-process.spec.ts](../../apps/backend/test/integration/worker-process.spec.ts), production putaway cases |
+| Server actor, permanent mapping и future known no-op branch                | [receiving-posted.handler.spec.ts](../../apps/backend/test/unit/receiving-posted.handler.spec.ts)              |
 
 Ограничения: отсутствуют выполнение/отмена, target location, task list API/UI, компенсации,
 административный replay и Kafka. При добавлении исполнения task потребуются новые state/SQL

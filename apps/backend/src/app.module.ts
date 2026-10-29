@@ -12,9 +12,19 @@ import { HttpModule } from './infrastructure/http/http.module';
 import { IdempotencyModule } from './infrastructure/idempotency/idempotency.module';
 import { ReceivingModule } from './modules/receiving/receiving.module';
 
-/** Регистрирует HTTP-каркас, PostgreSQL и вертикальный receiving; worker ещё не реализован. */
+/** Регистрирует HTTP-каркас, PostgreSQL и вертикальный receiving; worker запускается отдельным graph/process. */
 @Module({
-  imports: [DatabaseModule, AuditModule, CatalogModule, WarehousesModule, InventoryModule, OutboxModule, HttpModule, IdempotencyModule, ReceivingModule],
+  imports: [
+    DatabaseModule,
+    AuditModule,
+    CatalogModule,
+    WarehousesModule,
+    InventoryModule,
+    OutboxModule,
+    HttpModule,
+    IdempotencyModule,
+    ReceivingModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

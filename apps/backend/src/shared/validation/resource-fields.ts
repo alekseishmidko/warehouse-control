@@ -8,6 +8,12 @@ export function normalizeCode(value: string, field: string): string {
 }
 /** Проверяет непустое название до 160 символов, возвращает trimmed значение. */
 export function normalizeName(value: string): string {
-  if (typeof value !== 'string' || !value.trim() || value.trim().length > 160 || /[\x00-\x1f]/.test(value)) throw new Error('Invalid name');
+  if (
+    typeof value !== 'string' ||
+    !value.trim() ||
+    value.trim().length > 160 ||
+    /[\x00-\x1f]/.test(value)
+  )
+    throw new Error('Invalid name');
   return value.trim();
 }

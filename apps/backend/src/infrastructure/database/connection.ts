@@ -17,7 +17,7 @@ export function createDatabaseConnection(databaseUrl: string) {
   // Listener предотвращает uncaught EventEmitter error без утечки driver/credentials.
   // pg помечает соединение непригодным: следующий query/commit отвергнет транзакцию,
   // поэтому этот обработчик не превращает потерю соединения в успешный commit/retry.
-  pool.on('connect', client => {
+  pool.on('connect', (client) => {
     client.on('error', () => console.error('Database client connection error'));
   });
   pool.on('error', () => console.error('Database pool connection error'));

@@ -26,21 +26,21 @@ Jest читает compiled tests; @backend/* отображается в нас�
 
 ## Файлы
 
-| Файл / каталог | Назначение |
-|---|---|
-| ../jest.config.cjs | Два projects с отдельными testMatch, maxWorkers=2, Node environment |
-| ../tsconfig.test.json | TS aliases/types и compiled output .test-dist; source/tests typecheck |
-| integration.setup.cjs | 120 секунд для integration tests/hooks |
-| unit/audit-entry.spec.ts | Audit validation и redaction без БД |
-| integration/transactions-audit.spec.ts | Общий context, audit atomicity, rollback, scopes и права PostgreSQL |
-| support/audit.fixture.ts | Синтетические audit IDs/коды |
-| unit/environment.spec.ts | Строгая конфигурация и redaction, без БД |
-| integration/database.spec.ts | Реальные SQL migrations, commit/rollback и очистка |
-| integration/http.spec.ts | Настоящий AppModule и Supertest, закрытие app pool |
-| integration/lifecycle.spec.ts | Cleanup после assertion failure и две независимые БД с одинаковыми ключами |
-| support/database-harness.ts | Жизненный цикл БД/приложения, migrations и cleanup |
-| support/metadata.fixture.ts | Уникальная техническая metadata-запись без бизнес-логики |
-| database-baseline.test.cjs | Сохранённая native WMS-101 проверка Compose restart, вне Jest testMatch |
+| Файл / каталог                         | Назначение                                                                 |
+| -------------------------------------- | -------------------------------------------------------------------------- |
+| ../jest.config.cjs                     | Два projects с отдельными testMatch, maxWorkers=2, Node environment        |
+| ../tsconfig.test.json                  | TS aliases/types и compiled output .test-dist; source/tests typecheck      |
+| integration.setup.cjs                  | 120 секунд для integration tests/hooks                                     |
+| unit/audit-entry.spec.ts               | Audit validation и redaction без БД                                        |
+| integration/transactions-audit.spec.ts | Общий context, audit atomicity, rollback, scopes и права PostgreSQL        |
+| support/audit.fixture.ts               | Синтетические audit IDs/коды                                               |
+| unit/environment.spec.ts               | Строгая конфигурация и redaction, без БД                                   |
+| integration/database.spec.ts           | Реальные SQL migrations, commit/rollback и очистка                         |
+| integration/http.spec.ts               | Настоящий AppModule и Supertest, закрытие app pool                         |
+| integration/lifecycle.spec.ts          | Cleanup после assertion failure и две независимые БД с одинаковыми ключами |
+| support/database-harness.ts            | Жизненный цикл БД/приложения, migrations и cleanup                         |
+| support/metadata.fixture.ts            | Уникальная техническая metadata-запись без бизнес-логики                   |
+| database-baseline.test.cjs             | Сохранённая native WMS-101 проверка Compose restart, вне Jest testMatch    |
 
 ## Docker prerequisites
 
@@ -146,7 +146,6 @@ AppendEventDto без генерации бизнес-эффектов. Reset о
 исходный migration journal и dev Compose не трогает. Fault trigger удаляется finally.
 Команда: pnpm test (Docker обязателен для integration, skip/fallback отсутствуют).
 
-
 ## WMS-107
 
 unit/http-foundation.spec.ts проверяет canonical JSON, циклы/getters/non-JSON и fail-closed
@@ -164,7 +163,6 @@ OpenAPI diff добавлен test:prepare после build, offline generation 
 Client timeout не закрывает listener suite (Supertest ephemeral server здесь не подходит).
 Команда pnpm test, unit отдельно pnpm test:unit; no Docker integration skip/fallback.
 
-
 ## WMS-108
 
 integration/receiving.spec.ts проверяет реальные production create/get/post routes:
@@ -179,7 +177,6 @@ unit/receiving-examples.spec.ts валидирует HTTP fixture реальны
 согласованность response/event examples. support/database-lock.ts переиспользуется
 receiving и HTTP dedup suites: ожидание pg_blocking_pids с deadline 5 секунд.
 
-
 ## WMS-109
 
 unit/worker-policy.spec.ts: validated config, equal jitter/caps, safe error allowlist,
@@ -192,7 +189,6 @@ hard deadline, SIGKILL до/после commit, отсутствие новых c
 Support worker-process.fixture.ts — test-only technical effect и IPC barriers, не бизнес-handler.
 Harness createWorkerApplication регистрирует cleanup, config/handlers заменяются DI,
 parent process.env не меняется. Child env изолирован, credentials не передаются в args/logs.
-
 
 ## WMS-110
 
@@ -210,7 +206,6 @@ receiving-posted.handler.spec.ts проверяет server metadata/permanent ma
 known-uninteresting routing ветку; surrogate не добавлен в runtime registry.
 Документированный putaway-result.sql выполняется в happy path.
 
-
 ## WMS-111
 
 outbox-recovery.spec.ts integration проверяет production failure→dead→actual child CLI
@@ -221,3 +216,39 @@ old backlog/dead alert и int4 attempt limit также покрыты. Unit sui
 strict parser/local guard/shared formatter и failing stdout sink. Parent env не меняется.
 `pnpm outbox:recovery-check` запускает этот disposable runbook, Docker failure не skip.
 Harness очищает recovery history только отключив immutable trigger внутри test admin transaction.
+
+## Session identity WMS-202
+
+Новые unit/integration identity.spec.ts проверяют настоящую session auth, CSRF, warehouse
+roles, revoke до replay, last-admin race, SQL faults и compiled bootstrap. В identity.fixture.ts
+прямые SQL только для синтетических users/session/grants; AuthGuard/ACL не подменяются.
+Login-specific cases проходят реальный HTTP/scrypt. Runtime env не мутируется: IdentityConfig
+переопределён DI короткими test-only сроками. Старого dev actor bypass нет.
+Receiving posting race использует две сессии одного actor, чтобы наблюдать business lock;
+отдельный identity test проверяет expiry после ожидания session lock (не только до него).
+
+`pnpm format` / `pnpm format:check` — Prettier из корня monorepo; generated outputs, SQL
+migrations и credentials исключены. `pnpm test` по-прежнему выполняет build/contract/OpenAPI
+check и real PostgreSQL suites; formatter не заменяет проверки поведения.
+
+## Проверка покрытия identity
+
+`pnpm test:identity:coverage` из корня выполняет production build, event/OpenAPI diff,
+компиляцию tests и обе Jest suites с настоящим PostgreSQL Testcontainers. Нужен Docker;
+без Docker команда завершается ошибкой, skip/fallback нет. Config —
+[jest.identity-coverage.config.cjs](../jest.identity-coverage.config.cjs).
+HTML — apps/backend/coverage/identity/index.html, summary — coverage-summary.json рядом.
+Coverage outputs игнорируются Git и Prettier, generated source не меняется.
+
+IdentityController имеет обязательный порог 100% statements/branches/functions/lines;
+Jest падает при снижении. Для остальных identity файлов отчёт диагностический:
+bootstrap исполняется в compiled child CLI, его coverage не объединяется с parent Jest.
+Нулевой parent coverage CLI не означает отсутствия bootstrap integration tests. Interfaces
+и decorated DTO тоже могут давать технические V8 gaps; общий процент не заменяет проверку
+реальных SQL locks, rollback и HTTP контрактов.
+
+Новые unit файлы: identity.controller.spec.ts проверяет transport/ожидание service completion,
+identity-http.spec.ts — principal/cookie/CSRF, auth.service.spec.ts — throttle/hash failure и
+credential recheck. HTTP/SQL assertions, адресный revoke, role removal, все четыре warehouse
+роли и logout AFTER UPDATE fault — в integration/identity.spec.ts. Там же остаются ранее
+добавленные реальная гонка last admin, expiry lock, idempotency replay и bootstrap.

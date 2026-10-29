@@ -2,8 +2,8 @@
 
 Для менеджера: draft описывает фактически принятые товары, но не меняет остаток.
 Проведение начисляет товар и оставляет движение, аудит и событие одной транзакцией.
-Повтор не удваивает поступление. Пока реализован только локальный backend без UI,
-production identity и физического размещения; фоновое создание task готово WMS-110. [Модель/ограничения и движение данных](../apps/backend/src/modules/receiving/README.md).
+Повтор не удваивает поступление. Пока реализован локальный backend без UI
+и физического размещения; session identity/ACL реализованы WMS-202, фоновое создание task готово WMS-110. [Модель/ограничения и движение данных](../apps/backend/src/modules/receiving/README.md).
 
 ## Подготовка локального стенда
 
@@ -14,11 +14,14 @@ pnpm db:seed
 ```
 
 Seed выдаёт новые IDs товара, склада, receiving/storage/shipping, stock отсутствует.
-В ignored `.env` для этого локального стенда явно задать NODE_ENV=development,
-HTTP_HOST=127.0.0.1, DEV_ACTOR_ENABLED=true и синтетический DEV_ACTOR_ID UUID
-(например dbb37b21-1c4a-4b32-9307-148df1647f4c). DATABASE_URL/PORT — как в .env.example.
-Не запускать dev actor за proxy/на публичном bind; production включение отклоняется.
-`pnpm dev` запускает API. Миграции dev Compose применять явно; тесты его не меняют.
+В ignored .env задать NODE_ENV=development, HTTP_HOST=127.0.0.1, AUTH_ORIGIN и явные
+absolute/idle сроки; DATABASE_URL/PORT — как в .env.example. DEV_ACTOR_ENABLED=true
+больше не работает. После build/migrate выполнить одноразовый bootstrap, login и
+назначить пользователю warehouse_operator на склад seed через защищённый admin API.
+Сессия хранится в private cookie jar (0600), CSRF берётся из login/me; переменная
+WMS_CSRF_TOKEN ниже — значение текущей сессии, не параметр actor. Не коммитить jar/секреты.
+[Полные безопасные шаги и API](flows/identity.md). `pnpm dev` запускает API;
+миграции dev Compose применять явно, integration tests его не меняют.
 
 ## Запросы и ответы
 
@@ -32,8 +35,10 @@ JSON-файлы не поддерживают комментарии; их по�
 Создать draft (тело — копия примера с реальными fixture IDs):
 
 ```sh
-curl -i -X POST http://127.0.0.1:3000/api/v1/receipts \
+curl -i -b /private/tmp/wms-cookies.txt -X POST http://127.0.0.1:3000/api/v1/receipts \
   -H 'Content-Type: application/json' \
+  -H 'Origin: http://127.0.0.1:3000' \
+  -H "X-CSRF-Token: $WMS_CSRF_TOKEN" \
   -H 'Idempotency-Key: d4dfe5d2-565b-4820-98d6-2db32d51036b' \
   --data-binary @/tmp/receipt-create.json
 ```
@@ -47,6 +52,8 @@ postedEventId=null, lines с id/productId/position/quantity. Actor не пере
 ```sh
 curl -i -X POST 'http://127.0.0.1:3000/api/v1/receipts/<receiptId>/post' \
   -H 'Content-Type: application/json' \
+  -H 'Origin: http://127.0.0.1:3000' \
+  -H "X-CSRF-Token: $WMS_CSRF_TOKEN" \
   -H 'Idempotency-Key: ed3f7369-37b5-4399-aacc-33b447167598' \
   -H 'X-Correlation-Id: dbb37b21-1c4a-4b32-9307-148df1647f4c' \
   --data '{}'
@@ -74,16 +81,16 @@ SQL поддерживает psql подстановку, не является 
 
 На новом seed set для одного документа quantity=10 результат:
 
-| Проверка | Ожидание |
-|---|---|
-| receipt | posted, postedAt/eventId заполнены |
-| stock_balance | onHand=10, reserved=0 |
-| movement с operationId=line.id | 1, quantity=10 |
-| outbox receipt event | 1, aggregateVersion=1, eventId=postedEventId |
-| delivery | inventory.putaway, pending, attempts=0 |
-| stream | lastCompletedVersion=0, lease отсутствует |
-| audit данного документа и его движения | 3 записи: создание, начисление, проведение |
-| putaway_tasks | таблица существует; до worker 0, после worker одна pending task на line |
+| Проверка                               | Ожидание                                                                |
+| -------------------------------------- | ----------------------------------------------------------------------- |
+| receipt                                | posted, postedAt/eventId заполнены                                      |
+| stock_balance                          | onHand=10, reserved=0                                                   |
+| movement с operationId=line.id         | 1, quantity=10                                                          |
+| outbox receipt event                   | 1, aggregateVersion=1, eventId=postedEventId                            |
+| delivery                               | inventory.putaway, pending, attempts=0                                  |
+| stream                                 | lastCompletedVersion=0, lease отсутствует                               |
+| audit данного документа и его движения | 3 записи: создание, начисление, проведение                              |
+| putaway_tasks                          | таблица существует; до worker 0, после worker одна pending task на line |
 
 Если stock существовал до сценария, баланс увеличится на 10, абсолютное значение
 будет иным. Не умножать строки JOIN для подсчёта событий: script считает их отдельным

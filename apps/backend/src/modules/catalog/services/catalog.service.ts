@@ -11,16 +11,30 @@ import type { CreateProductDto, ProductDto } from '../dto/product.dto';
 @Injectable()
 export class CatalogService {
   /** Внедряет собственный repository и AuditService; других repositories не использует. */
-  constructor(private readonly repository: CatalogRepository, private readonly audit: AuditService) {}
+  constructor(
+    private readonly repository: CatalogRepository,
+    private readonly audit: AuditService,
+  ) {}
   /** Создаёт товар и audit в переданном context; повтор SKU — ошибка, не upsert. */
   async create(context: TransactionContext, input: CreateProductDto): Promise<ProductDto> {
-    const row = await this.repository.create(context, normalizeCode(input.sku, 'sku'), normalizeName(input.name));
-    await this.audit.write(context, { ...input, action: 'catalog.product-created', entityType: 'product', entityId: row.id });
+    const row = await this.repository.create(
+      context,
+      normalizeCode(input.sku, 'sku'),
+      normalizeName(input.name),
+    );
+    await this.audit.write(context, {
+      ...input,
+      action: 'catalog.product-created',
+      entityType: 'product',
+      entityId: row.id,
+    });
     return row;
   }
   /** Проверяет UUID/наличие товара; PRODUCT_NOT_FOUND — безопасный отказ, SQL ошибки не подавляются. */
   async requireProduct(context: TransactionContext, id: string): Promise<ProductDto> {
-    requireUuid(id, 'productId'); const row = await this.repository.findById(context, id);
-    if (!row) throw new CommandError('PRODUCT_NOT_FOUND'); return row;
+    requireUuid(id, 'productId');
+    const row = await this.repository.findById(context, id);
+    if (!row) throw new CommandError('PRODUCT_NOT_FOUND');
+    return row;
   }
 }

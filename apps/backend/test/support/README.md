@@ -24,13 +24,11 @@ WMS-103: reset audit/movements выполняется владельцем dispo
 обоих triggers в одной транзакции. Runtime не имеет этой возможности; production cleanup
 журнала не реализован. Очистка после неуспешного test не ослабляет persisted DB grants.
 
-
 WMS-108: database-lock.ts экспортирует waitForDatabaseLock(harness, relation),
 параметризованно наблюдает pg_stat_activity/pg_blocking_pids, deadline 5 секунд;
 helper не реализует бизнес-логику и не заменяет PostgreSQL mocks. Его используют
 receiving.spec.ts, http-commands.spec.ts и worker.spec.ts. Receiving reset отключает только retained
 triggers в disposable admin transaction; штатные constraints/guards остаются активны.
-
 
 WMS-109: createWorkerApplication(handlers,config) создаёт отдельный настоящий WorkerModule
 без HTTP и регистрирует закрытие graph/pool в harness cleanup. Config providers заменяются
@@ -39,7 +37,6 @@ consumer_streams_retained только на время disposable admin TRUNCATE
 worker-process.fixture.ts загружает production dist без Jest mapper, использует только
 технический metadata effect и IPC barriers/commit notification для process failure tests.
 IPC ожидание внутри handler допустимо здесь только как явно тестовая fault injection.
-
 
 WMS-110: createWorkerApplication() теперь сохраняет production ReceivingPostedHandler;
 явный handlers=[] отключает registry, список handlers заменяет его для protocol tests.

@@ -122,6 +122,16 @@ Test support документирует fault injection, barriers/timeouts и о
 Не комментировать каждую очевидную строку; общие правила связывать ссылками с контрактом.
 Generated artifacts получают описания из схемы/генератора, output вручную не правится.
 
+### Пояснения schema-файлов
+
+У каждой колонки в собственном schema-файле описывать предметный смысл и причину выбора
+типа, default/nullable и существенные ограничения. Для UUID различать идентичность и FK,
+для чисел — SQL/JS/JSON диапазон и единицы, для времени — бизнес-время/вставку/lease,
+для JSONB — структуру/валидацию и отличие от исходных bytes. Объяснять составные ключи,
+CHECK и назначение индекса рядом с ними; не выдавать TypeScript $type за проверку БД.
+Общие особенности типов описаны в [справочнике](database-types.md); локальное назначение
+поля остаётся в коде. Applied SQL и generated output ради таких пояснений не менять.
+
 ## Готовность изменения
 
 1. Обновлены README модуля, file-level docs и file catalog.
@@ -132,3 +142,11 @@ Generated artifacts получают описания из схемы/генер
 
 Пока это требования review. Автоматические CI gates полноты документации,
 TSDoc и ссылок ещё не реализованы.
+
+## Форматирование
+
+Prettier закреплён root devDependency. Из корня `pnpm format`, затем `pnpm format:check`.
+Настройки находятся в .prettierrc.cjs; .prettierignore защищает applied SQL/migrations,
+generated code/OpenAPI, lockfile, credentials и build outputs. Не снимать эти исключения
+ради зелёного formatter check: generated меняется через его generator, SQL — новой миграцией.
+Форматирование не подтверждает бизнес-инварианты и не заменяет build/typecheck/Jest.

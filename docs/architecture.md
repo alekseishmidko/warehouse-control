@@ -10,32 +10,32 @@
 
 ## Стек и статус
 
-| Слой | Решение | Статус |
-|---|---|---|
-| Workspace | pnpm + TypeScript | Реализован |
-| Backend | NestJS | WMS-108: приёмка draft/posted и HTTP-команды |
-| Данные | PostgreSQL + Drizzle + SQL | WMS-101–110: stock/audit/outbox/idempotency/receiving |
-| Надёжные события | PostgreSQL transactional outbox | WMS-110 writer/worker/putaway handler готовы |
-| Event transport | Kafka, затем Schema Registry | Последующий этап |
-| UI | React, Vite, TanStack Query, Tailwind, shadcn/ui | Целевой стек |
-| Контейнеры | Docker, Compose | PostgreSQL + non-root API/worker image и Compose готовы WMS-112 |
-| Оркестрация | kind, Kubernetes, Helm | Обязательно |
-| Внешний HTTP | NGINX Gateway Fabric + Gateway API | Принято |
-| Телеметрия | Pino, OpenTelemetry, Prometheus, Grafana, Loki, Tempo | По этапам |
-| Проверки | Jest, Supertest, Testcontainers, k6 | WMS-102: первые три готовы, k6 запланирован |
-| Поставка | GitHub Actions, GHCR, Argo CD | После проверки репозитория и окружения |
+| Слой             | Решение                                               | Статус                                                          |
+| ---------------- | ----------------------------------------------------- | --------------------------------------------------------------- |
+| Workspace        | pnpm + TypeScript                                     | Реализован                                                      |
+| Backend          | NestJS                                                | WMS-108: приёмка draft/posted и HTTP-команды                    |
+| Данные           | PostgreSQL + Drizzle + SQL                            | WMS-101–110: stock/audit/outbox/idempotency/receiving           |
+| Надёжные события | PostgreSQL transactional outbox                       | WMS-110 writer/worker/putaway handler готовы                    |
+| Event transport  | Kafka, затем Schema Registry                          | Последующий этап                                                |
+| UI               | React, Vite, TanStack Query, Tailwind, shadcn/ui      | Целевой стек                                                    |
+| Контейнеры       | Docker, Compose                                       | PostgreSQL + non-root API/worker image и Compose готовы WMS-112 |
+| Оркестрация      | kind, Kubernetes, Helm                                | Обязательно                                                     |
+| Внешний HTTP     | NGINX Gateway Fabric + Gateway API                    | Принято                                                         |
+| Телеметрия       | Pino, OpenTelemetry, Prometheus, Grafana, Loki, Tempo | По этапам                                                       |
+| Проверки         | Jest, Supertest, Testcontainers, k6                   | WMS-102: первые три готовы, k6 запланирован                     |
+| Поставка         | GitHub Actions, GHCR, Argo CD                         | После проверки репозитория и окружения                          |
 
 ## Модули
 
-| Модуль | Владеет |
-|---|---|
-| identity | Пользователи, роли, сессии |
-| catalog | WMS-104: создание/lookup Product, SKU, name, unit=piece, без HTTP |
-| warehouses | WMS-104: Warehouse/Location, kind зоны, без HTTP |
-| receiving | Документы и строки приёмки, проведение |
-| inventory | WMS-104: balance/receipt/movement; резервы и перемещения ещё запланированы |
-| fulfillment | Заказы на отгрузку, задания сборки, отгрузки |
-| audit | Журнал бизнес-действий: WMS-103 write interface реализован, read API ещё нет |
+| Модуль      | Владеет                                                                      |
+| ----------- | ---------------------------------------------------------------------------- |
+| identity    | Пользователи, роли, сессии                                                   |
+| catalog     | WMS-104: создание/lookup Product, SKU, name, unit=piece, без HTTP            |
+| warehouses  | WMS-104: Warehouse/Location, kind зоны, без HTTP                             |
+| receiving   | Документы и строки приёмки, проведение                                       |
+| inventory   | WMS-104: balance/receipt/movement; резервы и перемещения ещё запланированы   |
+| fulfillment | Заказы на отгрузку, задания сборки, отгрузки                                 |
+| audit       | Журнал бизнес-действий: WMS-103 write interface реализован, read API ещё нет |
 
 Инфраструктура предоставляет транзакции, outbox, логи и транспорт.
 Модули общаются через экспортируемые сервисы; никто не пишет напрямую
@@ -144,20 +144,16 @@ runtime не читает дерево docs. Общая проверка produce
 в WMS-106/109 (готово); business handler готов WMS-110. Ограничения первой приёмки и причины
 выбора — [ADR-0011](adr/0011-event-contract-validation.md).
 
-
 WMS-106: infrastructure/outbox предоставляет OutboxService → private OutboxRepository.
 Writer использует shared EventContracts и borrowed transactionClient, без собственного
 pool/run/commit. Четыре PostgreSQL таблицы включают transactional aggregate counter;
 каждый receipt event получает pending inventory.putaway delivery и stream. Это запись
 в durable storage, worker protocol готов WMS-109, business handler готов WMS-110. [ADR-0012](adr/0012-outbox-writer.md).
 
-
 WMS-107: infrastructure/http задаёт transport boundaries, infrastructure/idempotency —
 HttpCommandsService → private repository с http_idempotency storage. Один run охватывает
 command callback и saved result, общие JSON/errors contracts остаются в shared.
-Бизнес-routes используют /api/v1, технические / и /health public. Dev identity только локально
-по opt-in; production auth ещё нет. [ADR-0013](adr/0013-http-idempotency.md).
-
+Бизнес-routes используют /api/v1, технические / и /health public. Временный dev actor WMS-107 заменён session auth/warehouse ACL WMS-202. [ADR-0013](adr/0013-http-idempotency.md).
 
 WMS-108: ReceivingController → HttpCommandsService.execute → ReceivingService →
 ReceivingRepository. Командный сервис владеет общим run; receiving передаёт context
@@ -165,7 +161,6 @@ ReceivingRepository. Командный сервис владеет общим r
 сериализует posting разных ключей. GET владеет отдельным read run; DTO и SQL schema
 разделены. [Схема движения данных](../apps/backend/src/modules/receiving/README.md),
 [ADR-0014](adr/0014-receiving-vertical-slice.md). Worker protocol готов WMS-109; handler подключён WMS-110.
-
 
 WMS-109: отдельный WorkerModule/entrypoint, WorkerLoop → WorkerService → внутренний
 WorkerRepository. Claim/process/failure имеют отдельные run; processing включает
@@ -177,3 +172,22 @@ Task/audit/marker/cursors/completion коммитятся атомарно.
 повтор доставки происходит отдельно после rollback с backoff/dead budget.
 
 WMS-112 реализует ADR-0005: [один image, отдельные API/worker и migration process](flows/docker-gate.md). Kubernetes/NGINX пока целевые компоненты.
+
+## Направление identity WMS-202
+
+2026-10-29 приняты логин/пароль с server-side session state в PostgreSQL и модель угроз
+[ADR-0018](adr/0018-server-sessions.md). JWT access/refresh/OIDC/Redis не добавляются.
+Матрица warehouse-scoped ролей принята [ADR-0019](adr/0019-warehouse-role-matrix.md).
+[Identity](identity.md) отделяет принятые решения от ещё не утверждённых сроков;
+ссылается на реализованный HTTP flow. Session auth/CSRF/ACL реализованы, dev actor удалён без fallback;
+оператор задаёт origin/сроки явно, без неутверждённых defaults. Actor формируется сервером, permissions проверяются
+перед бизнес-командой и перед idempotency replay; общий transaction context сохраняется.
+
+## Сервисы identity
+
+IdentityModule сохраняет одну границу владения таблицами. AuthService координирует login/logout,
+SessionsService управляет capability/expiry/revoke, UsersService — профилями/admin/grants/bootstrap,
+AccessService — проверками ролей. Общие bounded run остаются внутреннему IdentityTransactionsService;
+borrowed context проходит между сервисами до одного commit/rollback. Это локальная декомпозиция
+ADR-0009/0020, не переход к отдельным auth/users микросервисам. Исполнение и SQL —
+[identity flow](flows/identity.md#разделение-сервисов-общий-context-при-смене-пароля).

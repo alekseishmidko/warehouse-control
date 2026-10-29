@@ -59,8 +59,9 @@ pnpm app:up
 worker стартует после миграции независимо от HTTP. API публикуется только на
 `127.0.0.1:${API_PORT:-3000}`, PostgreSQL — только на
 `127.0.0.1:${POSTGRES_PORT:-15432}`. Внутри контейнера API слушает 0.0.0.0:3000.
-NODE_ENV=production, dev actor/admin CLI выключены явно, даже если включены в host .env.
-`GET /health` отвечает 200; business routes возвращают 403 до настоящей auth.
+NODE_ENV=production, dev actor удалён, admin CLI выключена по умолчанию.
+AUTH_ORIGIN и оба срока сессий обязательны; production origin HTTPS. GET /health — 200,
+anonymous business — 401; доступ с действующей session зависит от warehouse role/CSRF.
 Рабочую приёмку демонстрировать отдельным gate ниже; guard не ослаблен ради Docker.
 
 ```sh
@@ -154,7 +155,7 @@ warehouse-backend:local; публикации нет. Это регрессия 
 
 Вторая команда создаёт **свой** проект wms112-UUID, новый postgres-data volume,
 случайные синтетические credentials в 0600 tempfile, случайные localhost ports.
-Root .env не читается; пересекающиеся shell POSTGRES_*/WORKER_*/CONTAINER_DATABASE_URL/
+Root .env не читается; пересекающиеся shell POSTGRES__/WORKER__/CONTAINER_DATABASE_URL/
 BACKEND_IMAGE/API_PORT/COMPOSE_* отбрасываются. Рабочий dev volume не затрагивается.
 Финальный finally делает down --volumes **только созданного тестом проекта**, удаляет
 tempfile. Docker недоступен/timeout/assertion — ненулевой exit, без skip/fallback.
@@ -168,11 +169,13 @@ sequenceDiagram
   participant P as PostgreSQL / temporary volume
   participant W as worker container
   T->>A: default production health via published localhost port
-  T->>A: POST business command with dev actor disabled
-  A-->>T: 403, no business writes
+  T->>A: Anonymous POST business command
+  A-->>T: 401, no business writes
   T->>W: stop with SIGTERM; assert exit 0
-  T->>A: recreate with test-only loopback dev actor
-  T->>P: existing dev fixtures CLI (new product/warehouse/locations, no stock)
+  T->>A: recreate with dev/test loopback auth origin
+  T->>P: Existing dev fixtures CLI (product/warehouse/locations, no stock)
+  T->>P: Compiled bootstrap CLI: user + marker + audit COMMIT
+  T->>A: Login и admin warehouse role assignment
   T->>A: POST create, DTO one line quantity=10, unique key
   A->>P: command transaction: draft + audit + saved result COMMIT
   T->>A: POST receipt/post with key K
@@ -193,19 +196,22 @@ sequenceDiagram
   T->>A: SIGTERM: no SIGKILL
 ```
 
-Gate overlay включает server-side synthetic actor UUID только при explicit development,
-HTTP_HOST=127.0.0.1. Все business HTTP вызовы — через docker exec → Node fetch на
-container loopback. Published port после override не даёт доступ к этому loopback
-listener. DTO не передаёт actor/lineId/aggregateVersion; новые UUID/time назначают
-владельцы. Script не пишет business SQL, fixtures вызывают существующие сервисы.
+С WMS-202 gate overlay не создаёт actor bypass. Скрипт после seed выполняет настоящую
+compiled bootstrap CLI (marker/user/audit), login и защищённый admin role assignment своему
+warehouse. Cookie/CSRF/credentials передаются через stdin дочернему процессу и не логируются.
+Вход ADMIN не даёт warehouse permission автоматически — это проверяет явное назначение.
+Подробный [auth flow](identity.md) — владелец этих шагов. Тестовые сроки 600/300 секунд
+явно задаёт private env драйвера; они не являются production defaults. Root .env не читается.
+HTTP_HOST=127.0.0.1 — loopback внутри контейнера; business HTTP через exec, не внешний port.
+DTO не передаёт actor/lineId/aggregateVersion; новые UUID/time назначают владельцы.
 
-| Состояние | onHand / reserved | movement / event | delivery | task / marker |
-|---|---|---|---|---|
-| Новый dev fixture | баланса нет | 0 / 0 | нет | 0 / 0 |
-| Posting committed, worker остановлен | 10 / 0 | 1 / 1 | pending | 0 / 0 |
-| Тот же key, новый key с 409, DB restart | 10 / 0 | 1 / 1 | pending | 0 / 0 |
-| Worker обработал | 10 / 0 | 1 / 1 | completed | 1 / 1 |
-| Повтор posting и worker restart | 10 / 0 | 1 / 1 | completed | 1 / 1 |
+| Состояние                               | onHand / reserved | movement / event | delivery  | task / marker |
+| --------------------------------------- | ----------------- | ---------------- | --------- | ------------- |
+| Новый dev fixture                       | баланса нет       | 0 / 0            | нет       | 0 / 0         |
+| Posting committed, worker остановлен    | 10 / 0            | 1 / 1            | pending   | 0 / 0         |
+| Тот же key, новый key с 409, DB restart | 10 / 0            | 1 / 1            | pending   | 0 / 0         |
+| Worker обработал                        | 10 / 0            | 1 / 1            | completed | 1 / 1         |
+| Повтор posting и worker restart         | 10 / 0            | 1 / 1            | completed | 1 / 1         |
 
 Pending task после delivery completed ждёт физического размещения. Подробные бизнес
 вызовы, shared context и rollback: [приёмка](../receiving.md),
@@ -232,17 +238,20 @@ local admin CLI по-прежнему требует loopback URL, запуск�
 
 ## Карта комментариев WMS-112
 
-| Файл | Что объясняется рядом с реализацией |
-|---|---|
-| [.dockerignore](../../.dockerignore) | Почему сначала исключается всё, затем разрешаются родители и конкретные build inputs |
-| [Dockerfile](../../apps/backend/Dockerfile) | Отдельные full/prod installs, структура pnpm symlinks, новый runtime stage, путь миграций и прямой SIGTERM Node PID 1 |
-| [compose.app.yaml](../../infra/compose/compose.app.yaml) | Явное отключение учебной identity, read-only rootfs/tmpfs, согласование grace с worker timeout, startup dependencies и предел liveness |
-| [compose.gate.yaml](../../infra/compose/compose.gate.yaml) | Почему dev actor доступен только в тестовом loopback-сценарии и не заменяет auth |
-| [docker-gate.cjs](../../scripts/docker-gate.cjs) | Доверие argv/среде, таймауты и безопасный stderr, реальные HTTP/SQL, изоляция проекта, условия ожидания, restart и cleanup |
-| [docker-image-check.cjs](../../scripts/docker-image-check.cjs) | Чистые inputs, fake secret, проверка экспортированного archive, хвост между chunks, ограничения проверки и удаление временных файлов |
+| Файл                                                           | Что объясняется рядом с реализацией                                                                                                    |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| [.dockerignore](../../.dockerignore)                           | Почему сначала исключается всё, затем разрешаются родители и конкретные build inputs                                                   |
+| [Dockerfile](../../apps/backend/Dockerfile)                    | Отдельные full/prod installs, структура pnpm symlinks, новый runtime stage, путь миграций и прямой SIGTERM Node PID 1                  |
+| [compose.app.yaml](../../infra/compose/compose.app.yaml)       | Явное отключение учебной identity, read-only rootfs/tmpfs, согласование grace с worker timeout, startup dependencies и предел liveness |
+| [compose.gate.yaml](../../infra/compose/compose.gate.yaml)     | Почему test-only loopback origin не отключает session/CSRF/ACL                                                                         |
+| [docker-gate.cjs](../../scripts/docker-gate.cjs)               | Доверие argv/среде, таймауты и безопасный stderr, реальные HTTP/SQL, изоляция проекта, условия ожидания, restart и cleanup             |
+| [docker-image-check.cjs](../../scripts/docker-image-check.cjs) | Чистые inputs, fake secret, проверка экспортированного archive, хвост между chunks, ограничения проверки и удаление временных файлов   |
 
 Имена переменных, CLI-флаги, SQL/HTTP контракты и машинные коды остаются на английском.
 Объяснения назначения, причин проверок и побочных эффектов написаны по-русски. Комментарии
 не являются дополнительной реализацией: фактическое выполнение подтверждают проверки,
 перечисленные в отчёте. Поиск canary проверяет его буквальные bytes в экспортированном
 архиве, а не любые способы кодирования/упаковки секрета или произвольный сторонний image.
+
+Текущий gate после WMS-202 подтверждён [новым отчётом](../reports/wms-202.md);
+WMS-112 report сохраняет исторический прогон до замены dev actor.

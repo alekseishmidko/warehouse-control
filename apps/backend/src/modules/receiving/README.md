@@ -14,11 +14,12 @@ WMS-108 реализована: локальный оператор создаё
 У документа одна receiving-ячейка существующего склада; storage/shipping и чужая
 ячейка запрещены. Состав draft фиксируется при создании, редактора строк нет.
 
-Доступ — только временный изолированный server-side dev/test actor по
-[ADR-0013](../../../../../docs/adr/0013-http-idempotency.md). Все склады этой dev-организации
-доступны одному локальному оператору; пользовательских ролей и warehouse ACL ещё нет.
-Production routes закрыты. UI, business handler, автоматическое размещение и компенсирующие
-операции не реализованы. Pending delivery не является готовым заданием.
+Доступ — server session и warehouse role по ADR-0018/0019. Для create/post требуется
+warehouse_operator либо warehouse_supervisor на фактическом складе, GET разрешён всем
+принятым складским ролям. system_admin без складского назначения не проводит приёмку.
+Auth/ACL реализованы WMS-202, UI/физическое размещение/компенсации ещё не реализованы.
+Pending delivery не является task, а completed delivery не означает физическое размещение.
+[Session/CSRF/ACL flow](../../../../../docs/flows/identity.md).
 
 ## Для разработчика
 
@@ -28,15 +29,15 @@ Catalog/Warehouses проверяют справочники, Inventory един
 Audit пишет историю, Outbox сохраняет факт/доставку. Чужих repositories в production
 receiving нет. Технические quantity, UUID, event limits и command framework переиспользуются.
 
-| Файл | Ответственность |
-|---|---|
-| receiving.module.ts | DI публичных зависимостей и внутреннего repository |
-| receiving.controller.ts | HTTP, DTO, нормализованный hash input, committed response |
-| services/receiving.service.ts | normalize/create/post/get, refs, состояния и оркестрация |
-| repositories/receiving.repository.ts | INSERT draft/строк, SELECT FOR UPDATE и финальный UPDATE |
-| dto/receipt.dto.ts | Входные class DTO и публичные JSON response DTO без ORM |
-| receiving.schema.ts | Drizzle source SQL-модели; новые migrations 0009/0010 |
-| README.md | Этот контракт модуля; все файлы также в общем каталоге |
+| Файл                                 | Ответственность                                           |
+| ------------------------------------ | --------------------------------------------------------- |
+| receiving.module.ts                  | DI публичных зависимостей и внутреннего repository        |
+| receiving.controller.ts              | HTTP, DTO, нормализованный hash input, committed response |
+| services/receiving.service.ts        | normalize/create/post/get, refs, состояния и оркестрация  |
+| repositories/receiving.repository.ts | INSERT draft/строк, SELECT FOR UPDATE и финальный UPDATE  |
+| dto/receipt.dto.ts                   | Входные class DTO и публичные JSON response DTO без ORM   |
+| receiving.schema.ts                  | Drizzle source SQL-модели; новые migrations 0009/0010     |
+| README.md                            | Этот контракт модуля; все файлы также в общем каталоге    |
 
 ### Модель и ограничения
 
@@ -58,11 +59,11 @@ constraints не доказывают всю оркестрацию. DBA мож�
 
 ### API, ошибки и повтор
 
-| Метод | Вход | Результат |
-|---|---|---|
-| POST /api/v1/receipts | CreateReceiptDto + UUID Idempotency-Key | 201 ReceiptDto, relative Location |
-| POST /api/v1/receipts/:receiptId/post | UUID path + UUID key, body отсутствует либо {} | 200 ReceiptDto |
-| GET /api/v1/receipts/:receiptId | UUID path, без key | 200 текущее состояние |
+| Метод                                 | Вход                                           | Результат                         |
+| ------------------------------------- | ---------------------------------------------- | --------------------------------- |
+| POST /api/v1/receipts                 | CreateReceiptDto + UUID Idempotency-Key        | 201 ReceiptDto, relative Location |
+| POST /api/v1/receipts/:receiptId/post | UUID path + UUID key, body отсутствует либо {} | 200 ReceiptDto                    |
+| GET /api/v1/receipts/:receiptId       | UUID path, без key                             | 200 текущее состояние             |
 
 Схема — [generated OpenAPI](../../../../../docs/contracts/openapi.json).
 Actor приходит из guard/config, correlationId — из validated header либо server UUID;
@@ -73,7 +74,7 @@ status/body/Location, даже если draft с тех пор проведён;
 Новый key для posted даёт 409 RECEIPT_ALREADY_POSTED. Новый key создания намеренно
 создаёт другой документ: дедупликации внешней поставки в модели пока нет.
 
-400 — неверный UUID/DTO/key/лишние поля; 403 — dev actor недоступен;
+400 — неверный UUID/DTO/key/лишние поля; 401 — сессия недоступна; 403 — роль склада/CSRF не разрешены;
 404 RECEIPT_NOT_FOUND; 409 IDEMPOTENCY_CONFLICT/RECEIPT_ALREADY_POSTED;
 422 INVALID_RECEIPT (включая duplicate product), PRODUCT_NOT_FOUND,
 LOCATION_NOT_FOUND, INVALID_RECEIVING_LOCATION, STOCK_LIMIT_EXCEEDED;
@@ -93,7 +94,7 @@ sequenceDiagram
   participant A as AuditService
   participant O as OutboxService
   participant DB as PostgreSQL
-  Note over C: Guard проверяет dev actor/key, pipe проверяет DTO
+  Note over C: Guard проверяет session/CSRF/key, pipe проверяет DTO
   C->>H: execute(scope, normalized request, callback)
   H->>DB: BEGIN + idempotency claim
   H->>S: post(context, receiptId, metadata)
@@ -152,7 +153,7 @@ UUIDs после normalize lowercase, quantity остаётся числом; ou
 с серверными id строк/документа/event и UTC postedAt.
 Полные [HTTP примеры и SQL proof](../../../../../docs/receiving.md).
 
-`pnpm db:up`, `pnpm db:migrate`, `pnpm db:seed`, затем opt-in dev actor и `pnpm dev`.
+`pnpm db:up`, `pnpm db:migrate`, `pnpm db:seed`, затем явная auth policy, bootstrap/login и складская роль перед `pnpm dev`.
 Конфигурация общая: DATABASE_URL (секрет), NODE_ENV, HTTP_HOST, PORT,
 DEV_ACTOR_ENABLED=false по умолчанию и DEV_ACTOR_ID (серверный синтетический UUID).
 Tests используют отдельный PostgreSQL без Compose/.env, недоступный Docker — failure.
@@ -166,3 +167,12 @@ SQL — безопасная read-only диагностика; не исправ
 Метрики, централизованные key-value логи и tracing запланированы WMS-401/402.
 Для расследования сохранить receiptId, время и correlationId;
 [runbook](../../../../../docs/runbooks/event-recovery.md), локальный recovery реализован WMS-111, использовать только проверенные команды runbook.
+
+### Изменение auth WMS-202
+
+Controller передаёт authorize callback четвёртым аргументом HttpCommandsService.execute;
+он проверяет user/session/warehouse **до** claim и replay в том же context. Post сначала
+читает warehouse сохранённого receipt, не принимает его из body. GET использует borrowed
+read(context,id) и permission в одной транзакции; nested get/run из command запрещён.
+DTO/строки приёмки, stock/movement/outbox semantics и ReceivingPosted v1 не менялись.
+Fixtures/tests и Docker gate теперь создают настоящие сессии/роли, без env bypass.

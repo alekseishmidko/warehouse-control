@@ -37,7 +37,14 @@
     "app:down": "docker compose --env-file .env -f infra/compose/compose.yaml -f infra/compose/compose.app.yaml down",
     "app:migrate": "docker compose --env-file .env -f infra/compose/compose.yaml -f infra/compose/compose.app.yaml run --rm migrate",
     "docker:gate": "node scripts/docker-gate.cjs",
-    "docker:image-check": "node scripts/docker-image-check.cjs"
+    "docker:image-check": "node scripts/docker-image-check.cjs",
+    "identity:bootstrap": "pnpm --filter @warehouse/backend identity:bootstrap",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test:identity:coverage": "pnpm --filter @warehouse/backend test:identity:coverage"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "prettier": "3.9.10"
+  }
 }

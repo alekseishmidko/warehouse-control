@@ -23,14 +23,14 @@ Controller/repository не нужны: HTTP/SQL отсутствуют. Моду
 [docs/contracts/events](../../../../../docs/contracts/events), решение —
 [ADR-0011](../../../../../docs/adr/0011-event-contract-validation.md).
 
-| Файл | Ответственность |
-|---|---|
-| services/event-contracts.ts | prepareForOutbox(unknown) и parseForHandler(string) |
-| event-registry.ts | Локальный список type/version, компиляция validator, limits |
-| event-contract.error.ts | Безопасные permanent error codes |
-| dto/event.dto.ts | KnownEvent, generated payload alias, PreparedEvent; внутренние DTO |
-| generated/event-types.ts | Generated TS из исходных schemas; без ручного редактирования |
-| generated/event-schemas.ts | Generated runtime schema bundle; без чтения docs при старте |
+| Файл                        | Ответственность                                                    |
+| --------------------------- | ------------------------------------------------------------------ |
+| services/event-contracts.ts | prepareForOutbox(unknown) и parseForHandler(string)                |
+| event-registry.ts           | Локальный список type/version, компиляция validator, limits        |
+| event-contract.error.ts     | Безопасные permanent error codes                                   |
+| dto/event.dto.ts            | KnownEvent, generated payload alias, PreparedEvent; внутренние DTO |
+| generated/event-types.ts    | Generated TS из исходных schemas; без ручного редактирования       |
+| generated/event-schemas.ts  | Generated runtime schema bundle; без чтения docs при старте        |
 
 Генератор [scripts/generate-event-contracts.cjs](../../../scripts/generate-event-contracts.cjs)
 запускается командами из корня:
@@ -110,12 +110,12 @@ message с теми же данными. Изменение исходного f
 Добавление `payload.futurePayloadField="demo"` проходит и сохраняется;
 quantity=0 → `INVALID_EVENT`; schemaVersion=2 → `UNSUPPORTED_EVENT`.
 
-| Код | Причина | Повтор без изменения |
-|---|---|---|
-| INVALID_JSON | JSON не разобран/не сериализован | Не поможет |
-| INVALID_EVENT | Нарушен envelope или payload известного контракта | Не поможет |
-| UNSUPPORTED_EVENT | Неизвестные type/version | Нужен поддерживающий код/карантин |
-| MESSAGE_TOO_LARGE | Более 262144 UTF-8 bytes | Нужен другой допустимый документ/контракт |
+| Код               | Причина                                           | Повтор без изменения                      |
+| ----------------- | ------------------------------------------------- | ----------------------------------------- |
+| INVALID_JSON      | JSON не разобран/не сериализован                  | Не поможет                                |
+| INVALID_EVENT     | Нарушен envelope или payload известного контракта | Не поможет                                |
+| UNSUPPORTED_EVENT | Неизвестные type/version                          | Нужен поддерживающий код/карантин         |
+| MESSAGE_TOO_LARGE | Более 262144 UTF-8 bytes                          | Нужен другой допустимый документ/контракт |
 
 Сообщения ошибок не включают payload или Ajv data. Это не authentication и не
 семантическая проверка склада: равенство aggregateId/receiptId, уникальность строк,

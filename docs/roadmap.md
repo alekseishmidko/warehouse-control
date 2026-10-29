@@ -24,7 +24,16 @@ WMS-109 завершена: worker protocol, lease fencing, atomic markers/curso
 WMS-110 завершена: production handler создаёт pending task и audit атомарно с marker/cursors/ack.
 WMS-111 завершена: local inspect/retry/signal, operator/reason history и verified runbook.
 WMS-112 завершена: один multi-stage non-root image, Compose API/worker/migrate,
-чистая сборка и Docker gate 1. Следующая задача: WMS-201, уточнение складских правил.
+чистая сборка и Docker gate 1.
+WMS-201 завершена как согласование бизнес-правил: B1–B4 приняты владельцем продукта
+2026-10-29; подготовлены переходы, числовые AC и проект контрактов. Следующая задача —
+WMS-202 (identity/ACL). В WMS-202 приняты способ auth (логин/пароль + серверная сессия)
+и threat assumptions, затем матрица ролей/складов: WMS-202.1 завершена.
+WMS-202 реализована и проверена; числовых defaults сессий нет, оба срока задаются явно.
+Следующая задача — WMS-203: физическое размещение.
+[ADR-0018](adr/0018-server-sessions.md), [ADR-0019](adr/0019-warehouse-role-matrix.md),
+[identity](identity.md).
+Fulfillment и дополнительные проектные детали ещё не реализованы; auth/ACL готовы WMS-202.
 
 Отчёты: [окружение WMS-101](reports/wms-101.md),
 [тестовая инфраструктура WMS-102](reports/wms-102.md),
@@ -54,6 +63,11 @@ WMS-112 завершена: один multi-stage non-root image, Compose API/wor
 До готовности identity бизнес-endpoints доступны только в изолированном dev/test.
 
 ## 2. Складской сценарий и интерфейс
+
+[Правила WMS-201](fulfillment-rules.md) фиксируют принятые B1–B4 и проект переходов.
+[Flow/AC](flows/fulfillment.md) и [контракты](contracts/fulfillment.md) — основа будущей
+реализации; дополнительные технические детали не утверждаются этим статусом.
+Программной реализации fulfillment пока нет.
 
 Identity и роли, размещение, конкурентные резервы, сборка, отгрузка,
 компенсирующие операции. OpenAPI/client generation и простой web.
@@ -96,3 +110,11 @@ WMS-103 audit приведён к этому стилю; складские за
 Цель → сценарий → затронутые модули/контракты → инварианты → критерии приёмки →
 проверки → миграции/эксплуатация → документация.
 Инфраструктура не должна скрывать неготовность бизнес-инвариантов.
+
+WMS-202: внутри IdentityModule выполнено разделение AuthService/SessionsService/UsersService/
+AccessService, с сохранением общего context, HTTP контрактов и SQL schema. Подробный flow и
+проверки межсервисного rollback — [identity flow](flows/identity.md), [отчёт](reports/wms-202.md).
+
+WMS-202: добавлены controller/auth/HTTP boundary tests и integration cases для адресного
+отзыва, удаления роли, logout SQL fault и всей warehouse action matrix. Coverage gate
+IdentityController — 100%, команда `pnpm test:identity:coverage`; следующий этап остаётся WMS-203.

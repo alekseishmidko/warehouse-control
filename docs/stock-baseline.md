@@ -5,13 +5,13 @@
 
 ## Модели и владельцы
 
-| Модель / таблица | Минимальные поля | Владелец / интерфейс |
-|---|---|---|
-| Product / products | id UUID, unique normalized sku, name, unit=piece | CatalogService.create / requireProduct |
-| Warehouse / warehouses | id UUID, unique code, name | WarehousesService.createWarehouse |
-| Location / locations | id UUID, warehouseId FK, code, kind | WarehousesService.createLocation / requireLocation |
-| StockBalance / stock_balances | id UUID, warehouseId/locationId/productId, onHand, reserved | InventoryService.receive / getBalance |
-| StockMovement / stock_movements | id, unique operationId, stock key, kind=receipt, quantity, auditId, createdAt | Только InventoryService.receive |
+| Модель / таблица                | Минимальные поля                                                              | Владелец / интерфейс                               |
+| ------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------- |
+| Product / products              | id UUID, unique normalized sku, name, unit=piece                              | CatalogService.create / requireProduct             |
+| Warehouse / warehouses          | id UUID, unique code, name                                                    | WarehousesService.createWarehouse                  |
+| Location / locations            | id UUID, warehouseId FK, code, kind                                           | WarehousesService.createLocation / requireLocation |
+| StockBalance / stock_balances   | id UUID, warehouseId/locationId/productId, onHand, reserved                   | InventoryService.receive / getBalance              |
+| StockMovement / stock_movements | id, unique operationId, stock key, kind=receipt, quantity, auditId, createdAt | Только InventoryService.receive                    |
 
 Зоны представлены kind ячейки: receiving/storage/shipping. SKU глобально уникален,
 так как организация одна. Codes нормализуются uppercase, names trimmed. Schema
