@@ -209,3 +209,9 @@ Worker budget/backoff использует attempts-retry_attempt_base, total at
 [Полный recovery flow](../../../../../docs/flows/outbox-recovery.md),
 [команды](../../../../../docs/runbooks/event-recovery.md). Это локальная диагностика,
 полный Pino/Loki/OTel stack и внешние alert channels ещё не реализованы.
+
+WMS-203: InventoryModule добавляет execution providers и OutboxModule, но HTTP/identity composition
+остаётся отдельным InventoryHttpModule API graph. Worker не требует human AUTH policy.
+PutawayCompleted — известный event registry, его putaway-task stream пока без deliveries;
+receipt consumer по-прежнему получает весь receipt stream. Planning repeat completed task
+возвращает существующую без нового stock credit. См. docs/flows/putaway-execution.md.

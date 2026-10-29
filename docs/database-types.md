@@ -105,3 +105,8 @@ users, sessions, warehouse_roles, auth_login_windows и identity_bootstrap. В �
 nullable revoked_at, deadline CHECK, составные grants и retained one-time marker.
 Карта всех файлов — [README identity](../apps/backend/src/modules/identity/README.md#schemas-одна-таблица-один-файл).
 Суммарно в backend 23 таблицы/15 собственных schema-файлов; разбиение не меняет DDL.
+
+WMS-203 сохраняет 23 таблицы/int4. В task добавлены четыре nullable completion поля
+(UUID/timestamptz), CHECK связывает их с pending/completed. В movements nullable UUID
+transferId (receipt NULL), CHECK направления и UNIQUE(transferId,kind); signed quantity не введено.
+Исходные schema comments и ADR-0021 объясняют FK/state/deferred guards и сохранение creation audit.

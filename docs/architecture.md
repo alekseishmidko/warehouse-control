@@ -191,3 +191,12 @@ AccessService — проверками ролей. Общие bounded run ост
 borrowed context проходит между сервисами до одного commit/rollback. Это локальная декомпозиция
 ADR-0009/0020, не переход к отдельным auth/users микросервисам. Исполнение и SQL —
 [identity flow](flows/identity.md#разделение-сервисов-общий-context-при-смене-пароля).
+
+## WMS-203: HTTP размещения и worker graph
+
+InventoryService остаётся единственным владельцем stock. PutawayExecutionService оркестрирует
+в одном borrowed context task lock, стабильные balance locks, движения, audit и outbox.
+InventoryHttpModule — API adapter (Identity/Idempotency/controller), включён только AppModule;
+InventoryModule пригоден worker без AUTH config. PutawayCompleted использует свой putaway-task
+aggregate, не receipt sequence, без consumers до отдельного replay/start-position плана.
+[ADR-0021](adr/0021-putaway-execution.md), [flow](flows/putaway-execution.md).

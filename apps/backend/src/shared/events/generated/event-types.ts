@@ -1,5 +1,94 @@
 /** @file GENERATED из docs/contracts/events: pnpm contracts:generate. Не редактировать вручную. */
 /**
+ * Факт полного размещения задания: receiving → storage того же склада, без изменения общего количества и без переноса резерва.
+ */
+export interface PutawayCompletedV1 {
+  /**
+   * UUID события. Сохраняется при повторной доставке и смене транспорта; используется для дедупликации.
+   */
+  eventId: string;
+  /**
+   * Имя бизнес-факта. Вместе со schemaVersion выбирает точный контракт в локальном registry.
+   */
+  type: 'inventory.putaway-completed';
+  /**
+   * Major-версия контракта. Неизвестная версия отклоняется до вызова handler.
+   */
+  schemaVersion: 1;
+  /**
+   * Агрегат задания размещения; sequence независим от receipt.
+   */
+  aggregateType: 'putaway-task';
+  /**
+   * UUID задания, равен payload.taskId; проверяет inventory.
+   */
+  aggregateId: string;
+  /**
+   * Порядковая версия события агрегата: положительное целое в безопасном диапазоне JavaScript number. Атомарное выделение версии выполняет OutboxService в транзакции бизнес-сценария.
+   */
+  aggregateVersion: number;
+  /**
+   * Время бизнес-факта RFC 3339 с UTC Z. format проверяет дату и время, pattern запрещает timezone offsets даже +00:00.
+   */
+  occurredAt: string;
+  /**
+   * UUID сквозного сценария для связи бизнес-операции, аудита и обработки события.
+   */
+  correlationId: string;
+  /**
+   * Необязательный UUID события-причины. Для корневой команды поле отсутствует.
+   */
+  causationId?: string;
+  /**
+   * Необязательный trace context длиной до 512 символов. Семантическую проверку W3C выполнит OTel; schema ограничивает только тип и длину.
+   */
+  traceparent?: string;
+  /**
+   * Immutable факт завершения, business references/permissions проверяет сервис.
+   */
+  payload: {
+    /**
+     * Завершённое задание
+     */
+    taskId: string;
+    /**
+     * Исходная приёмка
+     */
+    receiptId: string;
+    /**
+     * Исходная строка приёмки
+     */
+    receiptLineId: string;
+    /**
+     * Склад обеих ячеек
+     */
+    warehouseId: string;
+    /**
+     * Receiving источник
+     */
+    sourceLocationId: string;
+    /**
+     * Storage назначение
+     */
+    targetLocationId: string;
+    /**
+     * Товар задания
+     */
+    productId: string;
+    /**
+     * Идентификатор пары movements, равен taskId
+     */
+    transferId: string;
+    /**
+     * Полное количество задания в целых штуках int4, без частичного исполнения.
+     */
+    quantity: number;
+    [k: string]: unknown;
+  };
+  [k: string]: unknown;
+}
+
+/**
  * Факт проведения одной приёмки: envelope и фактически принятые строки. Не команда повторно начислить остаток. Неизвестные необязательные поля разрешены; общий размер JSON UTF-8 ограничивает EventContracts.
  */
 export interface ReceivingPostedV1 {

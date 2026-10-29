@@ -13,12 +13,13 @@ import {
   unique,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { locations } from '../warehouses/warehouses.schema';
+import { outboxEvents } from '../../infrastructure/outbox/outbox.schema';
 import { receipts, receiptLines } from '../receiving/receiving.schema';
 import { auditEntries } from '../audit/audit.schema';
 import { MAX_STOCK_QUANTITY } from '../../shared/quantities/quantity';
 /**
- * Снимок основания размещения, не резерв и не движение; target location появится при выполнении
- * размещения.
+ * Снимок основания размещения, не резерв и не движение; target location фиксируется однократно при выполнении размещения.
  */
 export const putawayTasks = pgTable(
   'putaway_tasks',
@@ -52,7 +53,7 @@ export const putawayTasks = pgTable(
     warehouseId: uuid('warehouse_id').notNull(),
     /**
      * UUID исходной receiving-ячейки, не целевой storage-ячейки. Проверяется вместе со складом и
-     * документом; адрес назначения ещё не реализован.
+     * документом; при завершении остаётся неизменным.
      */
     sourceLocationId: uuid('source_location_id').notNull(),
 
@@ -68,10 +69,19 @@ export const putawayTasks = pgTable(
     quantity: integer('quantity').notNull(),
 
     /**
-     * text с единственным pending по CHECK. Означает ожидание физического размещения; доставка outbox
-     * при этом уже может быть completed.
+     * text + CHECK pending/completed, default pending, NOT NULL. Completed означает атомарный перенос;
+     * завершение delivery события приёмки само по себе оставляет task pending.
      */
-    status: text('status').$type<'pending'>().default('pending').notNull(),
+    status: text('status').$type<'pending' | 'completed'>().default('pending').notNull(),
+
+    /** Nullable UUID без default: назначение отсутствует у pending, обязательно у completed; composite FK требует тот же склад. */
+    targetLocationId: uuid('target_location_id'),
+    /** Nullable timestamptz без default: бизнес-время завершения, совпадает с occurredAt события; pg Date → UTC ISO JSON. */
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    /** Nullable UUID/FK на immutable outbox факт; при completed обязателен, eventId не меняется при HTTP replay. */
+    completedEventId: uuid('completed_event_id').references(() => outboxEvents.eventId),
+    /** Nullable UUID/FK на отдельный audit выполнения; auditId создания сохраняется. Обязателен только после completed. */
+    completionAuditId: uuid('completion_audit_id').references(() => auditEntries.id),
 
     /**
      * UUID/FK объясняющего аудита. Task, audit, marker и cursors подтверждаются одной транзакцией
@@ -113,7 +123,17 @@ export const putawayTasks = pgTable(
         receiptLines.quantity,
       ],
     }),
-    check('putaway_pending_status', sql`${t.status} = 'pending'`),
+    foreignKey({
+      name: 'putaway_target_warehouse_fk',
+      columns: [t.warehouseId, t.targetLocationId],
+      foreignColumns: [locations.warehouseId, locations.id],
+    }),
+    // NULL допустим только до выполнения; SQL boolean формула связывает все completion поля со status.
+    check('putaway_pending_status', sql`${t.status} in ('pending','completed')`),
+    check(
+      'putaway_completion_state',
+      sql`(${t.status}='pending' and ${t.targetLocationId} is null and ${t.completedAt} is null and ${t.completedEventId} is null and ${t.completionAuditId} is null) or (${t.status}='completed' and ${t.targetLocationId} is not null and ${t.targetLocationId}<>${t.sourceLocationId} and ${t.completedAt} is not null and ${t.completedEventId} is not null and ${t.completionAuditId} is not null)`,
+    ),
     check(
       'putaway_quantity_range',
       sql`${t.quantity} between 1 and ${sql.raw(String(MAX_STOCK_QUANTITY))}`,

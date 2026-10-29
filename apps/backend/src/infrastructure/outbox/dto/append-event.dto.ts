@@ -1,5 +1,5 @@
 /** @file Внутренний write interface outbox: producer задаёт факт, writer владеет eventId и aggregateVersion. */
-import type { KnownEvent, ReceivingPostedPayload } from '../../../shared/events/dto/event.dto';
+import type { KnownEvent } from '../../../shared/events/dto/event.dto';
 
 /**
  * Команда записи события, не HTTP DTO. Context передаётся отдельным обязательным аргументом.
@@ -18,6 +18,6 @@ export interface AppendEventDto {
   correlationId: string;
   causationId?: string;
   traceparent?: string;
-  payload: ReceivingPostedPayload;
+  payload: KnownEvent['payload'];
   [key: string]: unknown;
 }

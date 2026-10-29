@@ -115,8 +115,7 @@ aggregateId = payload.receiptId. Новый ключ на posted — 409, пре
 PutawayTask pending создаётся worker на каждую строку posted receipt и не начисляет
 stock. Unique source line/event и composite FK сохраняют исходные receipt/product/quantity/
 location/event. Worker effect, task audit, processed marker, consumer/transport cursors и
-completion фиксируются вместе. Delivery completed не означает task completed: физическое
-размещение пока не реализовано. Source task immutable, корректировка/отмена не появились.
+completion фиксируются вместе. Delivery completed не означает task completed: выполнение требует отдельной команды WMS-203. Source task immutable, корректировка/отмена не появились.
 [Подробный flow](flows/putaway.md), [ADR-0016](adr/0016-durable-putaway-handler.md).
 
 ## WMS-201: принятые правила будущего fulfillment
@@ -141,3 +140,13 @@ ordered=open+reservedStorage+reservedShipping+shipped+cancelled. Сборка п
 лимиты, они не объявлены частью работающего контракта. [Draft контрактов](contracts/fulfillment.md),
 [числовые AC и Mermaid](flows/fulfillment.md). Для будущих операций нужны новые
 миграции/контракты; существующие SQL/ReceivingPosted v1 здесь не меняются.
+
+## Размещение WMS-203
+
+PutawayTask выполняется целиком receiving → storage того же склада. Количество/источник
+определяет task, оператор выбирает target. Balance available=onHand-reserved должен покрывать
+quantity; reserved сохраняется в исходной ячейке. Межскладской/произвольный перенос,
+partial/cancel и перенос активного allocation не реализованы. Два movements, audit, task completed,
+PutawayCompleted и HTTP result фиксируются атомарно; общий stock не меняется.
+Pending → completed однократно, основание/creation audit immutable. Новый key на completed
+отклоняется; исходный replay не переносит товар повторно. [Исполнение](flows/putaway-execution.md).

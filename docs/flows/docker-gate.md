@@ -255,3 +255,12 @@ local admin CLI по-прежнему требует loopback URL, запуск�
 
 Текущий gate после WMS-202 подтверждён [новым отчётом](../reports/wms-202.md);
 WMS-112 report сохраняет исторический прогон до замены dev actor.
+
+## Продолжение WMS-203
+
+После проверки durable pending task и worker restart gate использует тот же реальный operator
+для POST /api/v1/putaway-tasks/:taskId/execute с targetLocationId storage из dev fixture.
+Проверяет same-key identical replay и 409 нового key, SQL evidence receiving=0/storage=10,
+две transfer legs и один putaway-task completion event. Затем прежние SIGTERM/cleanup шаги.
+Это продолжение gate 1, исходные WMS-112 assertions до выполнения placement сохранены.
+Сценарий/SQL/rollback — [putaway execution flow](putaway-execution.md).

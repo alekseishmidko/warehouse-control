@@ -6,6 +6,7 @@ import { DatabaseModule } from './infrastructure/database/database.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { WarehousesModule } from './modules/warehouses/warehouses.module';
+import { InventoryHttpModule } from './modules/inventory/inventory-http.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { OutboxModule } from './infrastructure/outbox/outbox.module';
 import { HttpModule } from './infrastructure/http/http.module';
@@ -20,6 +21,7 @@ import { ReceivingModule } from './modules/receiving/receiving.module';
     CatalogModule,
     WarehousesModule,
     InventoryModule,
+    InventoryHttpModule,
     OutboxModule,
     HttpModule,
     IdempotencyModule,

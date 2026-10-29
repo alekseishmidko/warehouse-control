@@ -5,7 +5,7 @@ import type { KnownEvent } from '../../../shared/events/dto/event.dto';
 export interface CreatePutawayTasksDto extends OperationMetadata {
   readonly event: KnownEvent;
 }
-/** Неизменяемое задание первого сценария; назначения/исполнения/отмены пока нет, состояние только pending. */
+/** Основание задания неизменно; выполнение однократно фиксирует target/completion, отмены и partial execution нет. */
 export interface PutawayTaskDto {
   readonly id: string;
   readonly sourceReceiptId: string;
@@ -15,7 +15,15 @@ export interface PutawayTaskDto {
   readonly sourceLocationId: string;
   readonly productId: string;
   readonly quantity: number;
-  readonly status: 'pending';
+  readonly status: 'pending' | 'completed';
+  /** UUID storage ячейки, NULL до выполнения. */
+  readonly targetLocationId: string | null;
+  /** UTC ISO дата, NULL до выполнения. */
+  readonly completedAt: string | null;
+  /** Outbox eventId выполнения, NULL до выполнения. */
+  readonly completedEventId: string | null;
+  /** AuditId выполнения; исходный auditId создания не заменяется. */
+  readonly completionAuditId: string | null;
   readonly auditId: string;
   readonly createdAt: string;
 }

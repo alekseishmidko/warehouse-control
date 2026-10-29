@@ -55,7 +55,9 @@ export class OutboxRepository {
     });
     // Только первая запись создаёт stream. Повторный append не сбрасывает cursor/lease.
     // Конфликт доставки намеренно не игнорируется: duplicate event не является успешным append.
-    for (const destination of RECEIPT_DESTINATIONS) {
+    // Полный receipt stream сохраняется. У putaway-task пока нет подписчиков: факт retained,
+    // будущий consumer требует отдельного replay/start-position плана, не фиктивной доставки.
+    for (const destination of event.aggregateType === 'receipt' ? RECEIPT_DESTINATIONS : []) {
       await tx
         .insert(deliveryStreams)
         .values({ destination, aggregateType: event.aggregateType, aggregateId: event.aggregateId })

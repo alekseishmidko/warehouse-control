@@ -29,14 +29,14 @@ export const outboxAggregateSequences = pgTable(
   'outbox_aggregate_sequences',
   {
     /**
-     * text-тип агрегата входит в PK вместе с UUID; CHECK пока разрешает receipt. Добавление нового
+     * text-тип агрегата входит в PK вместе с UUID; CHECK разрешает receipt и putaway-task. Добавление нового
      * домена потребует миграции, а не только значения в коде.
      */
     aggregateType: text('aggregate_type').notNull(),
 
     /**
-     * UUID конкретного документа. Намеренно без полиморфного FK к бизнес-таблицам:
-     * принадлежность/aggregateId=receiptId проверяет владелец публикации.
+     * UUID конкретного агрегата (receipt/putaway-task). Намеренно без полиморфного FK к бизнес-таблицам:
+     * принадлежность/aggregateId=receiptId либо taskId проверяет владелец публикации.
      */
     aggregateId: uuid('aggregate_id').notNull(),
 
@@ -54,7 +54,7 @@ export const outboxAggregateSequences = pgTable(
       'outbox_sequence_range',
       sql`${t.lastVersion} between 1 and ${sql.raw(String(MAX_AGGREGATE_VERSION))}`,
     ),
-    check('outbox_sequence_aggregate', sql`${t.aggregateType} = 'receipt'`),
+    check('outbox_sequence_aggregate', sql`${t.aggregateType} in ('receipt','putaway-task')`),
   ],
 );
 

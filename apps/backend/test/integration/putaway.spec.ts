@@ -35,12 +35,16 @@ beforeAll(async () => {
   worker = app.get(WorkerService);
 });
 /** Production fact из immutable DB envelope, не реконструируется вручную из входного DTO. */
-async function event(id: string): Promise<KnownEvent> {
-  return (
+async function event(
+  id: string,
+): Promise<Extract<KnownEvent, { type: 'receiving.receipt-posted' }>> {
+  const fact = (
     await database().connection.pool.query('select envelope from outbox_events where event_id=$1', [
       id,
     ])
-  ).rows[0].envelope;
+  ).rows[0].envelope as KnownEvent;
+  if (fact.type !== 'receiving.receipt-posted') throw new Error('Expected receipt event');
+  return fact;
 }
 /** DB evidence: изменение stock или лишний audit/marker видны вместе с созданием task. */
 async function state() {
@@ -387,7 +391,10 @@ test('runtime warehouse_app can handle source FKs/audit and tasks remain immutab
     'delete from putaway_tasks',
     'truncate putaway_tasks',
   ]) {
-    await expect(database().connection.pool.query(query)).rejects.toMatchObject({ code: '42501' });
+    // Новый FK movement.transferId останавливает простой TRUNCATE до retained trigger.
+    await expect(database().connection.pool.query(query)).rejects.toMatchObject({
+      code: query.startsWith('truncate') ? '0A000' : '42501',
+    });
   }
   expect((await state()).tasks).toBe(1);
   expect((await state()).stock).toBe(10);

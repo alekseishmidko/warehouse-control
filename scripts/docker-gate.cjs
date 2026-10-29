@@ -320,6 +320,49 @@ async function main() {
       async () => compose(['logs', '--no-color', 'worker']),
       (logs) => logs.includes('Worker ready'),
     );
+    // WMS-203 продолжает gate 1: тот же реальный operator выполняет task через API.
+    // Количество/источник не передаются клиентом. После replay нет новых pair/event.
+    const taskId = (
+      await sql('SELECT id FROM putaway_tasks WHERE source_receipt_id=$1', [receiptId])
+    )[0].id;
+    const executePath = `/api/v1/putaway-tasks/${taskId}/execute`;
+    const executeKey = randomUUID();
+    const executed = await http(
+      executePath,
+      'POST',
+      { targetLocationId: fixture.storageLocationId },
+      executeKey,
+    );
+    assert.equal(executed.status, 200);
+    assert.equal(executed.body.status, 'completed');
+    assert.deepEqual(
+      await http(executePath, 'POST', { targetLocationId: fixture.storageLocationId }, executeKey),
+      executed,
+    );
+    assert.equal(
+      (
+        await http(
+          executePath,
+          'POST',
+          { targetLocationId: fixture.storageLocationId },
+          randomUUID(),
+        )
+      ).status,
+      409,
+    );
+    const placement = (
+      await sql(
+        `SELECT t.status,
+      (SELECT on_hand FROM stock_balances WHERE location_id=t.source_location_id AND product_id=t.product_id) AS source,
+      (SELECT on_hand FROM stock_balances WHERE location_id=t.target_location_id AND product_id=t.product_id) AS target,
+      (SELECT count(*)::int FROM stock_movements WHERE transfer_id=t.id) AS legs,
+      (SELECT count(*)::int FROM outbox_events WHERE aggregate_type='putaway-task' AND aggregate_id=t.id) AS events
+      FROM putaway_tasks t WHERE t.id=$1`,
+        [taskId],
+      )
+    )[0];
+    assert.deepEqual(placement, { status: 'completed', source: 0, target: 10, legs: 2, events: 1 });
+    console.log(`PASS WMS-203 putaway execution + replay: ${JSON.stringify(placement)}`);
     await compose(['stop', 'worker', 'api']);
     assert.equal((await state('worker')).ExitCode, 0);
     // После shutdown hooks Nest/Node может вернуть 0 или завершиться сигналом SIGTERM (143).
@@ -327,7 +370,7 @@ async function main() {
     const apiExit = (await state('api')).ExitCode;
     assert.ok([0, 143].includes(apiExit), `unexpected API shutdown code ${apiExit}`);
     console.log(
-      `PASS durable task + worker restart + API/worker SIGTERM: ${JSON.stringify(complete)}`,
+      `PASS durable task snapshot before placement + worker restart + API/worker SIGTERM: ${JSON.stringify(complete)}`,
     );
     console.log(
       `GATE 1 PASS receiptId=${receiptId}; runtime uid=${runtime.uid}; apiExit=${apiExit}; workerExit=0; no runtime dev dependencies`,

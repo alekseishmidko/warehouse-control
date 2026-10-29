@@ -187,3 +187,7 @@ Allowlist дополнен bool active/systemAdmin и UUID sessionId. Это б�
 отдельный фиксированный action/reason, смена пароля — отдельный факт без hash/пароля.
 Admin mutation и audit остаются в одном context; failure откатывает пользователя/grants/revoke.
 SQL/JSONB модель аудита не менялась, старые applied migrations не редактировались.
+
+WMS-203: безопасная allowlist включает status pending/completed и UUID sourceLocationId/
+targetLocationId. Это позволяет объяснить placement completion; строки/произвольный payload
+по-прежнему redacted. Completion audit отдельный от audit создания task, связан с обоими movements.
