@@ -155,3 +155,13 @@ Snapshots 0018/0019 и journal создаёт Drizzle Kit; вручную не �
 Очистка retained marker допускается только disposable admin harness в cleanup transaction.
 Новые migrations применены к локальной dev БД без удаления volume и старых данных.
 Prettier исключает всю drizzle/директорию, чтобы не менять applied SQL/checksums.
+
+## WMS-203
+
+0020_putaway_execution.sql сгенерирована Drizzle Kit: nullable completion поля existing pending
+задач, transferId и новые movement kinds/keys, CHECK/FK и putaway-task sequence. Snapshot/journal
+созданы генератором, не правятся вручную. 0021_putaway_guards.sql — custom migration: task source
+immutable, один pending→completed с pair/event evidence, deferred movement pair check на commit,
+retention и column UPDATE grants warehouse_app. Старые migrations не переписываются.
+Test harness применяет обе реально; source comments поясняют типы/NULL/default и SQL/JS нюансы.
+БД по-прежнему 23 таблицы: меняется структура существующих, а не создаётся запасной stock ledger.

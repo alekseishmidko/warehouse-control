@@ -190,3 +190,9 @@ DTO identity разделены по контрактам, ORM-таблицы �
 Для покрытия identity: `pnpm test:identity:coverage` (нужен Docker). Порог IdentityController —
 100% строк/веток/функций/statements; HTML — apps/backend/coverage/identity/index.html.
 [Состав проверок и ограничения](apps/backend/test/README.md#проверка-покрытия-identity).
+
+WMS-203: реализовано полное размещение PutawayTask из receiving в storage одного склада.
+GET /api/v1/putaway-tasks/:taskId и идемпотентный POST /:taskId/execute с targetLocationId;
+требуются session/CSRF и складские read/putaway права. Миграции — `pnpm db:migrate`,
+проверки — `pnpm test`, Docker gate теперь подтверждает receiving=0/storage=10 и replay.
+[Подробный flow](docs/flows/putaway-execution.md), [отчёт](docs/reports/wms-203.md).

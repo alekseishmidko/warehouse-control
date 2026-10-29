@@ -14,6 +14,8 @@ import type {
   StockKeyDto,
   StockBalanceDto,
 } from '../dto/stock.dto';
+import { PutawayExecutionService } from './putaway-execution.service';
+import type { OperationMetadata } from '../../../shared/operations/dto/operation-metadata.dto';
 import { PutawayService } from './putaway.service';
 import type { CreatePutawayTasksDto, PutawayTaskDto } from '../dto/putaway-task.dto';
 /** Внутренний service, не HTTP CRUD; событие документа пишет receiving, reservations ещё нет. */
@@ -26,7 +28,21 @@ export class InventoryService {
     private readonly warehouses: WarehousesService,
     private readonly audit: AuditService,
     private readonly putaway: PutawayService,
+    private readonly execution: PutawayExecutionService,
   ) {}
+  /** Публичное чтение task с borrowed context, для warehouse policy и GET; без собственного run. */
+  readPutawayTask(context: TransactionContext, id: string): Promise<PutawayTaskDto> {
+    return this.execution.read(context, id);
+  }
+  /** Полное выполнение task в общем command context; quantity/source доверяются только сохранённой task. */
+  executePutawayTask(
+    context: TransactionContext,
+    id: string,
+    targetLocationId: string,
+    metadata: OperationMetadata,
+  ): Promise<PutawayTaskDto> {
+    return this.execution.execute(context, id, targetLocationId, metadata);
+  }
   /** Создаёт задания из receipt fact без stock/movement; использует worker context, ошибки выходят до его runner. */
   createPutawayTasks(
     context: TransactionContext,

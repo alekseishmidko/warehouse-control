@@ -1,6 +1,10 @@
 /** @file Безопасные коды прикладного отказа; HTTP statuses и тексты остаются в transport adapter. */
 /** Разрешённые прикладные отказы HTTP-команд; transport adapter отдельно определяет status/detail. */
 export type CommandErrorCode =
+  | 'PUTAWAY_TASK_NOT_FOUND'
+  | 'PUTAWAY_ALREADY_COMPLETED'
+  | 'INVALID_PUTAWAY_LOCATION'
+  | 'INSUFFICIENT_STOCK'
   | 'VALIDATION_FAILED'
   | 'INVALID_CORRELATION_ID'
   | 'IDEMPOTENCY_KEY_REQUIRED'

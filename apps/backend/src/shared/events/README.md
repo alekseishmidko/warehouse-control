@@ -128,3 +128,9 @@ quantity=0 → `INVALID_EVENT`; schemaVersion=2 → `UNSUPPORTED_EVENT`.
 обязательные поля, formats, int4, bounds, точный UTF-8 предел, неизвестные поля/версии
 и воспроизводимость/missing/stale outputs. [Runbook](../../../../../docs/runbooks/event-recovery.md)
 описывает будущую эксплуатацию, ещё не существующие команды не запускаются.
+
+WMS-203: registry/KnownEvent расширен inventory.putaway-completed v1 (putaway-task aggregate).
+JSON Schema/example находятся рядом с ReceivingPosted, generation команда та же; generated output
+вручную не редактируется. UUID/UTC/int4/optional fields/bytes проверяются одинаково.
+Source/type/quantity provenance — ответственность inventory и SQL guards, не JSON Schema.
+Новый event пока retained без consumers/deliveries. Подробности — docs/flows/putaway-execution.md.

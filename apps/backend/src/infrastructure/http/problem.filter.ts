@@ -5,6 +5,10 @@ import { CommandError } from '../../shared/errors/command-error';
 import { correlationIdOf } from './request-context';
 /** Статические публичные коды/статусы — allowlist, arbitrary error.message не сериализуется. */
 export const PROBLEMS = {
+  PUTAWAY_TASK_NOT_FOUND: [404, 'Putaway task not found'],
+  PUTAWAY_ALREADY_COMPLETED: [409, 'Putaway task already completed'],
+  INVALID_PUTAWAY_LOCATION: [422, 'Receiving source and storage target required'],
+  INSUFFICIENT_STOCK: [409, 'Insufficient unreserved stock'],
   USER_NOT_FOUND: [404, 'User not found'],
   LAST_ADMIN_REQUIRED: [409, 'Active system administrator required'],
   CSRF_REJECTED: [403, 'Request origin or CSRF verification failed'],

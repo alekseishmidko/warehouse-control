@@ -7,6 +7,9 @@ import { PutawayInputError } from '@backend/modules/inventory/services/putaway.s
 import type { InventoryService } from '@backend/modules/inventory/services/inventory.service';
 import type { TransactionContext } from '@backend/shared/transactions/transaction.port';
 import type { KnownEvent } from '@backend/shared/events/dto/event.dto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { EventContracts } from '@backend/shared/events/services/event-contracts';
 import { outboxFixture } from '../support/outbox.fixture';
 const context = {} as TransactionContext;
 /** Только валидный синтетический fact; runtime EventContracts и SQL не подменяются этими unit assertions. */
@@ -36,15 +39,18 @@ test('dispatch passes same context and server actor, never calls stock receive',
   expect(receive).not.toHaveBeenCalled();
   expect(handler.destination).toBe('inventory.putaway');
 });
-test('future known uninteresting type is a no-op only after upstream validation', async () => {
+test('known PutawayCompleted type is a no-op after real contract validation', async () => {
   const createPutawayTasks = jest.fn();
   const handler = new ReceivingPostedHandler({ createPutawayTasks } as unknown as InventoryService);
-  // Тестируем только будущую routing ветку adapter. Этот surrogate НЕ зарегистрирован
-  // в EventContracts и не становится допустимым production event из-за TypeScript cast.
-  await handler.handle(context, {
-    ...event(),
-    type: 'receipt.future-known-fact',
-  } as unknown as KnownEvent);
+  // Контракт реально зарегистрирован WMS-203. Deliveries этого агрегата пока нет;
+  // проверка routing не добавляет фиктивный consumer/subscription или повторный stock credit.
+  const fact = new EventContracts().parseForHandler(
+    readFileSync(
+      resolve('../../docs/contracts/examples/inventory.putaway-completed.v1.json'),
+      'utf8',
+    ),
+  );
+  await handler.handle(context, fact);
   expect(createPutawayTasks).not.toHaveBeenCalled();
 });
 test('semantic failure becomes permanent; database errors retain their cause/classification', async () => {

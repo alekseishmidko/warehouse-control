@@ -57,3 +57,7 @@ Identity consumer/system actor стабилен и не является credent
 
 Источники: [PostgreSQL 17 constraints](https://www.postgresql.org/docs/17/ddl-constraints.html),
 [CREATE TABLE / composite FK](https://www.postgresql.org/docs/17/sql-createtable.html).
+
+Уточнение WMS-203: [ADR-0021](0021-putaway-execution.md) заменяет ограничение «task целиком
+immutable/только pending» на immutable основание и однократный переход completed. Создание
+и worker idempotency остаются прежними; новый HTTP сценарий не выполняется worker автоматически.

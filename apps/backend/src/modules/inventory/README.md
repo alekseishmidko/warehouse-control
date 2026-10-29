@@ -1,6 +1,6 @@
 # Inventory module
 
-WMS-104: StockBalance и immutable StockMovement. WMS-110: pending PutawayTask и durable планирование размещения.
+WMS-104: StockBalance и immutable StockMovement. WMS-110: создание PutawayTask. WMS-203: полное выполнение receiving → storage.
 
 ## Для менеджера
 
@@ -10,7 +10,7 @@ Inventory — единственный владелец изменения ос�
 Два одновременных прихода не теряют количество. Повтор того же operationId
 отклоняется без дополнительного начисления; прежний результат автоматически не возвращается.
 
-Нет публичного stock CRUD, размещения, резервирования и отгрузки.
+Реализованы GET task и идемпотентный POST выполнения размещения. Общего stock CRUD/transfer, резервирования и отгрузки нет.
 Receiving WMS-108 оркестрирует документ/HTTP idempotency/outbox, вызывая InventoryService. Dev fixtures создают только справочники, не остатки.
 DBA способен менять БД: append-only не является криптографической защитой.
 
@@ -124,7 +124,7 @@ STOCK_LIMIT_EXCEEDED, HTTP 422. Внешние repos не импортируют
 
 Для менеджера: поступившие 10 штук остаются в receiving, а worker создаёт pending задание
 на их будущее физическое размещение. Delivery completed и task pending — разные состояния.
-Выполнение/отмена/назначение target location, UI и task HTTP API ещё отсутствуют.
+WMS-203 добавляет target и полное выполнение через HTTP; отмена, partial execution и UI отсутствуют.
 Одна task на source receipt line; повтор обработки не добавляет task, audit, movement или stock.
 
 Для разработчика: единственный межмодульный вход InventoryService.createPutawayTasks(context,
@@ -172,3 +172,56 @@ applied SQL не менять; dev Compose требует явного pnpm db:m
 handler actor синтетический server constant, correlationId исходного event сохраняется в audit.
 Проверки: putaway.spec.ts, worker-process.spec.ts production cases и handler unit suite.
 Метрики/централизованные логи/tracing пока WMS-401/402; диагностика через read-only SQL.
+
+## Выполнение размещения WMS-203
+
+Триггер — подтверждение оператором task через POST /api/v1/putaway-tasks/:taskId/execute.
+Body содержит только targetLocationId; quantity, source и warehouse берутся из task.
+GET /api/v1/putaway-tasks/:taskId требует read на её складе; execute — putaway (operator/supervisor).
+Session/CSRF/Origin и Idempotency-Key обязательны для POST. Прежний key возвращает saved snapshot;
+новый key на completed →409, прежний key после отзыва прав →403 до replay.
+
+```mermaid
+flowchart TD
+  HTTP[InventoryController: DTO + trusted principal] --> CMD[HttpCommandsService: authorize до dedup]
+  CMD -->|общий context| I[InventoryService.executePutawayTask]
+  I --> P[PutawayExecutionService]
+  P --> T[Task FOR UPDATE; pending check]
+  T --> W[WarehousesService: receiving → storage, тот же склад]
+  W --> B[StockTransferRepository: ensure/lock по стабильным ключам; debit/credit]
+  B --> A[AuditService + парные movements]
+  A --> O[OutboxService: PutawayCompleted]
+  O --> S[Task completed + saved response]
+  S --> C[COMMIT, deferred pair check]
+  P -->|любая ошибка| R[ROLLBACK обоих balances и всех эффектов]
+```
+
+Пример: source onHand=10/reserved=0, task quantity=10, target отсутствует. После 200:
+source 0/0, target 10/0, два movements, task completed, один completion audit/event.
+Количество int4; reserved не переносится. Source 11/reserved=1 допускает перенос свободных 10;
+source 10/reserved=1 отклоняется. Source/target одного склада, только receiving/storage;
+partial/cancel/arbitrary transfer/перемещение allocation в этот шаг не входят.
+
+Публичный InventoryService добавляет readPutawayTask и executePutawayTask с borrowed context.
+PutawayExecutionService, StockTransferRepository и PutawayRepository private. InventoryHttpModule
+подключает controller/Identity/Idempotency только API; worker импортирует InventoryModule без auth.
+Для HTTP adapter отдельного bounded context нет. PutawayService продолжает только создавать
+задания по ReceivingPosted, включая безопасный повтор уже completed задания без stock credit.
+
+Новые файлы: inventory.controller.ts, inventory-http.module.ts,
+services/putaway-execution.service.ts, repositories/stock-transfer.repository.ts,
+dto/execute-putaway.dto.ts, dto/putaway-task-response.dto.ts. Общее преобразование Date в snapshot
+принадлежит PutawayRepository, а не дублируется в каждом методе.
+
+Схема: четыре nullable completion поля task; status pending/completed; transferId у movements,
+kind receipt/transfer-out/transfer-in; UNIQUE(transferId,kind), FK/state/deferred pair guards.
+Audit создания не заменяется. Runtime UPDATE только completion columns, удаления запрещены;
+новые migrations 0020/0021, прежние applied SQL не изменяются. DBA способен обойти guards.
+Outbox aggregate putaway-task пока без consumers/deliveries: факт retained, будущий replay отдельно.
+
+Ошибки/гонки/точный SQL порядок/состояния и evidence — один владелец
+[docs/flows/putaway-execution.md](../../../../../docs/flows/putaway-execution.md).
+[Integration](../../../test/integration/putaway-execution.spec.ts) проверяет успех, повтор,
+конкуренцию с двумя наблюдаемыми SQL waits, недостаток/overflow/reserve, чужой склад,
+permissions/replay revoke, faults после debit/credit/audit/movement/event/task и runtime role.
+Новый event проверяется source schema/example, registry/generation и unit contract fixtures.

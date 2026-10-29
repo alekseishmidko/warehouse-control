@@ -221,3 +221,19 @@ revoke-all/revoke-one подключены; DTO output содержит толь
 Новая cookie не кэшируется в http_idempotency; старый Idempotency-Key receiving не обходит
 актуальные ACL. Новых событий auth в registry нет: identity admin audit не warehouse outbox fact.
 ReceivingPosted v1/quantity/limits не изменены.
+
+## WMS-203: выполнение задания
+
+Реализованы GET /api/v1/putaway-tasks/:taskId (read) и POST /:taskId/execute (putaway).
+Execute body — только targetLocationId UUID; полное quantity из задания. Session/CSRF/Origin
+и Idempotency-Key обязательны. 200 completed snapshot, 404 task, 409 already-completed/
+insufficient-stock/idempotency-conflict, 422 invalid-zone/foreign-location/overflow;
+401/403 и безопасные 400/500/503 — общие. Source — production DTO/controller, generated OpenAPI.
+
+[PutawayCompleted v1](events/inventory.putaway-completed.v1.schema.json) и
+[пример](examples/inventory.putaway-completed.v1.json) — новый совместимый тип, ReceivingPosted v1
+не меняется. Registry/KnownEvent/generated bundle содержат оба типа. Общие UUID/UTC Z/int4/256KiB/
+optional extensions rules сохраняются. Aggregate putaway-task, aggregateId=taskId,
+causationId исходного receipt event; subscribers пока нет, retained outbox факт без delivery.
+В будущем добавление consumer требует явного replay/start-position плана.
+[Подробный flow](../flows/putaway-execution.md).

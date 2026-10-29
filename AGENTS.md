@@ -87,7 +87,7 @@ Test support — `apps/backend/test/support/`; отдельный контейн
 Не запускать два test:prepare одновременно в одном checkout; suites одного Jest
 прогона работают параллельно и имеют независимые БД.
 Контрактные fixtures и generation diff проверяются локально в test:prepare/unit.
-CI compatibility comparison ещё нет. Следующая задача — WMS-203 (физическое размещение).
+CI compatibility comparison ещё нет. Следующая задача — WMS-204 (физическое размещение).
 При добавлении функциональности нужны проверки её бизнес-инвариантов.
 Для outbox обязательны реальные PostgreSQL integration tests: rollback,
 повторная доставка, конкуренция workers, восстановление после сбоя.
@@ -223,7 +223,7 @@ actorType/actorId/operation/key, normalized JSON fingerprint, saved result с б
 в одном commit. Login/credential admin не проходят через этот cache (быстрый SHA пароля недопустим).
 Ошибки problem+json безопасны, responses no-store. Source OpenAPI — production controllers/DTO;
 generator offline с DI overrides, не читает .env/БД. Test-only /commands не production endpoint.
-Старые migrations не переписывать. Полный flow — docs/flows/identity.md. Далее WMS-203.
+Старые migrations не переписывать. Полный flow — docs/flows/identity.md. Далее WMS-204.
 
 ## Receiving WMS-108
 
@@ -282,10 +282,10 @@ INSERT race защищает unique, проигравший callback долже�
 Handler actorType system + фиксированный синтетический UUID из кода, correlation исходного event;
 payload не выбирает actor. Нового outbox event/movement при планировании нет.
 Consumer получает полный receipt stream. Будущие известные неинтересные type — no-op с marker/
-cursor; сегодня KnownEvent только ReceivingPosted v1. Unit surrogate проверяет routing ветку,
-не регистрирует новый контракт; unknown type/version по-прежнему dead до handler.
+cursor; WMS-203 добавляет KnownEvent PutawayCompleted v1 без подписчиков его агрегата.
+No-op unit использует настоящий validated контракт; unknown type/version по-прежнему dead до handler.
 Task pending означает ожидание физического размещения, delivery completed — создание task.
-Task execution/cancel/target location/API/UI ещё нет. Диагностика receipt → event → task:
+WMS-203 реализует execution/target/API; cancel/partial/UI ещё нет. Диагностика receipt → event → task:
 docs/flows/putaway.md и docs/examples/putaway-result.sql, новый отчёт docs/reports/wms-110.md.
 Test harness undefined handlers использует production registry, [] явно отключает его;
 cleanup task immutable trigger только disposable admin DB. Source/task/audit/marker/crash
@@ -311,7 +311,7 @@ I/O sink не внутри transaction и не влияет на outcome. Signal
 0 healthy / 2 alert / 1 failure, внешние каналы отдельно WMS-401/402. Pino/Loki stack ещё нет.
 Migrations 0016/0017 после применения не менять. Cleanup history trigger только disposable
 admin harness. Runbook/fault/role/lease/cursor/race/rollback/CLI проверять реальным PostgreSQL.
-WMS-112 завершена; следующая задача — WMS-203, без неявного remote deploy/публикации.
+WMS-112 завершена; следующая задача — WMS-204, без неявного remote deploy/публикации.
 
 ## Docker WMS-112
 
@@ -380,7 +380,7 @@ docs/reports/wms-202.md. Реализация login/me/logout/admin готова
 
 Root Prettier 3.9.10, pnpm format / pnpm format:check. .prettierignore исключает applied SQL,
 generated artifacts, lockfile, credentials, deps/outputs. Не менять generated/applied ради форматтера.
-Новые файлы добавлять в каталог; format не заменяет typecheck/Jest. Следующая задача — WMS-203.
+Новые файлы добавлять в каталог; format не заменяет typecheck/Jest. Следующая задача — WMS-204.
 
 ## Проверка покрытия identity
 
@@ -390,3 +390,30 @@ functions/lines; config apps/backend/jest.identity-coverage.config.cjs. HTML/JSO
 apps/backend/coverage/identity (Git ignored). Не объявлять весь identity 100%: bootstrap
 исполняется отдельным child CLI, coverage не объединяется с parent. Подробности tests —
 apps/backend/test/README.md; текущий подтверждённый прогон 435 tests/28 suites.
+
+## Размещение WMS-203
+
+InventoryService.readPutawayTask/executePutawayTask получают borrowed context. Private
+PutawayExecutionService выполняет только полный receiving → storage одного склада;
+quantity/source/product берёт из task, target UUID из DTO. Task FOR UPDATE, ensure-zero/lock
+обоих balance keys в одном порядке lowercase location UUID, затем available/capacity/debit/credit.
+Reserved не переносится: можно переместить только onHand-reserved. Произвольного transfer,
+partial/cancel и перемещения allocations пока нет. Worker не выполняет задания автоматически.
+
+Один context для pair movements (transfer-out/in, positive int4, transferId=task.id, разные
+unique operationId), audit, outbox, task completed и HTTP result. Источник и audit создания
+immutable. Migrations 0020/0021: nullable completion поля, column grants, state guard с pair/event
+и deferred pair constraint. Не править applied SQL. Runtime может менять только completion
+columns; DELETE/TRUNCATE retained, простой TRUNCATE также блокирует новый movement FK.
+
+PutawayCompleted v1 имеет aggregate putaway-task, payload taskId/transferId=aggregateId,
+causationId исходного receiving event. Нет consumers/deliveries нового stream; факт retained,
+новый consumer только с migration/replay/start-position планом. Receipt delivery policy прежняя.
+KnownEvent/registry включают оба типа; narrowing обязателен до чтения payload.lines.
+
+InventoryHttpModule API-only подключает Identity/Idempotency/controller, worker использует
+InventoryModule без human AUTH policy. POST /api/v1/putaway-tasks/:taskId/execute требует
+putaway право и key, GET требует read; authorize до replay по фактическому warehouse.
+Старый key одинакового запроса возвращает snapshot, новый key на completed →409.
+Source/schema/flow/evidence — modules/inventory/README.md, docs/flows/putaway-execution.md,
+docs/reports/wms-203.md, ADR-0021. Следующая задача — WMS-204.

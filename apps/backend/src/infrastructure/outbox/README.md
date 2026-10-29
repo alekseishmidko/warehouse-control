@@ -250,3 +250,13 @@ Inspect читает состояние/историю разными запро
 наблюдение, а не согласованный snapshot и не разрешение на retry. Retry всегда повторяет
 проверки по свежему состоянию под блокировками. Ошибка stdout/cleanup после commit
 не означает откат вмешательства; следующий шаг оператора — inspect.
+
+## WMS-203: второй aggregate без фиктивной доставки
+
+OutboxService принимает также inventory.putaway-completed v1, aggregateType putaway-task.
+Sequence CHECK расширен новой migration 0020. Repository создаёт deliveries/streams только
+для receipt: его полный inventory.putaway stream сохранён. У putaway-task подписчиков нет,
+поэтому event retained без delivery/stream; это не обработанное внешним получателем сообщение.
+Новый consumer требует replay/start-position плана. Recovery CLI preview такого payload omitted,
+unknown fields/raw payload не выводятся. Retention/immutable envelope остаются прежними.
+[ADR-0021](../../../../../docs/adr/0021-putaway-execution.md).

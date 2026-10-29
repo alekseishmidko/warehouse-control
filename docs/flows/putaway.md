@@ -1,6 +1,7 @@
 # Приёмка → event → PutawayTask: подробный флоу WMS-110
 
-Реализованный production сценарий создания заданий размещения. Предусловия: новые migrations,
+Реализованный production сценарий создания заданий размещения. Выполнение реализовано WMS-203:
+[отдельный flow](putaway-execution.md); ниже описан только этап создания. Предусловия: новые migrations,
 posted receipt и отдельный запущенный worker. HTTP API остаётся в isolated dev/test режиме;
 worker не открывает HTTP. [Протокол worker](worker.md), [приёмка](../receiving.md),
 [ADR-0016](../adr/0016-durable-putaway-handler.md).
@@ -23,13 +24,13 @@ flowchart LR
   H --> I["InventoryService.createPutawayTasks"]
   I --> B["COMMIT B: task + task audit + marker + cursors + completion"]
   B --> T["Task pending 10; stock всё ещё 10"]
-  T -. "Будущее: выполнение размещения" .-> Future["Выбор storage location и движение товара"]
+  T -. "WMS-203: выполнение размещения" .-> Future["Выбор storage location и движение товара"]
 ```
 
 Здесь R — бизнес-транзакция приёмки, B — processing transaction worker. Между ними
 есть отдельный короткий claim run A, подробно показанный в [worker flow](worker.md).
-После B нет нового receipt event или movement. Физическое размещение, task execution/cancel,
-назначение target location, UI и task HTTP endpoints ещё не реализованы.
+После B нет нового receipt event или movement. Выполнение/назначение и HTTP task endpoints добавлены WMS-203 в отдельном flow;
+UI и cancel ещё не реализованы. Создание задания не выполняет перенос.
 
 ## 2. Данные и доказательство происхождения
 
@@ -85,9 +86,9 @@ flowchart TD
   Noop --> Ack
 ```
 
-Сейчас registry имеет только ReceivingPosted v1, поэтому реальных известных неинтересных
-типов ещё нет. No-op routing ветка реализована и проверена unit-тестом adapter с surrogate;
-он не регистрирует новый контракт и не доказывает допустимость surrogate в production.
+Registry WMS-203 знает ReceivingPosted и PutawayCompleted. No-op ветка проверяется unit-тестом
+adapter с реально валидированным PutawayCompleted; его putaway-task aggregate пока не имеет deliveries.
+Это не добавляет нового consumer: исходная подписка по-прежнему получает весь receipt stream.
 Неизвестные type/version никогда не проходят в no-op. ConsumerName остаётся inventory.putaway,
 claim получает полный receipt stream, не выбирает только интересующие типы SQL-фильтром.
 

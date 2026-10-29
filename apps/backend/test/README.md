@@ -252,3 +252,12 @@ identity-http.spec.ts — principal/cookie/CSRF, auth.service.spec.ts — thrott
 credential recheck. HTTP/SQL assertions, адресный revoke, role removal, все четыре warehouse
 роли и logout AFTER UPDATE fault — в integration/identity.spec.ts. Там же остаются ранее
 добавленные реальная гонка last admin, expiry lock, idempotency replay и bootstrap.
+
+## WMS-203
+
+integration/putaway-execution.spec.ts использует реальные receiving/worker/inventory/HTTP,
+не прямое создание task. Проверяет одно/два задания, одинаковые/разные keys, absent target,
+две одновременно наблюдаемые SQL waits (waitForDatabaseLock minimum=2), quantities/reserve,
+foreign warehouse/roles/replay revoke и AFTER faults каждого шага. Direct SQL stock setup
+только для constraints/fault scenarios disposable БД; incomplete pair проверяет deferred COMMIT.
+Новый event schema/example проверяет unit/event-contracts.spec.ts, generated diff штатный.

@@ -382,6 +382,8 @@ test('production OpenAPI includes only actual routes, technical exclusions and P
       '/api/v1/identity/users/{userId}/sessions',
       '/api/v1/identity/users/{userId}/sessions/{sessionId}',
       '/api/v1/identity/users/{userId}/warehouses/{warehouseId}/roles',
+      '/api/v1/putaway-tasks/{taskId}',
+      '/api/v1/putaway-tasks/{taskId}/execute',
       '/api/v1/receipts',
       '/api/v1/receipts/{receiptId}',
       '/api/v1/receipts/{receiptId}/post',

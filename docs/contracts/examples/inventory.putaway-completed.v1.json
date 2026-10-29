@@ -1,0 +1,22 @@
+{
+  "eventId": "16000000-0000-4000-8000-000000000010",
+  "type": "inventory.putaway-completed",
+  "schemaVersion": 1,
+  "aggregateType": "putaway-task",
+  "aggregateId": "16000000-0000-4000-8000-000000000001",
+  "aggregateVersion": 1,
+  "occurredAt": "2026-10-29T00:01:00Z",
+  "correlationId": "dbb37b21-1c4a-4b32-9307-148df1647f4c",
+  "payload": {
+    "taskId": "16000000-0000-4000-8000-000000000001",
+    "receiptId": "16000000-0000-4000-8000-000000000002",
+    "receiptLineId": "16000000-0000-4000-8000-000000000003",
+    "warehouseId": "16000000-0000-4000-8000-000000000004",
+    "sourceLocationId": "16000000-0000-4000-8000-000000000005",
+    "targetLocationId": "16000000-0000-4000-8000-000000000006",
+    "productId": "16000000-0000-4000-8000-000000000007",
+    "transferId": "16000000-0000-4000-8000-000000000001",
+    "quantity": 10
+  },
+  "causationId": "78ae6ebd-16c3-4cb8-896b-de321cb8c634"
+}

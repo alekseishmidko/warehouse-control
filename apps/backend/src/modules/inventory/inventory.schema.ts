@@ -14,6 +14,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { MAX_STOCK_QUANTITY } from '../../shared/quantities/quantity';
+import { putawayTasks } from './putaway-task.schema';
 import { products } from '../catalog/catalog.schema';
 import { locations } from '../warehouses/warehouses.schema';
 import { auditEntries } from '../audit/audit.schema';
@@ -72,7 +73,7 @@ export const stockBalances = pgTable(
     check('stock_reserved_range', sql`${t.reserved} >= 0 and ${t.reserved} <= ${t.onHand}`),
   ],
 );
-/** Неизменяемый приход одной строки с обязательным audit; другие виды movements — будущие migrations. */
+/** Неизменяемый приход одной строки с обязательным audit; receipt и парные transfer-out/transfer-in WMS-203. */
 export const stockMovements = pgTable(
   'stock_movements',
   {
@@ -101,15 +102,19 @@ export const stockMovements = pgTable(
     productId: uuid('product_id').notNull(),
 
     /**
-     * Пока только receipt: text + CHECK сохраняет допустимое значение. Другие операции потребуют новой
-     * миграции, изменения типов и правил, а не одного $type.
+     * text + CHECK receipt/transfer-out/transfer-in. Default receipt сохраняет старый producer; направление переноса задаётся kind, quantity всегда положительное.
      */
-    kind: text('kind').$type<'receipt'>().default('receipt').notNull(),
+    kind: text('kind')
+      .$type<'receipt' | 'transfer-out' | 'transfer-in'>()
+      .default('receipt')
+      .notNull(),
     /**
      * Положительное количество int4 в штуках, 1..MAX по CHECK. Направление задаёт kind, отрицательные
      * дельты текущая модель не принимает.
      */
     quantity: integer('quantity').notNull(),
+    /** Nullable UUID/FK без default: для receipt NULL, для transfer — task.id. UNIQUE(transferId,kind) разрешает ровно одну запись каждого направления. */
+    transferId: uuid('transfer_id').references(() => putawayTasks.id),
 
     /**
      * Обязательный UUID/FK на объясняющую запись аудита. FK не делает записи атомарными сам: сценарий
@@ -139,6 +144,12 @@ export const stockMovements = pgTable(
       'movement_quantity_range',
       sql`${t.quantity} between 1 and ${sql.raw(String(MAX_STOCK_QUANTITY))}`,
     ),
-    check('movement_receipt_kind', sql`${t.kind} = 'receipt'`),
+    check('movement_receipt_kind', sql`${t.kind} in ('receipt','transfer-out','transfer-in')`),
+    check(
+      'movement_transfer_reference',
+      sql`(${t.kind}='receipt' and ${t.transferId} is null) or (${t.kind} in ('transfer-out','transfer-in') and ${t.transferId} is not null)`,
+    ),
+    // PostgreSQL допускает несколько NULL в UNIQUE: receipt по-прежнему dedup через operationId.
+    unique('movement_transfer_leg_unique').on(t.transferId, t.kind),
   ],
 );

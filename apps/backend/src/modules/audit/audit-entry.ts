@@ -4,9 +4,24 @@ import type { AuditEntryInput, PreparedAuditEntry, SafeAuditChange } from './dto
 import { isUuid } from '../../shared/validation/identifiers';
 import { isStockQuantity } from '../../shared/quantities/quantity';
 const code = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
-const statuses = new Set(['draft', 'posted', 'active', 'consumed', 'released']);
+const statuses = new Set([
+  'draft',
+  'posted',
+  'active',
+  'consumed',
+  'released',
+  'pending',
+  'completed',
+]);
 const quantityFields = new Set(['quantity', 'onHand', 'reserved']);
-const identifierFields = new Set(['warehouseId', 'locationId', 'productId', 'sessionId']);
+const identifierFields = new Set([
+  'warehouseId',
+  'locationId',
+  'productId',
+  'sessionId',
+  'sourceLocationId',
+  'targetLocationId',
+]);
 // Только эти bool fields безопасны для identity audit; произвольный JSON/credentials по-прежнему маскируются.
 const booleanFields = new Set(['active', 'systemAdmin']);
 

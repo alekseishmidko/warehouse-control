@@ -30,7 +30,8 @@ WMS-201 завершена как согласование бизнес-прав
 WMS-202 (identity/ACL). В WMS-202 приняты способ auth (логин/пароль + серверная сессия)
 и threat assumptions, затем матрица ролей/складов: WMS-202.1 завершена.
 WMS-202 реализована и проверена; числовых defaults сессий нет, оба срока задаются явно.
-Следующая задача — WMS-203: физическое размещение.
+WMS-203 реализована: полное размещение из receiving в storage, парные movements, audit/outbox
+и идемпотентный API с warehouse policy. Следующая задача — WMS-204: заказ и резервирование.
 [ADR-0018](adr/0018-server-sessions.md), [ADR-0019](adr/0019-warehouse-role-matrix.md),
 [identity](identity.md).
 Fulfillment и дополнительные проектные детали ещё не реализованы; auth/ACL готовы WMS-202.
@@ -117,4 +118,9 @@ AccessService, с сохранением общего context, HTTP контра
 
 WMS-202: добавлены controller/auth/HTTP boundary tests и integration cases для адресного
 отзыва, удаления роли, logout SQL fault и всей warehouse action matrix. Coverage gate
-IdentityController — 100%, команда `pnpm test:identity:coverage`; следующий этап остаётся WMS-203.
+IdentityController — 100%, команда `pnpm test:identity:coverage`; следующий этап после WMS-203 — WMS-204.
+
+WMS-203 завершена: [flow](flows/putaway-execution.md), [отчёт](reports/wms-203.md),
+[ADR-0021](adr/0021-putaway-execution.md). Source/target balances блокируются и создаются
+в стабильном порядке, pair/task/audit/event/result атомарны. Произвольное движение allocation,
+межскладской transfer, partial/cancel ещё не реализованы. Далее WMS-204.

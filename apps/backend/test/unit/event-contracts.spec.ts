@@ -49,6 +49,8 @@ test('existing ReceivingPosted example round-trips; producer returns a validated
   expect(prepared.event).toEqual(input);
   // Порча исходного объекта после подготовки не должна испортить уже проверенное сообщение.
   input.payload.lines[0].quantity = 0;
+  if (prepared.event.type !== 'receiving.receipt-posted')
+    throw new Error('Expected receipt contract');
   expect(prepared.event.payload.lines[0].quantity).toBe(10);
   expect(contracts.parseForHandler(prepared.message)).toEqual(prepared.event);
 });
@@ -155,7 +157,9 @@ test.each([0, -1, 0.5, MAX_STOCK_QUANTITY + 1, '10', null])(
 test.each([1, MAX_STOCK_QUANTITY])('allows int4 quantity boundary %s', (quantity) => {
   const input = example();
   input.payload.lines[0].quantity = quantity;
-  expect(contracts.prepareForOutbox(input).event.payload.lines[0].quantity).toBe(quantity);
+  const fact = contracts.prepareForOutbox(input).event;
+  if (fact.type !== 'receiving.receipt-posted') throw new Error('Expected receipt contract');
+  expect(fact.payload.lines[0].quantity).toBe(quantity);
 });
 
 test('line limits match generated DTO contract: 1..1000, unknown fields still size-bounded', () => {
@@ -229,4 +233,31 @@ test('malformed JSON and non-JSON producer input fail safely without payload in 
   } catch (error) {
     expect(String(error)).not.toContain('private-value');
   }
+});
+
+/** WMS-203 новый факт имеет отдельный aggregate stream, int4 quantity и тот же общий producer/consumer validator. */
+test('PutawayCompleted v1 round-trips and rejects invalid version, quantity, UUID and UTC date', () => {
+  const value = JSON.parse(
+    readFileSync(
+      resolve('../../docs/contracts/examples/inventory.putaway-completed.v1.json'),
+      'utf8',
+    ),
+  );
+  expect(contracts.parseForHandler(contracts.prepareForOutbox(value).message)).toEqual(value);
+  const optional = {
+    ...value,
+    extension: { flag: true },
+    payload: { ...value.payload, extension: 'preserved' },
+  };
+  expect(contracts.parseForHandler(contracts.prepareForOutbox(optional).message)).toEqual(optional);
+  for (const bad of [
+    { ...value, schemaVersion: 2 },
+    { ...value, aggregateType: 'receipt' },
+    { ...value, occurredAt: '2026-10-29T00:00:00+00:00' },
+    { ...value, payload: { ...value.payload, quantity: 0 } },
+    { ...value, payload: { ...value.payload, quantity: 2147483648 } },
+    { ...value, payload: { ...value.payload, targetLocationId: 'not-uuid' } },
+    { ...value, payload: { ...value.payload, taskId: undefined } },
+  ])
+    expect(() => contracts.prepareForOutbox(bad)).toThrow(EventContractError);
 });

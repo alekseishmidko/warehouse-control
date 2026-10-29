@@ -141,6 +141,20 @@
       "when": 1793252606109,
       "tag": "0019_identity-security",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793266997692,
+      "tag": "0020_putaway_execution",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793267361933,
+      "tag": "0021_putaway_guards",
+      "breakpoints": true
     }
   ]
 }

@@ -19,7 +19,7 @@ export class ReceivingPostedHandler implements LocalEventHandler {
   /**
    * Worker уже проверил schema/routing и держит locks; handler получает тот же context.
    * Для известного неинтересного type — no-op; worker всё равно пишет marker/cursor.
-   * Сегодня registry знает только ReceivingPosted v1: неизвестные type/version до этой ветки не допускаются.
+   * Registry также знает PutawayCompleted v1; его putaway-task stream пока не имеет deliveries. Неизвестные версии по-прежнему dead.
    * @throws PermanentDeliveryError при semantic конфликте; остальные SQL/contract errors классифицирует worker.
    */
   async handle(context: TransactionContext, event: KnownEvent): Promise<void> {

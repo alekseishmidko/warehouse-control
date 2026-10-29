@@ -206,6 +206,8 @@ export class OutboxRecoveryService {
     if (!include) return { omitted: true };
     try {
       const event = this.contracts.parseForHandler(JSON.stringify(envelope));
+      // Receipt preview не раскрывает неизвестный payload нового типа; факт доступен без raw данных.
+      if (event.type !== 'receiving.receipt-posted') return { omitted: true };
       const payload = event.payload;
       return {
         receiptId: payload.receiptId,

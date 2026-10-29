@@ -1,4 +1,4 @@
-/** @file Внутренний сценарий inventory: из receipt fact создаёт immutable tasks+audit в borrowed context, без stock credit. */
+/** @file Внутренний сценарий inventory: из receipt fact создаёт tasks с immutable основанием и audit в borrowed context, без stock credit. */
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { TransactionContext } from '../../../shared/transactions/transaction.port';

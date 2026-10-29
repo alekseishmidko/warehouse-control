@@ -86,16 +86,22 @@
 - Готово WMS-112: multi-stage non-root image API/worker/migrate, Compose startup gates,
   clean build/layers regression и реальная демонстрация gate 1 с SIGTERM/volume restart.
 - Готово WMS-201 как согласование правил: B1–B4 приняты 2026-10-29, таблицы переходов,
-  числовые AC и проект контрактов подготовлены. Fulfillment ещё не реализован; auth готова WMS-202, далее WMS-203.
+  числовые AC и проект контрактов подготовлены. Fulfillment ещё не реализован; auth готова WMS-202, размещение WMS-203, далее WMS-204.
 - Готово WMS-202: users/sessions, login/logout/me, session/warehouse policies, admin API,
   one-time bootstrap и real PostgreSQL tests. Числовых defaults TTL нет; настройки обязательны явно.
   IdentityModule разделён на Auth/Sessions/Users/Access services с общим transaction context.
   Dev actor удалён; внешний TLS gateway/frontend ещё не реализованы.
-- Описано, но не реализовано: физическое размещение и остальные складские операции,
+- Готово WMS-203: task execution receiving → storage, pair movements, audit/outbox, idempotent API и locks.
+- Описано, но не реализовано: резервирование/сборка/отгрузка и остальные складские операции,
   frontend, Kubernetes и CI/CD.
 - Пример контракта `ReceivingPosted` — проектный образец, не опубликованный API.
 - Локальные schema/fixtures/generation проверки выполняются в unit suite;
   OpenAPI generation/diff готов локально; CI workflow и breaking-change comparison пока не настроены.
+
+WMS-203: [подробный flow размещения](flows/putaway-execution.md),
+[ADR-0021](adr/0021-putaway-execution.md), [отчёт](reports/wms-203.md).
+Полное количество задания, только свободный stock, receiving → storage одного склада;
+общий transfer/partial/cancel и consumers completion event в этот шаг не входят.
 
 ## Порядок чтения
 
