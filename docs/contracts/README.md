@@ -237,3 +237,12 @@ optional extensions rules сохраняются. Aggregate putaway-task, aggreg
 causationId исходного receipt event; subscribers пока нет, retained outbox факт без delivery.
 В будущем добавление consumer требует явного replay/start-position плана.
 [Подробный flow](../flows/putaway-execution.md).
+
+## WMS-204
+
+Order API и события реализованы по ADR-0022: [flow](../flows/reservations.md),
+[модуль](../../apps/backend/src/modules/fulfillment/README.md),
+[source event schema](events/fulfillment.order-changed.v1.schema.json),
+[пример](examples/fulfillment.order-changed.v1.json). Лимиты заказа утверждены 1..1000 SKU,
+quantity int4, один warehouse. Reserve/release/cancel используют прежний idempotency protocol.
+OrderDto/OrderLineDto/AllocationDto — явные публичные output; OpenAPI generated, SQL types не экспортируются.

@@ -200,3 +200,12 @@ InventoryHttpModule — API adapter (Identity/Idempotency/controller), вклю�
 InventoryModule пригоден worker без AUTH config. PutawayCompleted использует свой putaway-task
 aggregate, не receipt sequence, без consumers до отдельного replay/start-position плана.
 [ADR-0021](adr/0021-putaway-execution.md), [flow](flows/putaway-execution.md).
+
+## WMS-204: fulfillment и inventory
+
+FulfillmentModule — API graph controller/service/private repository для orders/order_lines,
+экспортируется только FulfillmentService. InventoryService делегирует private ReservationsService/
+Repository, владеет stock_allocations/reserved. Общий transaction context проходит через audit/outbox,
+HTTP result фиксируется тем же runner. Schema FK через source таблицы не создаёт обратной Nest DI
+зависимости inventory → fulfillment service; worker не импортирует fulfillment HTTP graph.
+Order aggregate имеет retained OrderChanged facts без consumers. [ADR-0022](adr/0022-order-reservations.md).

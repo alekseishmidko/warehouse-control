@@ -134,3 +134,8 @@ JSON Schema/example находятся рядом с ReceivingPosted, generation
 вручную не редактируется. UUID/UTC/int4/optional fields/bytes проверяются одинаково.
 Source/type/quantity provenance — ответственность inventory и SQL guards, не JSON Schema.
 Новый event пока retained без consumers/deliveries. Подробности — docs/flows/putaway-execution.md.
+
+WMS-204: третий KnownEvent — OrderChangedV1, source schema/example fulfillment.order-changed.v1.
+Envelope и closed action enum валидируются до writer/handler, unknown optional fields сохраняются.
+Order aggregate без consumers, retained facts. Snapshot заказа не копируется в event; quantities
+объясняются allocations/audit. Unit fixture и generation diff покрывают новый registry entry.

@@ -285,12 +285,12 @@
         ]
       }
     },
-    "/api/v1/putaway-tasks/{taskId}": {
+    "/api/v1/orders/{orderId}": {
       "get": {
-        "operationId": "InventoryController_get",
+        "operationId": "FulfillmentController_get",
         "parameters": [
           {
-            "name": "taskId",
+            "name": "orderId",
             "required": true,
             "in": "path",
             "schema": {
@@ -310,11 +310,11 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "Order snapshot: id, warehouseId, status, lines with open/reservedStorage/cancelled and allocation history",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PutawayTaskResponseDto"
+                  "$ref": "#/components/schemas/OrderDto"
                 }
               }
             },
@@ -386,7 +386,14 @@
             }
           },
           "404": {
-            "description": "PUTAWAY_TASK_NOT_FOUND",
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
             "headers": {
               "X-Correlation-Id": {
                 "description": "Идентификатор текущего HTTP запроса, включая replay.",
@@ -423,22 +430,14 @@
           }
         ],
         "tags": [
-          "inventory-putaway"
+          "orders"
         ]
       }
     },
-    "/api/v1/putaway-tasks/{taskId}/execute": {
+    "/api/v1/orders": {
       "post": {
-        "operationId": "InventoryController_execute",
+        "operationId": "FulfillmentController_create",
         "parameters": [
-          {
-            "name": "taskId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "Idempotency-Key",
             "in": "header",
@@ -483,18 +482,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ExecutePutawayDto"
+                "$ref": "#/components/schemas/CreateOrderDto"
               }
             }
           }
         },
         "responses": {
-          "200": {
-            "description": "",
+          "201": {
+            "description": "Draft order snapshot",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PutawayTaskResponseDto"
+                  "$ref": "#/components/schemas/OrderDto"
                 }
               }
             },
@@ -566,7 +565,14 @@
             }
           },
           "404": {
-            "description": "PUTAWAY_TASK_NOT_FOUND",
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
             "headers": {
               "X-Correlation-Id": {
                 "description": "Идентификатор текущего HTTP запроса, включая replay.",
@@ -679,7 +685,1071 @@
           }
         ],
         "tags": [
-          "inventory-putaway"
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{orderId}/confirm": {
+      "post": {
+        "operationId": "FulfillmentController_confirm",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Один UUID на actor/operation/request. Тот же ключ и другой нормализованный запрос → 409.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Точное значение AUTH_ORIGIN."
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF текущей сессии из login/me."
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "maxProperties": 0
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Active order snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{orderId}/reserve": {
+      "post": {
+        "operationId": "FulfillmentController_reserve",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Один UUID на actor/operation/request. Тот же ключ и другой нормализованный запрос → 409.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Точное значение AUTH_ORIGIN."
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF текущей сессии из login/me."
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReserveOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order snapshot with active allocations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{orderId}/allocations/{allocationId}/release": {
+      "post": {
+        "operationId": "FulfillmentController_release",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "allocationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Один UUID на actor/operation/request. Тот же ключ и другой нормализованный запрос → 409.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Точное значение AUTH_ORIGIN."
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF текущей сессии из login/me."
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReleaseAllocationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order snapshot after release",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{orderId}/cancel": {
+      "post": {
+        "operationId": "FulfillmentController_cancel",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Один UUID на actor/operation/request. Тот же ключ и другой нормализованный запрос → 409.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Точное значение AUTH_ORIGIN."
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF текущей сессии из login/me."
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "maxProperties": 0
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cancelled order snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "orders"
         ]
       }
     },
@@ -1993,6 +3063,404 @@
         ]
       }
     },
+    "/api/v1/putaway-tasks/{taskId}": {
+      "get": {
+        "operationId": "InventoryController_get",
+        "parameters": [
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PutawayTaskResponseDto"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PUTAWAY_TASK_NOT_FOUND",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "inventory-putaway"
+        ]
+      }
+    },
+    "/api/v1/putaway-tasks/{taskId}/execute": {
+      "post": {
+        "operationId": "InventoryController_execute",
+        "parameters": [
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Один UUID на actor/operation/request. Тот же ключ и другой нормализованный запрос → 409.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Точное значение AUTH_ORIGIN."
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF текущей сессии из login/me."
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecutePutawayDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PutawayTaskResponseDto"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PUTAWAY_TASK_NOT_FOUND",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Безопасный problem response; коды описаны в components.schemas.Problem.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "inventory-putaway"
+        ]
+      }
+    },
     "/api/v1/receipts": {
       "post": {
         "operationId": "ReceivingController_create",
@@ -2692,30 +4160,45 @@
       }
     },
     "schemas": {
-      "PutawayTaskResponseDto": {
+      "AllocationDto": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid"
           },
-          "sourceReceiptId": {
+          "balanceId": {
             "type": "string",
             "format": "uuid"
           },
-          "sourceReceiptLineId": {
-            "type": "string",
-            "format": "uuid"
+          "allocated": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
           },
-          "sourceEventId": {
-            "type": "string",
-            "format": "uuid"
+          "active": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
           },
-          "warehouseId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "sourceLocationId": {
+          "released": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "id",
+          "balanceId",
+          "allocated",
+          "active",
+          "released"
+        ]
+      },
+      "OrderLineDto": {
+        "type": "object",
+        "properties": {
+          "id": {
             "type": "string",
             "format": "uuid"
           },
@@ -2724,75 +4207,171 @@
             "format": "uuid"
           },
           "quantity": {
-            "type": "number",
+            "type": "integer",
             "minimum": 1,
             "maximum": 2147483647
           },
-          "status": {
-            "type": "string",
-            "enum": [
-              "pending",
-              "completed"
-            ]
+          "open": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
           },
-          "targetLocationId": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+          "reservedStorage": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
           },
-          "completedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
+          "reservedShipping": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
           },
-          "completedEventId": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+          "shipped": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
           },
-          "completionAuditId": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+          "cancelled": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
           },
-          "auditId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
+          "allocations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AllocationDto"
+            }
           }
         },
         "required": [
           "id",
-          "sourceReceiptId",
-          "sourceReceiptLineId",
-          "sourceEventId",
-          "warehouseId",
-          "sourceLocationId",
           "productId",
           "quantity",
-          "status",
-          "targetLocationId",
-          "completedAt",
-          "completedEventId",
-          "completionAuditId",
-          "auditId",
-          "createdAt"
+          "open",
+          "reservedStorage",
+          "reservedShipping",
+          "shipped",
+          "cancelled",
+          "allocations"
         ]
       },
-      "ExecutePutawayDto": {
+      "OrderDto": {
         "type": "object",
         "properties": {
-          "targetLocationId": {
+          "id": {
             "type": "string",
-            "format": "uuid",
-            "description": "Ячейка хранения того же склада; выполняется полное количество задания."
+            "format": "uuid"
+          },
+          "warehouseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "cancelled"
+            ]
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderLineDto"
+            }
           }
         },
         "required": [
-          "targetLocationId"
+          "id",
+          "warehouseId",
+          "status",
+          "lines"
+        ]
+      },
+      "OrderLineInputDto": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "productId",
+          "quantity"
+        ]
+      },
+      "CreateOrderDto": {
+        "type": "object",
+        "properties": {
+          "warehouseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lines": {
+            "minItems": 1,
+            "maxItems": 1000,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderLineInputDto"
+            }
+          }
+        },
+        "required": [
+          "warehouseId",
+          "lines"
+        ]
+      },
+      "ReserveOrderLineDto": {
+        "type": "object",
+        "properties": {
+          "lineId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "lineId",
+          "quantity"
+        ]
+      },
+      "ReserveOrderDto": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "minItems": 1,
+            "maxItems": 1000,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReserveOrderLineDto"
+            }
+          }
+        },
+        "required": [
+          "lines"
+        ]
+      },
+      "ReleaseAllocationDto": {
+        "type": "object",
+        "properties": {
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "quantity"
         ]
       },
       "LoginDto": {
@@ -2965,6 +4544,109 @@
           "roles"
         ]
       },
+      "PutawayTaskResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceReceiptId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceReceiptLineId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceEventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "warehouseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceLocationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "completed"
+            ]
+          },
+          "targetLocationId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "completedEventId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "completionAuditId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "auditId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "sourceReceiptId",
+          "sourceReceiptLineId",
+          "sourceEventId",
+          "warehouseId",
+          "sourceLocationId",
+          "productId",
+          "quantity",
+          "status",
+          "targetLocationId",
+          "completedAt",
+          "completedEventId",
+          "completionAuditId",
+          "auditId",
+          "createdAt"
+        ]
+      },
+      "ExecutePutawayDto": {
+        "type": "object",
+        "properties": {
+          "targetLocationId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Ячейка хранения того же склада; выполняется полное количество задания."
+          }
+        },
+        "required": [
+          "targetLocationId"
+        ]
+      },
       "CreateReceiptLineDto": {
         "type": "object",
         "properties": {
@@ -3127,6 +4809,9 @@
           "code": {
             "type": "string",
             "enum": [
+              "ORDER_NOT_FOUND",
+              "ORDER_STATE_CONFLICT",
+              "ALLOCATION_NOT_FOUND",
               "PUTAWAY_TASK_NOT_FOUND",
               "PUTAWAY_ALREADY_COMPLETED",
               "INVALID_PUTAWAY_LOCATION",

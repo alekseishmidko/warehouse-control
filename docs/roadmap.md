@@ -31,10 +31,10 @@ WMS-202 (identity/ACL). В WMS-202 приняты способ auth (логин/
 и threat assumptions, затем матрица ролей/складов: WMS-202.1 завершена.
 WMS-202 реализована и проверена; числовых defaults сессий нет, оба срока задаются явно.
 WMS-203 реализована: полное размещение из receiving в storage, парные movements, audit/outbox
-и идемпотентный API с warehouse policy. Следующая задача — WMS-204: заказ и резервирование.
+и идемпотентный API с warehouse policy. WMS-204 выполнена: заказ и резервирование. Следующая задача — WMS-205: сборка.
 [ADR-0018](adr/0018-server-sessions.md), [ADR-0019](adr/0019-warehouse-role-matrix.md),
 [identity](identity.md).
-Fulfillment и дополнительные проектные детали ещё не реализованы; auth/ACL готовы WMS-202.
+Picking/shipping и дополнительные проектные детали ещё не реализованы; auth/ACL готовы WMS-202.
 
 Отчёты: [окружение WMS-101](reports/wms-101.md),
 [тестовая инфраструктура WMS-102](reports/wms-102.md),
@@ -68,7 +68,7 @@ Fulfillment и дополнительные проектные детали ещ
 [Правила WMS-201](fulfillment-rules.md) фиксируют принятые B1–B4 и проект переходов.
 [Flow/AC](flows/fulfillment.md) и [контракты](contracts/fulfillment.md) — основа будущей
 реализации; дополнительные технические детали не утверждаются этим статусом.
-Программной реализации fulfillment пока нет.
+Заказ, резерв и release/cancel реализованы WMS-204; picking/shipping ещё не реализованы.
 
 Identity и роли, размещение, конкурентные резервы, сборка, отгрузка,
 компенсирующие операции. OpenAPI/client generation и простой web.
@@ -124,3 +124,12 @@ WMS-203 завершена: [flow](flows/putaway-execution.md), [отчёт](rep
 [ADR-0021](adr/0021-putaway-execution.md). Source/target balances блокируются и создаются
 в стабильном порядке, pair/task/audit/event/result атомарны. Произвольное движение allocation,
 межскладской transfer, partial/cancel ещё не реализованы. Далее WMS-204.
+
+WMS-204 реализована: orders/lines, explicit reserve, partial release/cancel, ledger reconciliation и API.
+[Подробный flow](flows/reservations.md), [отчёт](reports/wms-204.md); далее WMS-205.
+
+Готово WMS-204: [orders/reservations flow](flows/reservations.md), [проверки](reports/wms-204.md).
+Заказ draft→active, явный атомарный reserve, release и отмена до сборки; expiry исключён B4.
+
+P2 WMS-204 reconciliation исправлен новой migration 0025: INSERT/UPDATE всех balances,
+предварительная сверка без автоматического исправления истории; negative PostgreSQL cases.

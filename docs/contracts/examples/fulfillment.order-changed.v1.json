@@ -1,0 +1,14 @@
+{
+  "eventId": "26000000-0000-4000-8000-000000000001",
+  "type": "fulfillment.order-changed",
+  "schemaVersion": 1,
+  "aggregateType": "order",
+  "aggregateId": "26000000-0000-4000-8000-000000000002",
+  "aggregateVersion": 1,
+  "occurredAt": "2026-10-29T00:01:00Z",
+  "correlationId": "dbb37b21-1c4a-4b32-9307-148df1647f4c",
+  "payload": {
+    "orderId": "26000000-0000-4000-8000-000000000002",
+    "action": "reserved"
+  }
+}

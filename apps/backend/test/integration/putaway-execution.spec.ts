@@ -257,8 +257,21 @@ test.each(['empty', 'short', 'reserved', 'overflow'])(
       // FK movement → balance не разрешает удалить источник: моделируем отсутствующий доступный stock нулём.
       await pool.query('update stock_balances set on_hand=0');
     } else if (scenario === 'short') await pool.query('update stock_balances set on_hand=9');
-    else if (scenario === 'reserved') await pool.query('update stock_balances set reserved=1');
-    else
+    else if (scenario === 'reserved') {
+      // Синтетический receiving reserve не имеет allocation: допускаем его только внутри
+      // откатываемого fault callback, не сохраняем некорректный ledger между HTTP requests.
+      const before = await evidence();
+      await expect(
+        api.get<TransactionRunner>(TRANSACTION_RUNNER).run(async (c) => {
+          await transactionClient(c).execute(sql`update stock_balances set reserved=1`);
+          await api
+            .get(InventoryService)
+            .executePutawayTask(c, taskId, fixture.storage.id, fixture.metadata);
+        }),
+      ).rejects.toMatchObject({ code: 'INSUFFICIENT_STOCK' });
+      expect(await evidence()).toEqual(before);
+      return;
+    } else
       await pool.query(
         'insert into stock_balances(warehouse_id,location_id,product_id,on_hand) values($1,$2,$3,2147483647)',
         [fixture.warehouse.id, fixture.storage.id, fixture.product.id],
@@ -383,40 +396,34 @@ test('validates command and task existence through public HTTP', async () => {
   await execute(taskId, 'bad', actor).expect(400);
 });
 
-/** Резерв остаётся в source: разрешён перенос только свободной части, не migration allocation в target. */
-test('moving free stock preserves reserved quantity at source', async () => {
-  const { fixture, taskId, actor } = await setup();
-  await api.get<TransactionRunner>(TRANSACTION_RUNNER).run((context) =>
-    api.get(InventoryService).receive(context, {
-      ...fixture.metadata,
-      warehouseId: fixture.warehouse.id,
-      locationId: fixture.receiving.id,
-      productId: fixture.product.id,
-      quantity: 1,
-      operationId: randomUUID(),
+/** Fault-only source reserve проверяет арифметику free stock, затем весь callback откатывается до reconciliation. */
+test('moving free stock preserves temporary source reserve without committing invalid ledger', async () => {
+  const { fixture, taskId } = await setup();
+  const before = await evidence();
+  await expect(
+    api.get<TransactionRunner>(TRANSACTION_RUNNER).run(async (c) => {
+      await api.get(InventoryService).receive(c, {
+        ...fixture.metadata,
+        warehouseId: fixture.warehouse.id,
+        locationId: fixture.receiving.id,
+        productId: fixture.product.id,
+        quantity: 1,
+        operationId: randomUUID(),
+      });
+      await transactionClient(c).execute(
+        sql`update stock_balances set reserved=1 where location_id=${fixture.receiving.id}`,
+      );
+      await api
+        .get(InventoryService)
+        .executePutawayTask(c, taskId, fixture.storage.id, fixture.metadata);
+      const source = await transactionClient(c).execute(
+        sql`select on_hand,reserved from stock_balances where location_id=${fixture.receiving.id}`,
+      );
+      expect(source.rows[0]).toEqual({ on_hand: 1, reserved: 1 });
+      throw new Error('fault-only rollback');
     }),
-  );
-  await database().connection.pool.query(
-    'update stock_balances set reserved=1 where location_id=$1',
-    [fixture.receiving.id],
-  );
-  await execute(taskId, fixture.storage.id, actor).expect(200);
-  expect(
-    (
-      await database().connection.pool.query(
-        'select on_hand,reserved from stock_balances where location_id=$1',
-        [fixture.receiving.id],
-      )
-    ).rows[0],
-  ).toEqual({ on_hand: 1, reserved: 1 });
-  expect(
-    (
-      await database().connection.pool.query(
-        'select on_hand,reserved from stock_balances where location_id=$1',
-        [fixture.storage.id],
-      )
-    ).rows[0],
-  ).toEqual({ on_hand: 10, reserved: 0 });
+  ).rejects.toThrow('fault-only rollback');
+  expect(await evidence()).toEqual(before);
 });
 
 /** Direct SQL допускается только для проверки constraint: половина пары не может пережить COMMIT. */

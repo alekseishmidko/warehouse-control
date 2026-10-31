@@ -27,7 +27,9 @@ flowchart TD
 
 Ограничения: только receiving → storage одного склада, полный quantity из task, без
 partial execution/cancel/general transfer. Reservе allocations пока нет. Перенос свободной
-части не меняет reserved: source 11/reserved 1 → перенос 10 → source 1/reserved 1, target 10/0.
+части не меняет reserved. Арифметика source 11/reserved 1 → перенос 10 → source 1/reserved 1
+проверяется только в rollback-only fault callback: реальный receiving reserve без allocations
+не может сохраниться после migration 0025 (а allocation разрешён только storage).
 Если source 10/reserved 1 и task=10, команда отклоняется INSUFFICIENT_STOCK.
 
 ## Вход, DTO и права
@@ -169,7 +171,7 @@ OpenAPI генерируется из production controller/DTO, не ручно
 | Success/replay/new key              | receiving 0/storage 10, 2 legs, 1 completion event, task completed; прежний key не меняет evidence           |
 | Task/absent balance race            | один task с одинаковыми/разными keys; две task на один новый target; SQL barrier обоих callers               |
 | Insufficient/reserve/overflow       | source 0/9/reserved=1, target int4 max; полный rollback                                                      |
-| Free stock with reserve             | source 11/1 →1/1, target 10/0, reserve не перемещён                                                          |
+| Free stock with reserve             | Rollback-only fault snapshot source 11/1 →1/1; не commit некорректного receiving ledger                      |
 | Permissions/zones/foreign warehouse | viewer read-only, outsider denied, replay после revoke forbidden, receiving/shipping/foreign target rejected |
 | Fault boundaries                    | AFTER debit/credit/audit/movement/event/task, evidence полностью прежний, retry same key успешен             |
 | SQL protection                      | runtime warehouse_app completion, completed source/state immutable, orphan half-pair commit rejected         |

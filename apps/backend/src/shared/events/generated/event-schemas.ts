@@ -1,5 +1,95 @@
 /** @file GENERATED из docs/contracts/events: pnpm contracts:generate. Не редактировать вручную. */
 export const eventSchemas = {
+  "fulfillment.order-changed.v1": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "urn:warehouse:events:fulfillment.order-changed:v1",
+    "title": "OrderChangedV1",
+    "type": "object",
+    "required": [
+      "eventId",
+      "type",
+      "schemaVersion",
+      "aggregateType",
+      "aggregateId",
+      "aggregateVersion",
+      "occurredAt",
+      "correlationId",
+      "payload"
+    ],
+    "properties": {
+      "eventId": {
+        "type": "string",
+        "format": "uuid",
+        "description": "UUID события. Сохраняется при повторной доставке и смене транспорта; используется для дедупликации."
+      },
+      "type": {
+        "const": "fulfillment.order-changed",
+        "description": "Имя бизнес-факта. Вместе со schemaVersion выбирает точный контракт в локальном registry."
+      },
+      "schemaVersion": {
+        "const": 1,
+        "description": "Major-версия контракта. Неизвестная версия отклоняется до вызова handler."
+      },
+      "aggregateType": {
+        "const": "order"
+      },
+      "aggregateId": {
+        "type": "string",
+        "format": "uuid",
+        "description": "UUID заказа, равен payload.orderId."
+      },
+      "aggregateVersion": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 9007199254740991,
+        "description": "Порядковая версия события агрегата: положительное целое в безопасном диапазоне JavaScript number. Атомарное выделение версии выполняет OutboxService в транзакции бизнес-сценария."
+      },
+      "occurredAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "Z$",
+        "description": "Время бизнес-факта RFC 3339 с UTC Z. format проверяет дату и время, pattern запрещает timezone offsets даже +00:00."
+      },
+      "correlationId": {
+        "type": "string",
+        "format": "uuid",
+        "description": "UUID сквозного сценария для связи бизнес-операции, аудита и обработки события."
+      },
+      "causationId": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Необязательный UUID события-причины. Для корневой команды поле отсутствует."
+      },
+      "traceparent": {
+        "type": "string",
+        "maxLength": 512,
+        "description": "Необязательный trace context длиной до 512 символов. Семантическую проверку W3C выполнит OTel; schema ограничивает только тип и длину."
+      },
+      "payload": {
+        "type": "object",
+        "required": [
+          "orderId",
+          "action"
+        ],
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "action": {
+            "enum": [
+              "created",
+              "confirmed",
+              "reserved",
+              "released",
+              "cancelled"
+            ]
+          }
+        }
+      }
+    },
+    "description": "Факт изменения заказа, audit и allocations фиксируются в той же транзакции."
+  },
   "inventory.putaway-completed.v1": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "urn:warehouse:events:inventory.putaway-completed:v1",

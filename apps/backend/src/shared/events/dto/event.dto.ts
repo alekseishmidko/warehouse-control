@@ -1,12 +1,16 @@
 /** @file Внутренние DTO границ событий: payload берётся из generated contract, не из ORM или backend-моделей. */
-import type { ReceivingPostedV1, PutawayCompletedV1 } from '../generated/event-types';
+import type {
+  ReceivingPostedV1,
+  PutawayCompletedV1,
+  OrderChangedV1,
+} from '../generated/event-types';
 
 /**
  * Union всех поддерживаемых событий; включает ReceivingPosted и PutawayCompleted.
  * При добавлении типа/версии расширяется вместе с registry для narrowing по type/version.
  * Сам TypeScript-тип не доказывает корректность внешнего JSON: обязательна runtime-проверка.
  */
-export type KnownEvent = ReceivingPostedV1 | PutawayCompletedV1;
+export type KnownEvent = ReceivingPostedV1 | PutawayCompletedV1 | OrderChangedV1;
 
 /**
  * Payload факта проведённой приёмки из исходной JSON Schema, без ручного повторения полей.

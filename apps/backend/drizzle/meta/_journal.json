@@ -155,6 +155,34 @@
       "when": 1793267361933,
       "tag": "0021_putaway_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793383901599,
+      "tag": "0022_order_reservations",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793383969371,
+      "tag": "0023_order_stream",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793384041738,
+      "tag": "0024_reservation_guards",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793424877431,
+      "tag": "0025_strict_reservation_reconciliation",
+      "breakpoints": true
     }
   ]
 }

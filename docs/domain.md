@@ -150,3 +150,12 @@ partial/cancel и перенос активного allocation не реализ
 PutawayCompleted и HTTP result фиксируются атомарно; общий stock не меняется.
 Pending → completed однократно, основание/creation audit immutable. Новый key на completed
 отклоняется; исходный replay не переносит товар повторно. [Исполнение](flows/putaway-execution.md).
+
+## WMS-204: работающий резерв
+
+Fulfillment хранит immutable состав draft заказа, confirm делает active без stock эффекта.
+Inventory хранит allocations и меняет reserved; physical onHand/movements при reserve/release
+не меняются. Явный частичный reserve разрешён, нехватка вектора откатывает всю команду.
+Release возвращает количество в open, cancel до сборки освобождает всё и закрывает заказ.
+Allocated=active+released, line active<=ordered, managed balance reserved=SUM(active).
+No TTL по B4. Picking/shipping и consumed — последующие задачи. [Flow](flows/reservations.md).

@@ -34,7 +34,8 @@ WMS-110: production inventory.putaway создаёт pending tasks+audit с atom
 WMS-111: local inspect/retry/signal, structured diagnostics, operator/reason audit/history и retry budget base.
 WMS-112: multi-stage non-root Docker image API/worker/migrate, Compose overlays,
 clean build/layers check и isolated Docker gate 1. WMS-202: users/sessions, cookie auth/CSRF,
-warehouse policies и отдельный bootstrap; dev actor удалён. Identity DTO и таблицы разделены
+warehouse policies и отдельный bootstrap; dev actor удалён. WMS-203: execution putaway.
+WMS-204: orders/allocations, explicit reserve/release/cancel и deferred reconciliation. Identity DTO и таблицы разделены
 по файлам в dto/ и schemas/. Настроен root Prettier. Frontend, Kafka и Kubernetes ещё не реализованы.
 Не считать наличие документации доказательством реализации.
 
@@ -417,3 +418,32 @@ putaway право и key, GET требует read; authorize до replay по �
 Старый key одинакового запроса возвращает snapshot, новый key на completed →409.
 Source/schema/flow/evidence — modules/inventory/README.md, docs/flows/putaway-execution.md,
 docs/reports/wms-203.md, ADR-0021. Следующая задача — WMS-204.
+
+## WMS-204: реализованные заказы и резервы
+
+FulfillmentModule экспортирует FulfillmentService; private OrdersRepository владеет orders/lines.
+InventoryService reserve/allocations/release делегирует private ReservationsService/Repository.
+Stock_allocations и reserved меняет только inventory с borrowed context. Количество int4,
+1..1000 уникальных SKU, один склад; draft→active подтверждается отдельно. Состав immutable.
+Явный вектор reserve атомарен: недостаток любой строки откатывает весь запрос. Нет неявного
+«взять сколько есть». Подбор storage своего warehouse/product, locks productId/locationId,
+без SKIP LOCKED. Parent order FOR UPDATE сериализует reserve/release/cancel.
+
+Порядок locks: user/session policy → idempotency claim → order → balances. Metadata warehouse
+читается без order lock до policy; GET затем берёт order SHARE. Release/cancel не меняют onHand,
+сохраняют active/released и audit каждого allocation. Cancel до picking освобождает всё.
+Allocated=active+released, reserved=SUM(active) каждого balance; consumed/picking/shipping пока нет.
+
+Migrations 0022–0024: 26 таблиц, FK/CHECK/indexes, column grants/immutable/retained guards и
+commit-time reconciliation. Уже применённые SQL не переписывать. Harness обходит retained
+только в собственной disposable cleanup. Migration 0025 сверяет INSERT/UPDATE всех balances без legacy исключения.
+При существующем mismatch preflight блокирует migrate без исправления/потери данных. Реальная reconciliation suite сверяет
+все balances; не подменять её только mocks. No expiration/TTL/job по B4.
+
+OrderChanged v1: aggregate order, payload orderId/action, quantities в allocation history/audit.
+Registry/source schema/example/generated bundle/OpenAPI обновляются вместе. Consumers нового
+агрегата нет; retained fact не означает внешнюю delivery, новая подписка требует replay/start plan.
+API /api/v1/orders create/get/confirm/reserve/allocations/:id/release/cancel, actual warehouse ACL
+до saved replay. output OrderDto/OrderLineDto/AllocationDto camelCase, без ORM/SQL моделей.
+Документация — docs/flows/reservations.md, module README, docs/reports/wms-204.md, ADR-0022.
+Следующая задача — WMS-205. История allocations пока без pagination и TTL.

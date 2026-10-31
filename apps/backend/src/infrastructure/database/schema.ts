@@ -46,3 +46,6 @@ export { sessions } from '../../modules/identity/schemas/sessions.schema';
 export { warehouseRoles } from '../../modules/identity/schemas/warehouse-roles.schema';
 export { loginWindows } from '../../modules/identity/schemas/login-windows.schema';
 export { identityBootstrap } from '../../modules/identity/schemas/identity-bootstrap.schema';
+
+export { orders, orderLines } from '../../modules/fulfillment/schemas/orders.schema';
+export { allocations } from '../../modules/inventory/schemas/allocations.schema';

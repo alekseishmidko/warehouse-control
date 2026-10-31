@@ -210,8 +210,14 @@ export async function createDatabaseHarness(): Promise<DatabaseHarness> {
           await tx.execute(
             sql`alter table identity_bootstrap disable trigger identity_bootstrap_retained`,
           );
-          await tx.execute(sql`truncate table application_metadata, audit_entries, stock_movements, stock_balances,
+          await tx.execute(
+            sql`alter table orders disable trigger orders_retained; alter table order_lines disable trigger order_lines_retained; alter table stock_allocations disable trigger allocations_retained`,
+          );
+          await tx.execute(sql`truncate table orders, order_lines, stock_allocations, application_metadata, audit_entries, stock_movements, stock_balances,
             locations, products, warehouses, outbox_deliveries, outbox_events, delivery_streams, outbox_aggregate_sequences, http_idempotency, receipts, receipt_lines, processed_events, consumer_streams, putaway_tasks, outbox_recovery_actions, users, sessions, warehouse_roles, auth_login_windows, identity_bootstrap`);
+          await tx.execute(
+            sql`alter table orders enable trigger orders_retained; alter table order_lines enable trigger order_lines_retained; alter table stock_allocations enable trigger allocations_retained`,
+          );
           await tx.execute(
             sql`alter table identity_bootstrap enable trigger identity_bootstrap_retained`,
           );

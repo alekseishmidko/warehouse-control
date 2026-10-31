@@ -261,3 +261,11 @@ integration/putaway-execution.spec.ts использует реальные rece
 foreign warehouse/roles/replay revoke и AFTER faults каждого шага. Direct SQL stock setup
 только для constraints/fault scenarios disposable БД; incomplete pair проверяет deferred COMMIT.
 Новый event schema/example проверяет unit/event-contracts.spec.ts, generated diff штатный.
+
+## WMS-204 PostgreSQL
+
+integration/reservations.spec.ts использует реальные receipt/worker/placement для stock setup,
+HTTP session/ACL/idempotency и migrations 0022–0024. Проверяет два lock waits на последнюю штуку,
+несколько ячеек, многострочный недостаток, explicit partial reserve, release/cancel/history,
+reserve/release race, audit/outbox/allocated AFTER faults, managed mismatch 23514 и runtime grants.
+DTO tests отдельно без Docker. Нельзя считать unit input validation доказательством ledger correctness.

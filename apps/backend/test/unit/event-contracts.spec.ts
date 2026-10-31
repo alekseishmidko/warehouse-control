@@ -261,3 +261,20 @@ test('PutawayCompleted v1 round-trips and rejects invalid version, quantity, UUI
   ])
     expect(() => contracts.prepareForOutbox(bad)).toThrow(EventContractError);
 });
+
+/** OrderChanged — отдельный агрегат без неявных quantities; action закрыт enum, version/UUID runtime обязательны. */
+test('OrderChanged v1 fixture validates on both boundaries and rejects malformed action/version', () => {
+  const value = JSON.parse(
+    readFileSync(
+      resolve('../../docs/contracts/examples/fulfillment.order-changed.v1.json'),
+      'utf8',
+    ),
+  );
+  expect(contracts.parseForHandler(contracts.prepareForOutbox(value).message)).toEqual(value);
+  for (const invalid of [
+    { ...value, schemaVersion: 2 },
+    { ...value, payload: { ...value.payload, action: 'expired' } },
+    { ...value, payload: { ...value.payload, orderId: 'invalid' } },
+  ])
+    expect(() => contracts.prepareForOutbox(invalid)).toThrow(EventContractError);
+});

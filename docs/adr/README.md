@@ -27,6 +27,7 @@ ADR фиксирует причину решения и его последст�
 | [0019](0019-warehouse-role-matrix.md)           | Роли/действия на конкретном складе; без автоматических складских прав system_admin                    | Accepted; реализовано WMS-202 |
 | [0020](0020-session-implementation.md)          | Scrypt, cookie/CSRF, session/grants locks до replay, обязательная явная TTL policy                    | Accepted; реализовано WMS-202 |
 | [0021](0021-putaway-execution.md)               | Полное размещение, стабильные balance locks, парные movements, task state и retained completion event | Accepted; WMS-203             |
+| [0022](0022-order-reservations.md)              | Согласованные заказ, явный reserve, release и порядок блокировок WMS-204                              | Accepted; WMS-204             |
 
 Шаблон нового ADR: [template.md](template.md). Нумерация последовательная.
 Рутинный implementation detail не требует ADR; изменение границ, гарантий,

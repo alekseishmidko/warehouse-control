@@ -10,7 +10,7 @@ Inventory — единственный владелец изменения ос�
 Два одновременных прихода не теряют количество. Повтор того же operationId
 отклоняется без дополнительного начисления; прежний результат автоматически не возвращается.
 
-Реализованы GET task и идемпотентный POST выполнения размещения. Общего stock CRUD/transfer, резервирования и отгрузки нет.
+Реализованы GET task и идемпотентный POST выполнения размещения. Резервирование/release реализованы WMS-204; общего stock CRUD/transfer и отгрузки нет.
 Receiving WMS-108 оркестрирует документ/HTTP idempotency/outbox, вызывая InventoryService. Dev fixtures создают только справочники, не остатки.
 DBA способен менять БД: append-only не является криптографической защитой.
 
@@ -198,8 +198,8 @@ flowchart TD
 
 Пример: source onHand=10/reserved=0, task quantity=10, target отсутствует. После 200:
 source 0/0, target 10/0, два movements, task completed, один completion audit/event.
-Количество int4; reserved не переносится. Source 11/reserved=1 допускает перенос свободных 10;
-source 10/reserved=1 отклоняется. Source/target одного склада, только receiving/storage;
+Количество int4; reserved не переносится. Арифметика свободной части проверяется на искусственном receiving reserve только внутри
+откатываемого callback; после migration 0025 невалидный ledger не коммитится. Source/target одного склада, только receiving/storage;
 partial/cancel/arbitrary transfer/перемещение allocation в этот шаг не входят.
 
 Публичный InventoryService добавляет readPutawayTask и executePutawayTask с borrowed context.
@@ -225,3 +225,27 @@ Outbox aggregate putaway-task пока без consumers/deliveries: факт ret
 конкуренцию с двумя наблюдаемыми SQL waits, недостаток/overflow/reserve, чужой склад,
 permissions/replay revoke, faults после debit/credit/audit/movement/event/task и runtime role.
 Новый event проверяется source schema/example, registry/generation и unit contract fixtures.
+
+## Резервы WMS-204
+
+InventoryService.reserve/allocations/release — публичный borrowed-context интерфейс для fulfillment.
+Private ReservationsService проецирует явные camelCase DTO, ReservationsRepository изменяет только
+stock_allocations и reserved. Fulfillment держит order lock и проверяет active/open, затем передаёт
+тот же context. Сервис inventory не открывает nested run и не меняет чужие order tables.
+
+Схема schemas/allocations.schema.ts: immutable lineId/balanceId/allocated, active/released int4,
+CHECK allocated=active+released. Нет expiration/TTL/consumed до shipment. Reserve выбирает только
+storage warehouse/product, lock по location UUID, без SKIP LOCKED. Нехватка выходит до runner,
+даже если часть UPDATE/INSERT уже выполнена. Release quantity<=active не меняет onHand.
+Полный release оставляет запись; новый reserve создаёт новый UUID. Allocation audit и order event
+пишет владелец общего сценария fulfillment, в тот же context.
+
+Migration 0024 добавляет indexes line_id/balance_id, immutable/retained guards и deferred
+reconciliation. Сумма active allocations равна reserved каждого balance, active строки <=quantity.
+Пригодный баланс после конкурирующего lock перечитывается, FIFO не обещается.
+[Пошаговый flow/SQL и тесты](../../../../../docs/flows/reservations.md) — владелец подробностей.
+
+Migration 0025 закрывает исключение reconciliation для отсутствующей history и добавляет
+проверку INSERT. Существующие расхождения блокируют миграцию до операторского разбора;
+автоматическое исправление stock/оснований не выполняется. Новые отрицательные PostgreSQL
+cases проверяют INSERT/UPDATE под runtime role и fail-closed migration preflight.

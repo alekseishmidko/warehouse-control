@@ -165,3 +165,19 @@ immutable, один pending→completed с pair/event evidence, deferred movemen
 retention и column UPDATE grants warehouse_app. Старые migrations не переписываются.
 Test harness применяет обе реально; source comments поясняют типы/NULL/default и SQL/JS нюансы.
 БД по-прежнему 23 таблицы: меняется структура существующих, а не создаётся запасной stock ledger.
+
+## WMS-204
+
+0022_order_reservations.sql: generated orders/order_lines/stock_allocations, FK/CHECK/unique.
+0023_order_stream.sql: generated расширение sequence CHECK для order.
+0024_reservation_guards.sql: custom column grants warehouse_app, draft/active/cancelled guards,
+immutable line/allocated source, retained history, indexes и deferred reconciliation.
+26 таблиц. Snapshot/journal созданы Drizzle Kit; applied migrations не переписывать.
+После 0025 полный allocation ledger сверяется на COMMIT для всех balances, включая INSERT. Прямая административная запись reserved без allocations не является API.
+Harness отключает retained guards только внутри собственной disposable cleanup transaction.
+
+0025_strict_reservation_reconciliation.sql исправляет P2: обязательная сверка INSERT/UPDATE
+даже без history. Table locks исключают гонку preflight с writes. Если reserved != SUM(active),
+миграция откатывается с 23514; нужно сначала восстановить правильные основания с аудитом,
+а не обнулить reserved автоматически. Старые applied SQL не меняются. Snapshot custom migration
+создан Drizzle Kit; схема колонок не меняется. Нулевая позиция без allocations допустима.

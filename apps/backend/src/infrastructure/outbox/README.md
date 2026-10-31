@@ -260,3 +260,8 @@ Sequence CHECK расширен новой migration 0020. Repository созда
 Новый consumer требует replay/start-position плана. Recovery CLI preview такого payload omitted,
 unknown fields/raw payload не выводятся. Retention/immutable envelope остаются прежними.
 [ADR-0021](../../../../../docs/adr/0021-putaway-execution.md).
+
+WMS-204: order aggregate (migration 0023), fulfillment.order-changed v1. Order sequence выделяет
+тот же writer, записывает immutable факт созданного/подтверждённого/зарезервированного/
+освобождённого/отменённого заказа. Consumers пока нет, deliveries не создаются; новый consumer
+требует replay/start-position плана. Payload — ссылка/order action, не snapshot quantities.
