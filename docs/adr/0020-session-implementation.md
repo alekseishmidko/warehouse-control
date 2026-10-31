@@ -27,8 +27,10 @@ HMAC связанный с cookie token, из login/me same-origin JSON. Ток�
 не используют HTTP result cache: SHA-256 fingerprint plaintext password ослабил бы дорогой hash.
 
 ACL: guard создаёт principal, а service повторно проверяет user/session/warehouse action
-в context команды **до** idempotency claim/replay. SHARE locks user/session удерживаются
+в context складской команды **до** idempotency claim/replay. SHARE locks user/session удерживаются
 до commit; admin меняет target user под UPDATE, блокируя новые решения до фиксации.
+В собственной административной операции user UPDATE берётся до проверки сессии,
+см. уточнение блокировок ниже. Logout использует user SHARE → session UPDATE.
 Уже начатая разрешённая транзакция может завершиться перед отзывом; отмены committed
 фактов нет. Бюджет/clock для expiry — PostgreSQL, idle refresh <= absolute deadline.
 
@@ -69,3 +71,16 @@ AccessService. Сохраняются один IdentityModule, внутренн�
 IdentityService удалён, клиенты обращаются к сервису своей ответственности. Это локальная
 декомпозиция по ADR-0009, без новых таблиц, cookie/API изменений или отдельных процессов.
 [Фактический flow и failure branch](../flows/identity.md#разделение-сервисов-общий-context-при-смене-пароля).
+
+## Уточнение блокировок собственных операций, 2026-10-31
+
+Review воспроизвёл deadlock при изменении собственного пользователя или отзыве собственной
+сессии параллельно с authenticate. Общая административная блокировка не сериализует
+аутентификацию. В собственной операции UsersService теперь получает user UPDATE до
+session SHARE и повторной проверки допуска. UUID сравниваются без учёта регистра.
+Для чужого пользователя порядок caller user/session → target user сохраняется.
+
+Это уточнение исполнения принятой policy, без изменения ролей, HTTP-контрактов или DDL.
+Проверка валидности и продление сессии разделены на `lockSessionAndReadValidity` и
+`refreshSessionIdleDeadline` с одним context. Параметры SessionsService именованы:
+`sessionLock` и `refreshIdleSeconds`. [Флоу и постоянные тесты](../flows/identity.md#собственные-административные-операции).

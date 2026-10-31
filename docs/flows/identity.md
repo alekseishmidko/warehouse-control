@@ -5,7 +5,7 @@
 выход/отзыв действительно закрывает сессию, а не только убирает cookie с экрана.
 [Матрица](../identity.md#роли-и-складская-матрица), [ADR-0018](../adr/0018-server-sessions.md),
 [ADR-0019](../adr/0019-warehouse-role-matrix.md), [технические решения](../adr/0020-session-implementation.md).
-Физические операции fulfillment WMS-203–206 здесь не объявляются реализованными.
+Размещение WMS-203 и заказ с резервированием WMS-204 реализованы. Сборка и отгрузка ещё не реализованы.
 
 ## Входные данные и участники
 
@@ -233,6 +233,9 @@ sequenceDiagram
   U->>U: Проверить DTO, hashPassword вне транзакции
   U->>T: run(callback): BEGIN + DB timeout
   U->>R: advisory lock
+  opt targetId совпадает с principal.userId без учёта регистра
+    U->>R: user UPDATE до проверки сессии
+  end
   U->>A: requireAdmin(context, principal)
   A->>S: requireSession(context): тот же context
   U->>R: target user UPDATE lock
@@ -249,8 +252,9 @@ sequenceDiagram
   end
 ```
 
-Внутри callback фактический порядок — advisory lock → повторный admin допуск → target UPDATE
-lock → user update → session revoke → audit. Отзыв сессий не фиксируется отдельно и не
+Внутри callback порядок — advisory lock → user UPDATE для собственной операции →
+повторный admin допуск → target UPDATE lock → user update → session revoke → audit.
+Для чужого target предварительный user UPDATE отсутствует. Отзыв сессий не фиксируется отдельно и не
 использует HTTP/Kafka. Новый integration case ставит AFTER INSERT fault на audit_entries:
 после 500 прежний hash остаётся, две target sessions живы, audit пуст. Успешная ветка
 покрыта существующим password reset test; гонки grants/last admin и возврат replay после
@@ -365,3 +369,93 @@ malformed login DTO →400 без session/cookie/секретов, четыре 
 [HTTP boundary unit](../../apps/backend/test/unit/identity-http.spec.ts).
 Измерение `pnpm test:identity:coverage` имеет обязательный controller threshold 100%;
 child CLI bootstrap coverage не объединяется с Jest, хотя реальные CLI tests выполняются.
+
+## Logout: исправление lock upgrade
+
+SessionsService.logout берёт user SHARE, затем session FOR UPDATE **до** проверки revoked/
+absolute/idle. Параметр `sessionLock: 'update'` не продлевает idle. После ожидания валидность читается новым SQL
+statement, revoke использует уже полученный UPDATE lock в той же transaction.
+
+```mermaid
+sequenceDiagram
+  participant A as Logout A
+  participant B as Logout B
+  participant D as PostgreSQL session
+  A->>D: User SHARE, session UPDATE
+  B->>D: User SHARE, session UPDATE (ждать)
+  A->>D: valid, revoke, COMMIT
+  D-->>B: UPDATE lock доступен
+  B->>D: Перечитать valid после ожидания
+  D-->>B: revoked, UNAUTHORIZED
+  B->>D: ROLLBACK без изменения cookie/сроков
+```
+
+SHARE→UPDATE promotion больше не используется. Один успешный logout не превращает второй
+в успешный idempotency replay: session commands не входят в business result cache. Повтор
+отозванной session даёт 401. HTTP controller очищает cookie только после успешного commit.
+Постоянный integration case `concurrent logout serializes session revoke without lock-upgrade deadlock`
+держит внешний SHARE barrier, ждёт два Lock waits, затем проверяет success + UNAUTHORIZED и
+недействительность cookie. Это проверяет interleaving, которого не показывают 100% line coverage.
+
+## Собственные административные операции
+
+Триггер — административный HTTP-запрос изменения пользователя, назначения складских ролей
+или отзыва сессий. Guard создаёт Principal из действующей cookie. DTO и UUID пути остаются
+недоверенным вводом до проверки. UsersService сравнивает целевой UUID с Principal без учёта
+регистра. Клиент не выбирает режим блокировки и не может назначить себя администратором.
+
+В транзакции UsersService сначала получает общую административную блокировку.
+Затем `requireAdminBeforeUserMutation` берёт UPDATE собственного пользователя, если UUID
+совпали. После этого AccessService заново проверяет активность, сессию и системную роль.
+Для чужого пользователя предварительный UPDATE отсутствует. Сервис блокирует целевого
+пользователя после допуска. Это сохраняет порядок блокировок остальных сценариев.
+
+```mermaid
+sequenceDiagram
+  participant A as UsersService: собственная операция
+  participant P as AccessService / SessionsService
+  participant B as Параллельная authenticate
+  participant D as PostgreSQL
+  A->>D: BEGIN, advisory lock, собственный user UPDATE
+  A->>P: requireAdmin с тем же context
+  P->>D: user SHARE (UPDATE уже удерживается), session SHARE, проверка valid/admin
+  B->>D: BEGIN, поиск digest, user SHARE (ожидание)
+  A->>D: target UPDATE, изменение пользователя/ролей или отзыв сессий
+  A->>D: INSERT audit
+  alt изменение и аудит успешны
+    A->>D: COMMIT, освободить user/session locks
+    D-->>B: user SHARE доступен
+    B->>D: session UPDATE, перечитать valid новым SQL
+    alt сессия отозвана или пользователь заблокирован
+      B->>D: ROLLBACK без продления срока
+      B-->>B: UNAUTHORIZED (HTTP 401)
+    else сессия действует
+      B->>D: refreshSessionIdleDeadline, COMMIT
+      B-->>B: Principal
+    end
+  else ошибка изменения или аудита
+    A->>D: ROLLBACK всех изменений и освобождение locks
+    D-->>B: Проверить прежнее состояние после ожидания
+  end
+```
+
+Оба запроса работают в API-процессе и используют отдельные транзакции PostgreSQL.
+Пока операция не завершилась, параллельная проверка сессии не держит SHARE пользователя
+в ожидании UPDATE сессии. Поэтому прежний цикл блокировок не образуется.
+Операция не фиксирует отзыв отдельно от аудита. После rollback прежние данные доступны
+для обычной повторной проверки. Таймауты БД ограничивают ожидание; автоматического retry нет.
+
+Чтение сессии теперь выражено отдельными вызовами. `lockSessionAndReadValidity` блокирует
+строку и проверяет revoked/absolute/idle новым SQL после ожидания. Этот метод ничего не
+обновляет. Если сессия действительна и указан `refreshIdleSeconds`, SessionsService вызывает
+`refreshSessionIdleDeadline` под уже полученным UPDATE. Logout передаёт только
+`sessionLock: 'update'` и не продлевает срок.
+
+Evidence: постоянный PostgreSQL-тест `self admin ... and authentication serialize without deadlock`
+в [identity.spec.ts](../../apps/backend/test/integration/identity.spec.ts) покрывает изменение
+пользователя, назначение себе роли и отзыв одной/всех сессий. Для изменения и общего отзыва
+есть варианты UUID в верхнем регистре. Тест задерживает реальный сценарий после допуска,
+дожидается SQL lock wait второго запроса, затем проверяет завершение обеих операций,
+аудит и назначенную роль. При отзыве второй запрос получает UNAUTHORIZED; в остальных
+проверенных сценариях возвращает Principal. Тесты ошибок аудита, последнего администратора,
+истечения после ожидания и двух logout остаются в той же suite.

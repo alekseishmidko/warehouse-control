@@ -7,7 +7,7 @@
 Склад имеет UUID, уникальный code и название. Ячейка имеет UUID, code внутри склада
 и назначение receiving/storage/shipping. В этом релизе зона выражена назначением
 ячейки, отдельного справочника Zone нет. Dev набор создаёт по одной ячейке каждого
-назначения. Перемещение товара, изменение назначения ячейки и UI ещё не реализованы.
+назначения. Размещение receiving→storage реализовано в inventory WMS-203; изменение назначения ячейки и UI ещё не реализованы.
 
 ## Для разработчика
 
@@ -68,7 +68,11 @@ DATABASE_URL общий; специальных переменных, events, co
 Миграции: pnpm db:migrate; примеры: pnpm db:seed, только development.
 [Правила и модели](../../../../../docs/stock-baseline.md).
 
-WMS-108: ReceivingService.requireReceivingLocation вызывает requireLocation;
+WMS-108: ReceivingService.create вызывает WarehousesService.requireLocation;
 возвращённая location/FK доказывает наличие склада и ownership. Missing/wrong warehouse
 или location → typed LOCATION_NOT_FOUND (HTTP 422). Kind receiving проверяет receiving/inventory.
-Production ACL пока не реализован; local dev actor имеет доступ к складам одной организации.
+Доступ проверяется session/warehouse policy WMS-202 до saved replay. Dev actor удалён:
+operator/supervisor могут принимать/размещать, order_manager/supervisor управляют заказом и резервом,
+все назначенные warehouse роли могут читать; system_admin без назначения не получает складских прав.
+Матрица: [ADR-0019](../../../../../docs/adr/0019-warehouse-role-matrix.md),
+исполнение policy: [identity flow](../../../../../docs/flows/identity.md).

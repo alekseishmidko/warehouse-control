@@ -56,9 +56,8 @@ Unit audit-entry.spec.ts проверяет маскирование, audit.serv
 ## Схема взаимодействия
 
 Сейчас это внутренний модуль: вход — AuditService.write от другого сервиса.
-HTTP controller, auth guard и consumer аудита пока отсутствуют. Сервис-владелец
-складского сценария ещё не реализован; его роль в действующих integration tests
-выполняет технический сценарий с metadata. Общая цепочка уже проверена на PostgreSQL:
+HTTP controller, auth guard и consumer аудита пока отсутствуют. Владельцы складских сценариев receiving/inventory/fulfillment вызывают audit в общем context;
+worker планирует задания с техническим server-side actor. Общая цепочка уже проверена на PostgreSQL:
 
 ```mermaid
 sequenceDiagram

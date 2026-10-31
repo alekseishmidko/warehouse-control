@@ -5,6 +5,7 @@ import { execFile } from 'node:child_process';
 import { resolve } from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 import { useDatabaseSuite } from '../support/database-harness';
+import { waitForDatabaseLock } from '../support/database-lock';
 import { identityFixture, withIdentity } from '../support/identity.fixture';
 import { hashPassword } from '@backend/shared/security/password';
 import { AccessService } from '@backend/modules/identity/services/access.service';
@@ -816,5 +817,151 @@ test.each([
         access.requireWarehouse(context, principal, other.warehouse.id, 'read'),
       ),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  },
+);
+
+/** Два logout должны ждать exclusive lock до проверки сессии, не держать два SHARE с последующим upgrade. */
+test('concurrent logout serializes session revoke without lock-upgrade deadlock', async () => {
+  const actor = await identityFixture(app);
+  const sessions = app.get(SessionsService);
+  const principal = { userId: actor.userId, sessionId: actor.sessionId };
+  const blocker = await database().connection.pool.connect();
+  await blocker.query('begin');
+  await blocker.query('select id from sessions where id=$1 for share', [actor.sessionId]);
+  // Обе задачи запускаются сразу, rejection handlers присоединены до barrier.
+  const settled = Promise.allSettled([sessions.logout(principal), sessions.logout(principal)]);
+  try {
+    // Два реальных SQL waits доказывают пересечение транзакций. Sleep не моделирует гонку.
+    await waitForDatabaseLock(database(), 'sessions', 2);
+    await blocker.query('commit');
+    const results = await settled;
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const rejected = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0].reason).toMatchObject({ code: 'UNAUTHORIZED' });
+    // При старом SHARE→UPDATE один результат имел PostgreSQL 40P01 вместо ожидаемого domain отказа.
+    expect(
+      (
+        await database().connection.pool.query(
+          'select revoked_at is not null as revoked from sessions where id=$1',
+          [actor.sessionId],
+        )
+      ).rows[0].revoked,
+    ).toBe(true);
+    await withIdentity(request(app.getHttpServer()).get('/api/v1/auth/me'), actor).expect(401);
+  } finally {
+    await blocker.query('rollback');
+    blocker.release();
+    await settled;
+  }
+});
+
+/**
+ * Останавливаем реальный admin-сценарий после проверки сессии, до записи target user.
+ * Параллельная authenticate должна ждать user UPDATE, а не удерживать user SHARE в ожидании session.
+ * Все SQL/проверки выполняются production-кодом; spy задаёт только точку пересечения транзакций.
+ */
+test.each([
+  ['update', false],
+  ['update', true],
+  ['roles', false],
+  ['revoke-one', false],
+  ['revoke-all', true],
+] as const)(
+  'self admin %s and authentication serialize without deadlock (uppercase=%s)',
+  async (operation, uppercase) => {
+    const actor = await identityFixture(app, { admin: true });
+    const principal = { userId: actor.userId, sessionId: actor.sessionId };
+    const targetId = uppercase ? actor.userId.toUpperCase() : actor.userId;
+    const warehouse = operation === 'roles' ? (await refs()).warehouse : undefined;
+    const access = app.get(AccessService);
+    const originalRequireAdmin = access.requireAdmin.bind(access);
+    let release!: () => void;
+    let signalAuthorized!: () => void;
+    const continueMutation = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const authorized = new Promise<void>((resolve) => {
+      signalAuthorized = resolve;
+    });
+    let checks = 0;
+    const authorization = jest
+      .spyOn(access, 'requireAdmin')
+      .mockImplementation(async (context, caller) => {
+        await originalRequireAdmin(context, caller);
+        // updateUser сначала делает отдельную проверку перед hashing; удерживаем только финальный context.
+        if (++checks === (operation === 'update' ? 2 : 1)) {
+          signalAuthorized();
+          await continueMutation;
+        }
+      });
+    const users = app.get(UsersService);
+    const correlationId = randomUUID();
+    const mutation =
+      operation === 'update'
+        ? users.updateUser(principal, targetId, { active: true }, correlationId)
+        : operation === 'roles'
+          ? users.setRoles(principal, targetId, warehouse!.id, ['viewer'], correlationId)
+          : users.revokeSession(
+              principal,
+              targetId,
+              operation === 'revoke-one' ? actor.sessionId : undefined,
+              correlationId,
+            );
+    // Обработчики rejection присоединены до barrier: ожидаемый отказ отозванной сессии не становится unhandled.
+    const mutationResult = Promise.allSettled([mutation]);
+    let authenticationResult: Promise<PromiseSettledResult<unknown>[]> | undefined;
+    try {
+      await Promise.race([
+        authorized,
+        mutationResult.then(() => {
+          throw new Error('Admin mutation ended before barrier');
+        }),
+      ]);
+      authenticationResult = Promise.allSettled([
+        app.get(SessionsService).authenticate(actor.cookie.split('=')[1]),
+      ]);
+      // В старой реализации ждала таблица sessions, в исправленной — users. Дожидаемся реального SQL wait.
+      await waitForDatabaseLock(database(), 'from ');
+      release();
+      const [changed] = await mutationResult;
+      const [authenticated] = await authenticationResult;
+      expect(changed.status).toBe('fulfilled');
+      if (operation.startsWith('revoke')) {
+        expect(authenticated).toMatchObject({
+          status: 'rejected',
+          reason: { code: 'UNAUTHORIZED' },
+        });
+      } else {
+        expect(authenticated).toMatchObject({ status: 'fulfilled', value: principal });
+      }
+      const entries = await database().connection.pool.query(
+        'select action from audit_entries where correlation_id=$1 order by action',
+        [correlationId],
+      );
+      expect(entries.rows.map((row: { action: string }) => row.action)).toContain(
+        operation === 'update'
+          ? 'identity.user-updated'
+          : operation === 'roles'
+            ? 'identity.warehouse-roles-set'
+            : 'identity.session-revoked',
+      );
+      if (warehouse) {
+        expect(
+          (
+            await database().connection.pool.query(
+              'select role from warehouse_roles where user_id=$1 and warehouse_id=$2',
+              [actor.userId, warehouse.id],
+            )
+          ).rows,
+        ).toEqual([{ role: 'viewer' }]);
+      }
+    } finally {
+      // Даже при провале assertion снимаем barrier и ждём rollback/commit до очистки disposable БД.
+      release();
+      await mutationResult;
+      if (authenticationResult) await authenticationResult;
+      authorization.mockRestore();
+    }
   },
 );

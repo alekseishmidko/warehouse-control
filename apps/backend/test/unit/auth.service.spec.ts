@@ -23,8 +23,8 @@ async function setup() {
   };
   const repository = {
     loginAttempt: jest.fn().mockResolvedValue(true),
-    byLogin: jest.fn().mockResolvedValue({ ...row }),
-    user: jest.fn().mockResolvedValue({ ...row }),
+    findUserByLogin: jest.fn().mockResolvedValue({ ...row }),
+    lockAndFindUser: jest.fn().mockResolvedValue({ ...row }),
   };
   const sessions = {
     create: jest.fn().mockResolvedValue({ token: 'synthetic-cookie-token', csrfToken: 'csrf' }),
@@ -47,7 +47,7 @@ test.each([null, { ...row, active: false }, { ...row, password_hash: 'changed-af
   'login rejects changed user after password verification %#',
   async (current) => {
     const { auth, module, repository, sessions, verify } = await setup();
-    repository.user.mockResolvedValue(current);
+    repository.lockAndFindUser.mockResolvedValue(current);
     try {
       await expect(auth.login(input, '127.0.0.1')).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
       expect(verify).toHaveBeenCalledTimes(1);
@@ -82,7 +82,7 @@ test('peer throttle stops before account window or hashing', async () => {
       code: 'TOO_MANY_REQUESTS',
     });
     expect(repository.loginAttempt).toHaveBeenCalledTimes(1);
-    expect(repository.byLogin).not.toHaveBeenCalled();
+    expect(repository.findUserByLogin).not.toHaveBeenCalled();
     expect(verify).not.toHaveBeenCalled();
     expect(sessions.create).not.toHaveBeenCalled();
   } finally {
@@ -95,9 +95,9 @@ test.each(['absent', 'wrong', 'blocked'])(
   'login hides %s account state without creating session',
   async (kind) => {
     const { auth, module, repository, sessions, verify } = await setup();
-    if (kind === 'absent') repository.byLogin.mockResolvedValue(null);
+    if (kind === 'absent') repository.findUserByLogin.mockResolvedValue(null);
     if (kind === 'wrong') verify.mockResolvedValue(false);
-    if (kind === 'blocked') repository.byLogin.mockResolvedValue({ ...row, active: false });
+    if (kind === 'blocked') repository.findUserByLogin.mockResolvedValue({ ...row, active: false });
     try {
       await expect(auth.login(input, '127.0.0.1')).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
       expect(verify).toHaveBeenCalledWith(input.password, passwords.DUMMY_PASSWORD_HASH);
@@ -113,7 +113,7 @@ test('login creates session with borrowed context and projects safe user', async
   const { auth, module, repository, sessions, context } = await setup();
   try {
     const result = await auth.login(input, '127.0.0.1');
-    expect(repository.byLogin).toHaveBeenCalledWith(context, 'operator.one');
+    expect(repository.findUserByLogin).toHaveBeenCalledWith(context, 'operator.one');
     expect(sessions.create).toHaveBeenCalledWith(context, row.id);
     expect(result.user).toEqual({ id: row.id, login: row.login, active: true, systemAdmin: false });
     expect(JSON.stringify(result)).not.toContain(row.password_hash);

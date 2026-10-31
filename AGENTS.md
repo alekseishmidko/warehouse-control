@@ -447,3 +447,31 @@ API /api/v1/orders create/get/confirm/reserve/allocations/:id/release/cancel, ac
 до saved replay. output OrderDto/OrderLineDto/AllocationDto camelCase, без ORM/SQL моделей.
 Документация — docs/flows/reservations.md, module README, docs/reports/wms-204.md, ADR-0022.
 Следующая задача — WMS-205. История allocations пока без pagination и TTL.
+
+## Требования к код-ревью
+
+Документацию, бизнес-процессы и поясняющие комментарии писать по принципам ASD-STE100,
+адаптированным к русскому языку в docs/documentation-standard.md: простые предложения,
+единые термины, явный участник и последовательные действия. Не заявлять формальное
+соответствие русского текста английскому словарю STE. Проверять это при review.
+Методы называть так, чтобы действие и объект были понятны при первом чтении вызова.
+Более длинное точное имя предпочтительнее короткого неоднозначного. Учитывать контекст
+класса и обязательные имена внешних интерфейсов; не удлинять имена без смысловой причины.
+Критерии и примеры — docs/code-review.md, раздел «Понятные имена методов».
+
+При запросе review читать docs/code-review.md и следовать его формату: конкретные findings
+с приоритетом, файлом/строкой, воспроизводимым trigger/result/impact, направлением исправления
+и evidence. Сверять бизнес-инварианты, все способы SQL записи, режимы/порядок locks (включая
+SHARE→UPDATE upgrades), runtime-role guards, recovery, модульность/DRY, DTO/контракты,
+актуальность README/flow/русских комментариев. Coverage не доказывает проверку interleavings;
+child-process CLI gaps не считать отсутствием тестов. Review не менять код без запроса исправить.
+Historical ограничения датировать/связывать с заменой; не оставлять противоположные актуальные
+утверждения в README. Logout: user SHARE → session UPDATE до проверки valid, без idle touch;
+второй concurrent logout после первого revoke получает UNAUTHORIZED, а не deadlock.
+
+Identity self-admin: UsersService.requireAdminBeforeUserMutation после advisory lock получает
+user UPDATE до session SHARE для собственного target (UUID без учёта регистра). Для чужого
+target порядок caller user/session → target UPDATE прежний. Не возвращать SHARE→UPDATE
+после проверки сессии: это создаёт deadlock с authenticate. Репозиторий разделяет
+lockSessionAndReadValidity и refreshSessionIdleDeadline; requireSession принимает именованные
+sessionLock/refreshIdleSeconds. Полный flow и постоянные PostgreSQL race tests — docs/flows/identity.md.

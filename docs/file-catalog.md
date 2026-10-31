@@ -445,3 +445,9 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | [0025_strict_reservation_reconciliation.sql](../apps/backend/drizzle/0025_strict_reservation_reconciliation.sql) | Preflight существующих данных, unconditional reconciliation и deferred INSERT/UPDATE guard без legacy исключения. |
 | [0025_snapshot.json](../apps/backend/drizzle/meta/0025_snapshot.json)                                            | Generated Drizzle snapshot custom migration; колонки не меняются, вручную не редактировать.                       |
+
+### Стандарт код-ревью
+
+| Файл                                  | Назначение                                                                                                                                 |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| [docs/code-review.md](code-review.md) | Требования к будущим review: инварианты, SQL/concurrency, тестовое evidence/coverage, модули, документация и формат приоритетных findings. |

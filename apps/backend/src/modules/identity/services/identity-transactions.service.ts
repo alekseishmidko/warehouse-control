@@ -17,7 +17,7 @@ export class IdentityTransactionsService {
   /** Один bounded run. Callback не должен выполнять внешнее I/O или nested run. */
   async run<T>(work: (context: TransactionContext) => Promise<T>): Promise<T> {
     return this.transactions.run(async (context) => {
-      await this.repository.bound(context);
+      await this.repository.setLocalTransactionTimeouts(context);
       return work(context);
     });
   }
