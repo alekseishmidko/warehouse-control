@@ -24,3 +24,7 @@ flowchart LR
 Нет I/O, SQL, commit/rollback или собственных env settings. Эти функции не заменяют
 FK/unique и проверку прав. Потребители: audit, catalog, warehouses, inventory.
 Тесты: unit/stock-quantity.spec.ts и integration/stock.spec.ts; pnpm test, typecheck.
+
+empty-command.ts: requireEmptyCommand разрешает отсутствующее тело либо {}, отклоняет arrays,
+null и любые client fields безопасным VALIDATION_FAILED. Используется confirm/cancel заказа и posting приёмки;
+не выполняет I/O и не создаёт dummy поля в публичном DTO.

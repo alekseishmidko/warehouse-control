@@ -110,3 +110,9 @@ WMS-203 сохраняет 23 таблицы/int4. В task добавлены ч
 (UUID/timestamptz), CHECK связывает их с pending/completed. В movements nullable UUID
 transferId (receipt NULL), CHECK направления и UNIQUE(transferId,kind); signed quantity не введено.
 Исходные schema comments и ADR-0021 объясняют FK/state/deferred guards и сохранение creation audit.
+
+WMS-204: 26 таблиц. Orders/lines/allocations используют UUID FK, text lifecycle и int4 quantities.
+Allocated=active+released по CHECK, composite UNIQUE orderId/productId. Суммы active выполняются
+PostgreSQL bigint на deferred reconciliation, не суммируются как произвольный JS number по складу.
+Custom migration 0024 индексирует allocation line_id/balance_id, ограничивает UPDATE columns и
+сохраняет историю. Точное назначение/default/NULL описано в source schemas.

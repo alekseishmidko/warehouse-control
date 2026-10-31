@@ -16,7 +16,7 @@ import type { Response } from 'express';
 import { CommandContext, HttpCommand } from '../../infrastructure/http/http-command.decorator';
 import { HttpCommandsService } from '../../infrastructure/idempotency/services/http-commands.service';
 import type { CommandScope, CommandResult } from '../../shared/operations/dto/command-scope.dto';
-import { CommandError } from '../../shared/errors/command-error';
+import { requireEmptyCommand } from '../../shared/validation/empty-command';
 import { CreateReceiptDto, ReceiptDto } from './dto/receipt.dto';
 import { ReceivingService } from './services/receiving.service';
 
@@ -93,11 +93,7 @@ export class ReceivingController {
   ): Promise<void> {
     // Пустая команда не нуждается в фиктивных полях DTO. Явно проверяем пустой JSON
     // object: лишние поля нельзя молча игнорировать при формировании fingerprint.
-    if (
-      body !== undefined &&
-      (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length > 0)
-    )
-      throw new CommandError('VALIDATION_FAILED');
+    requireEmptyCommand(body);
     const receiptId = id.toLowerCase();
     const result = await this.commands.execute(
       scope,

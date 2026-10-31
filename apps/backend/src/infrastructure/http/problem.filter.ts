@@ -5,6 +5,9 @@ import { CommandError } from '../../shared/errors/command-error';
 import { correlationIdOf } from './request-context';
 /** Статические публичные коды/статусы — allowlist, arbitrary error.message не сериализуется. */
 export const PROBLEMS = {
+  ORDER_NOT_FOUND: [404, 'Order not found'],
+  ORDER_STATE_CONFLICT: [409, 'Order state conflict'],
+  ALLOCATION_NOT_FOUND: [404, 'Allocation not found'],
   PUTAWAY_TASK_NOT_FOUND: [404, 'Putaway task not found'],
   PUTAWAY_ALREADY_COMPLETED: [409, 'Putaway task already completed'],
   INVALID_PUTAWAY_LOCATION: [422, 'Receiving source and storage target required'],

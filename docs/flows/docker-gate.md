@@ -264,3 +264,11 @@ WMS-112 report сохраняет исторический прогон до з�
 две transfer legs и один putaway-task completion event. Затем прежние SIGTERM/cleanup шаги.
 Это продолжение gate 1, исходные WMS-112 assertions до выполнения placement сохранены.
 Сценарий/SQL/rollback — [putaway execution flow](putaway-execution.md).
+
+## Продолжение WMS-204
+
+Gate назначает своему синтетическому admin warehouse_operator + order_manager по настоящему API.
+После placement storage=10 он создаёт и подтверждает order10, reserve6, проверяет identical replay,
+release2 и cancel4. Read-only SQL должен показать onHand=10/reserved=0 и retained allocation
+allocated=6/active=0/released=6. Проект/volume/env остаются отдельными disposable, root .env не меняется.
+[Подробный заказ/reserve flow](reservations.md).

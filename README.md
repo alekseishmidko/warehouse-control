@@ -196,3 +196,7 @@ GET /api/v1/putaway-tasks/:taskId и идемпотентный POST /:taskId/ex
 требуются session/CSRF и складские read/putaway права. Миграции — `pnpm db:migrate`,
 проверки — `pnpm test`, Docker gate теперь подтверждает receiving=0/storage=10 и replay.
 [Подробный flow](docs/flows/putaway-execution.md), [отчёт](docs/reports/wms-203.md).
+
+WMS-204: заказ draft/active/cancelled, явное резервирование и release/cancel по ADR-0022.
+API /api/v1/orders, warehouse ACL и idempotency до replay; allocations/reserved/audit/outbox
+атомарны. [Flow и примеры](docs/flows/reservations.md), [проверки](docs/reports/wms-204.md).

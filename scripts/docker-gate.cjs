@@ -33,6 +33,7 @@ function run(args, label, timeout = 60000, input) {
     child.stdin.on('error', () => {});
     child.stdin.end(input);
     let stdout = '';
+    let diagnostic = '';
     let bytes = 0;
     const timer = setTimeout(() => child.kill('SIGKILL'), timeout);
     child.stdout.on('data', (data) => {
@@ -41,15 +42,22 @@ function run(args, label, timeout = 60000, input) {
       else child.kill('SIGKILL');
     });
     // Читаем stderr, чтобы дочерний процесс не заблокировался на полном pipe.
-    // В лог не копируем вывод с подставленной конфигурацией или ошибкой драйвера.
-    child.stderr.resume();
+    // Diagnostic хранится в памяти; catch печатает только после удаления случайного gate пароля и DB URL.
+    child.stderr.on('data', (data) => {
+      diagnostic = (diagnostic + data.toString()).slice(-20000);
+    });
     child.on('error', () => {
       clearTimeout(timer);
       reject(new Error(label));
     });
     child.on('close', (code) => {
       clearTimeout(timer);
-      code === 0 ? resolveResult(stdout.trim()) : reject(new Error(label));
+      if (code === 0) resolveResult(stdout.trim());
+      else {
+        const error = new Error(label);
+        error.diagnostic = diagnostic;
+        reject(error);
+      }
     });
   });
 }
@@ -204,7 +212,7 @@ async function main() {
         await http(
           `/api/v1/identity/users/${signed.body.user.id}/warehouses/${fixture.warehouseId}/roles`,
           'POST',
-          { roles: ['warehouse_operator'] },
+          { roles: ['warehouse_operator', 'order_manager'] },
         )
       ).status,
       201,
@@ -363,6 +371,56 @@ async function main() {
     )[0];
     assert.deepEqual(placement, { status: 'completed', source: 0, target: 10, legs: 2, events: 1 });
     console.log(`PASS WMS-203 putaway execution + replay: ${JSON.stringify(placement)}`);
+    // WMS-204: одна роль размещает, вторая разрешает order/reserve/cancel. На storage уже 10.
+    const order = await http(
+      '/api/v1/orders',
+      'POST',
+      { warehouseId: fixture.warehouseId, lines: [{ productId: fixture.productId, quantity: 10 }] },
+      randomUUID(),
+    );
+    assert.equal(order.status, 201);
+    assert.equal(
+      (await http(`/api/v1/orders/${order.body.id}/confirm`, 'POST', {}, randomUUID())).status,
+      200,
+    );
+    const reservePath = `/api/v1/orders/${order.body.id}/reserve`;
+    const reserveKey = randomUUID();
+    const reserveBody = { lines: [{ lineId: order.body.lines[0].id, quantity: 6 }] };
+    const reserved = await http(reservePath, 'POST', reserveBody, reserveKey);
+    assert.equal(reserved.status, 200);
+    assert.equal(reserved.body.lines[0].open, 4);
+    assert.equal(reserved.body.lines[0].reservedStorage, 6);
+    assert.deepEqual(await http(reservePath, 'POST', reserveBody, reserveKey), reserved);
+    const allocation = reserved.body.lines[0].allocations[0];
+    const released = await http(
+      `/api/v1/orders/${order.body.id}/allocations/${allocation.id}/release`,
+      'POST',
+      { quantity: 2 },
+      randomUUID(),
+    );
+    assert.equal(released.status, 200);
+    assert.equal(released.body.lines[0].reservedStorage, 4);
+    assert.equal(
+      (await http(`/api/v1/orders/${order.body.id}/cancel`, 'POST', {}, randomUUID())).status,
+      200,
+    );
+    const ledger = (
+      await sql(
+        `SELECT o.status,a.allocated,a.active,a.released,b.on_hand,b.reserved
+      FROM orders o JOIN order_lines l ON l.order_id=o.id JOIN stock_allocations a ON a.line_id=l.id
+      JOIN stock_balances b ON b.id=a.balance_id WHERE o.id=$1`,
+        [order.body.id],
+      )
+    )[0];
+    assert.deepEqual(ledger, {
+      status: 'cancelled',
+      allocated: 6,
+      active: 0,
+      released: 6,
+      on_hand: 10,
+      reserved: 0,
+    });
+    console.log(`PASS WMS-204 order/reserve/replay/release/cancel: ${JSON.stringify(ledger)}`);
     await compose(['stop', 'worker', 'api']);
     assert.equal((await state('worker')).ExitCode, 0);
     // После shutdown hooks Nest/Node может вернуть 0 или завершиться сигналом SIGTERM (143).
@@ -375,6 +433,24 @@ async function main() {
     console.log(
       `GATE 1 PASS receiptId=${receiptId}; runtime uid=${runtime.uid}; apiExit=${apiExit}; workerExit=0; no runtime dev dependencies`,
     );
+  } catch (error) {
+    // Диагностика только нашего disposable graph, без inspect Env/Compose config.
+    // URL и случайный пароль удаляются до вывода; logs не используются в business outcome.
+    const logs = await compose(
+      ['logs', '--no-color', '--tail', '25', 'migrate', 'api', 'worker'],
+      false,
+    ).catch(() => 'Gate logs unavailable');
+    console.error(
+      String(error.diagnostic ?? '')
+        .replaceAll(password, '[redacted]')
+        .replace(/postgres(?:ql)?:\/\/[^\s]+/gi, '[database-url]'),
+    );
+    console.error(
+      logs
+        .replaceAll(password, '[redacted]')
+        .replace(/postgres(?:ql)?:\/\/[^\s]+/gi, '[database-url]'),
+    );
+    throw error;
   } finally {
     // Удаление volume ограничено UUID-проектом этого прогона, не warehouse-controller.
     // Даже assertion failure проходит через cleanup; жёсткое убийство самого driver finally не гарантирует.

@@ -1,0 +1,2 @@
+ALTER TABLE "outbox_aggregate_sequences" DROP CONSTRAINT "outbox_sequence_aggregate";--> statement-breakpoint
+ALTER TABLE "outbox_aggregate_sequences" ADD CONSTRAINT "outbox_sequence_aggregate" CHECK ("outbox_aggregate_sequences"."aggregate_type" in ('receipt','putaway-task','order'));

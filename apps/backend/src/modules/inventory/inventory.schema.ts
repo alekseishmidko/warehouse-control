@@ -53,7 +53,7 @@ export const stockBalances = pgTable(
     onHand: integer('on_hand').default(0).notNull(),
     /**
      * Зарезервированная часть того же onHand, а не отдельный приход: int4, CHECK 0 <= reserved <=
-     * onHand. Ноль — отсутствие резерва; операции резервирования ещё не реализованы.
+     * onHand. Ноль — отсутствие резерва; WMS-204 поддерживает reserve/release через allocations, сумма active сверяется с reserved.
      */
     reserved: integer('reserved').default(0).notNull(),
   },

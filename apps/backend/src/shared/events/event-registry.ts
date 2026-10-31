@@ -2,7 +2,11 @@
 import Ajv2020 from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 import { eventSchemas } from './generated/event-schemas';
-import type { ReceivingPostedV1, PutawayCompletedV1 } from './generated/event-types';
+import type {
+  ReceivingPostedV1,
+  PutawayCompletedV1,
+  OrderChangedV1,
+} from './generated/event-types';
 
 // Обычный import 'ajv' выбирает другой dialect. Здесь явно нужен draft 2020-12,
 // указанный в исходных schemas. Один экземпляр обслуживает все известные события.
@@ -34,6 +38,9 @@ addFormats(ajv, { mode: 'full' });
  * Внешнего Kafka Schema Registry и загрузки schemas по сети здесь нет.
  */
 export const EVENT_REGISTRY = Object.freeze({
+  'fulfillment.order-changed:1': ajv.compile<OrderChangedV1>(
+    eventSchemas['fulfillment.order-changed.v1'],
+  ),
   'inventory.putaway-completed:1': ajv.compile<PutawayCompletedV1>(
     eventSchemas['inventory.putaway-completed.v1'],
   ),

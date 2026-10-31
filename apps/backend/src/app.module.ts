@@ -1,4 +1,5 @@
 /** @file Корневой composition root: связывает технический HTTP, PostgreSQL и внутренние складские модули. */
+import { FulfillmentModule } from './modules/fulfillment/fulfillment.module';
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -16,6 +17,7 @@ import { ReceivingModule } from './modules/receiving/receiving.module';
 /** Регистрирует HTTP-каркас, PostgreSQL и вертикальный receiving; worker запускается отдельным graph/process. */
 @Module({
   imports: [
+    FulfillmentModule,
     DatabaseModule,
     AuditModule,
     CatalogModule,

@@ -54,7 +54,10 @@ export const outboxAggregateSequences = pgTable(
       'outbox_sequence_range',
       sql`${t.lastVersion} between 1 and ${sql.raw(String(MAX_AGGREGATE_VERSION))}`,
     ),
-    check('outbox_sequence_aggregate', sql`${t.aggregateType} in ('receipt','putaway-task')`),
+    check(
+      'outbox_sequence_aggregate',
+      sql`${t.aggregateType} in ('receipt','putaway-task','order')`,
+    ),
   ],
 );
 

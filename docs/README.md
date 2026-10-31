@@ -86,13 +86,13 @@
 - Готово WMS-112: multi-stage non-root image API/worker/migrate, Compose startup gates,
   clean build/layers regression и реальная демонстрация gate 1 с SIGTERM/volume restart.
 - Готово WMS-201 как согласование правил: B1–B4 приняты 2026-10-29, таблицы переходов,
-  числовые AC и проект контрактов подготовлены. Fulfillment ещё не реализован; auth готова WMS-202, размещение WMS-203, далее WMS-204.
+  числовые AC и проект контрактов подготовлены. Заказы/резервы готовы WMS-204; сборка/отгрузка — следующие этапы.
 - Готово WMS-202: users/sessions, login/logout/me, session/warehouse policies, admin API,
   one-time bootstrap и real PostgreSQL tests. Числовых defaults TTL нет; настройки обязательны явно.
   IdentityModule разделён на Auth/Sessions/Users/Access services с общим transaction context.
   Dev actor удалён; внешний TLS gateway/frontend ещё не реализованы.
 - Готово WMS-203: task execution receiving → storage, pair movements, audit/outbox, idempotent API и locks.
-- Описано, но не реализовано: резервирование/сборка/отгрузка и остальные складские операции,
+- Описано, но не реализовано: сборка/отгрузка и остальные складские операции,
   frontend, Kubernetes и CI/CD.
 - Пример контракта `ReceivingPosted` — проектный образец, не опубликованный API.
 - Локальные schema/fixtures/generation проверки выполняются в unit suite;
@@ -130,3 +130,12 @@ Identity HTTP transport дополнительно проверяется unit t
 и real PostgreSQL tests revoke/role removal/logout faults/матрицы ADR-0019. Команда
 `pnpm test:identity:coverage` требует Docker и контролирует 100% coverage IdentityController;
 [подробности](../apps/backend/test/README.md#проверка-покрытия-identity).
+
+WMS-204 реализована: orders/lines, explicit reserve, partial release/cancel, ledger reconciliation и API.
+[Подробный flow](flows/reservations.md), [отчёт](reports/wms-204.md); далее WMS-205.
+
+Готово WMS-204: [orders/reservations flow](flows/reservations.md), [проверки](reports/wms-204.md).
+Заказ draft→active, явный атомарный reserve, release и отмена до сборки; expiry исключён B4.
+
+P2 WMS-204 reconciliation исправлен новой migration 0025: INSERT/UPDATE всех balances,
+предварительная сверка без автоматического исправления истории; negative PostgreSQL cases.

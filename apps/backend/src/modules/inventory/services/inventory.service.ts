@@ -1,4 +1,5 @@
-/** @file Публичный InventoryService: единственный владелец stock credit и планирования putaway tasks без повторного начисления. */
+/** @file Публичный InventoryService: единственный владелец stock, putaway и reservations с borrowed transaction context. */
+import { ReservationsService } from './reservations.service';
 import { Injectable } from '@nestjs/common';
 import { CommandError } from '../../../shared/errors/command-error';
 import type { TransactionContext } from '../../../shared/transactions/transaction.port';
@@ -18,11 +19,12 @@ import { PutawayExecutionService } from './putaway-execution.service';
 import type { OperationMetadata } from '../../../shared/operations/dto/operation-metadata.dto';
 import { PutawayService } from './putaway.service';
 import type { CreatePutawayTasksDto, PutawayTaskDto } from '../dto/putaway-task.dto';
-/** Внутренний service, не HTTP CRUD; событие документа пишет receiving, reservations ещё нет. */
+/** Внутренний service, не HTTP CRUD; событие документа пишет receiving, reservations принадлежат private ReservationsService. */
 @Injectable()
 export class InventoryService {
   /** Внедряет свой repository, локальный putaway scenario и публичные сервисы справочников/audit. */
   constructor(
+    private readonly reservations: ReservationsService,
     private readonly repository: InventoryRepository,
     private readonly catalog: CatalogService,
     private readonly warehouses: WarehousesService,
@@ -30,6 +32,24 @@ export class InventoryService {
     private readonly putaway: PutawayService,
     private readonly execution: PutawayExecutionService,
   ) {}
+  /** Публичный borrowed-context интерфейс резервирования; статус и order lock обеспечивает fulfillment. */
+  reserve(
+    c: TransactionContext,
+    warehouseId: string,
+    lineId: string,
+    productId: string,
+    q: number,
+  ) {
+    return this.reservations.reserve(c, warehouseId, lineId, productId, q);
+  }
+  /** Сохранённая история allocations, без чтения чужого repository. */
+  allocations(c: TransactionContext, lineId: string) {
+    return this.reservations.list(c, lineId);
+  }
+  /** Release не меняет onHand, не открывает run и не удаляет allocation. */
+  release(c: TransactionContext, lineId: string, id: string, q: number) {
+    return this.reservations.release(c, lineId, id, q);
+  }
   /** Публичное чтение task с borrowed context, для warehouse policy и GET; без собственного run. */
   readPutawayTask(context: TransactionContext, id: string): Promise<PutawayTaskDto> {
     return this.execution.read(context, id);
