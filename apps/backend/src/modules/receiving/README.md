@@ -17,7 +17,7 @@ WMS-108 реализована: локальный оператор создаё
 Доступ — server session и warehouse role по ADR-0018/0019. Для create/post требуется
 warehouse_operator либо warehouse_supervisor на фактическом складе, GET разрешён всем
 принятым складским ролям. system_admin без складского назначения не проводит приёмку.
-Auth/ACL реализованы WMS-202, UI/физическое размещение/компенсации ещё не реализованы.
+Auth/ACL реализованы WMS-202, размещение реализовано WMS-203 в inventory; UI и компенсации ещё не реализованы.
 Pending delivery не является task, а completed delivery не означает физическое размещение.
 [Session/CSRF/ACL flow](../../../../../docs/flows/identity.md).
 

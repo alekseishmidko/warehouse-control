@@ -133,3 +133,11 @@ WMS-204 реализована: orders/lines, explicit reserve, partial release/
 
 P2 WMS-204 reconciliation исправлен новой migration 0025: INSERT/UPDATE всех balances,
 предварительная сверка без автоматического исправления истории; negative PostgreSQL cases.
+
+Исправления review: concurrent logout сериализуется через session UPDATE до valid check;
+устаревшие ACL/worker/placement/registry README актуализированы. Стандарт будущих проверок —
+[code-review](code-review.md). Следующая бизнес-задача остаётся WMS-205.
+
+Identity: собственные admin-операции получают user UPDATE до session lock. Это исправление
+гонки с аутентификацией; HTTP-контракты, матрица ролей и следующий этап WMS-205 не изменены.
+[Порядок блокировок и evidence](flows/identity.md#собственные-административные-операции).

@@ -189,9 +189,10 @@ nullable postedAt/postedEventId, lines с id/position/productId/quantity.
 Первый ReceivingPosted handler создаёт одну immutable pending task на source receipt line
 через публичный inventory API. Task/audit/marker/cursors/completion атомарны, stock/movement
 повторно не создаются. Контракт ReceivingPosted v1 не менялся; source ids/quantity/limits
-используются из существующей schema. Task DTO внутренний, новых HTTP routes/OpenAPI schemas нет.
-Известные неинтересные type в будущем проходят no-op handler и cursor. Сейчас registry знает
-только ReceivingPosted: surrogate unit test не добавляет реального контракта. Unknown type/version
+используются из существующей schema. Создание task выполняет worker; GET/execute task HTTP routes и output schema подключены WMS-203.
+Registry знает ReceivingPosted, PutawayCompleted и OrderChanged. Receipt stream получает
+inventory.putaway, агрегаты putaway-task/order пока без подписчиков. No-op unit использует
+реально валидированный PutawayCompleted, а не surrogate неизвестного контракта. Unknown type/version
 по-прежнему permanent dead до handler. [Схемы и диагностика](../flows/putaway.md).
 
 ## WMS-201: границы будущих контрактов fulfillment

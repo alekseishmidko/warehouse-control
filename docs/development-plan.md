@@ -620,3 +620,17 @@ bootstrap явно заполнить AUTH_ORIGIN и оба срока сесс�
 Fulfillment, frontend, Kubernetes/NGINX/Kafka ещё не реализованы. Складские applied migrations
 не переписывать; dev actor не возвращать как fallback. Публикация/внешний deploy требуют
 явно заданного окружения и TLS gateway.
+
+## Требования к review реализации
+
+Проверять ясность документации и бизнес-процессов по принципам ASD-STE100,
+адаптированным к русскому языку в [стандарте документации](documentation-standard.md#ясный-технический-язык-принципы-asd-ste100).
+Имена методов должны сразу объяснять действие и объект; более длинное точное имя
+предпочтительнее короткого неоднозначного. Примеры и исключения для внешних интерфейсов —
+в [требованиях к именованию](code-review.md#понятные-имена-методов).
+
+Использовать [docs/code-review.md](code-review.md): сверять бизнес-инварианты, SQL/lock modes,
+реальную конкуренцию и fault rollback, приватность repositories, API/worker/shared boundaries,
+актуальность README/flow/JSDoc/schema и подтверждённое покрытие. Findings содержат приоритет,
+строку, trigger/result/impact и способ проверки; проценты coverage не заменяют race tests.
+Исправлены review замечания logout/документации; permanent session race case включён в integration.

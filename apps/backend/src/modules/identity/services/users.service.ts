@@ -67,7 +67,7 @@ export class UsersService {
         active: { after: true },
         systemAdmin: { after: input.systemAdmin ?? false },
       });
-      return toUserProfile((await this.repository.user(context, id))!);
+      return toUserProfile((await this.repository.lockAndFindUser(context, id))!);
     });
   }
   /** Меняет active/admin/password и отзывает все target sessions при блокировке/смене пароля. Последний active admin защищён. */
@@ -90,8 +90,8 @@ export class UsersService {
     const hash = input.password === undefined ? undefined : await hashPassword(input.password);
     return this.transactions.run(async (context) => {
       await this.repository.lockAdministration(context);
-      await this.access.requireAdmin(context, principal);
-      const target = await this.repository.user(context, id, true);
+      await this.requireAdminBeforeUserMutation(context, principal, id);
+      const target = await this.repository.lockAndFindUser(context, id, 'update');
       if (!target) throw new CommandError('USER_NOT_FOUND');
       const active = input.active ?? target.active;
       const admin = input.systemAdmin ?? target.system_admin;
@@ -116,7 +116,7 @@ export class UsersService {
           'identity.password-changed',
           correlationId,
         );
-      return toUserProfile((await this.repository.user(context, id))!);
+      return toUserProfile((await this.repository.lockAndFindUser(context, id))!);
     });
   }
   /** Полная замена grants одного warehouse; lock target user сериализует её с активными command/replay. */
@@ -138,8 +138,8 @@ export class UsersService {
       throw new CommandError('VALIDATION_FAILED');
     await this.transactions.run(async (context) => {
       await this.repository.lockAdministration(context);
-      await this.access.requireAdmin(context, principal);
-      if (!(await this.repository.user(context, userId, true)))
+      await this.requireAdminBeforeUserMutation(context, principal, userId);
+      if (!(await this.repository.lockAndFindUser(context, userId, 'update')))
         throw new CommandError('USER_NOT_FOUND');
       const previous = (await this.repository.roles(context, userId))
         .filter((row) => row.warehouse_id === warehouseId.toLowerCase())
@@ -177,7 +177,7 @@ export class UsersService {
         );
     });
   }
-  /** Адресный отзыв чужой сессии; caller system_admin проверяется в том же context, факт аудируется без token. */
+  /** Административный отзыв одной/всех сессий целевого пользователя, включая себя; допуск и аудит выполняются в той же транзакции без token. */
   async revokeSession(
     principal: Principal,
     userId: string,
@@ -188,8 +188,8 @@ export class UsersService {
       throw new CommandError('VALIDATION_FAILED');
     await this.transactions.run(async (context) => {
       await this.repository.lockAdministration(context);
-      await this.access.requireAdmin(context, principal);
-      if (!(await this.repository.user(context, userId, true)))
+      await this.requireAdminBeforeUserMutation(context, principal, userId);
+      if (!(await this.repository.lockAndFindUser(context, userId, 'update')))
         throw new CommandError('USER_NOT_FOUND');
       await this.sessions.revoke(context, userId, sessionId);
       await this.record(
@@ -228,6 +228,24 @@ export class UsersService {
       });
       return { id, login: input.login.toLowerCase() };
     });
+  }
+  /**
+   * Повторяет допуск администратора перед изменением существующего пользователя.
+   * @param context Транзакция сценария, которая уже удерживает lockAdministration.
+   * @param targetUserId UUID из проверенного DTO/path; регистр UUID не меняет идентичность.
+   * Для собственного пользователя UPDATE берётся до session SHARE. Иначе параллельная
+   * authenticate держала бы user SHARE и ждала session UPDATE, создавая цикл при повышении user lock.
+   * Для чужого пользователя сохраняется порядок caller user/session → target user.
+   * @throws UNAUTHORIZED/FORBIDDEN или SQL-ошибка: ни мутация, ни audit не фиксируются.
+   */
+  private async requireAdminBeforeUserMutation(
+    context: TransactionContext,
+    principal: Principal,
+    targetUserId: string,
+  ): Promise<void> {
+    if (targetUserId.toLowerCase() === principal.userId.toLowerCase())
+      await this.repository.lockAndFindUser(context, principal.userId, 'update');
+    await this.access.requireAdmin(context, principal);
   }
   /** Пишет только разрешённые scalar changes, действие/ID/причину; password, session hash, CSRF и login body исключены. */
   private async record(

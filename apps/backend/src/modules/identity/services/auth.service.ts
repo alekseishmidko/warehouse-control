@@ -46,7 +46,7 @@ export class AuthService {
     });
     if (!allowed) throw new CommandError('TOO_MANY_REQUESTS');
     const candidate = await this.transactions.run((context) =>
-      this.repository.byLogin(context, login),
+      this.repository.findUserByLogin(context, login),
     );
     let verified: boolean;
     try {
@@ -60,7 +60,7 @@ export class AuthService {
     if (!candidate || !verified || !candidate.active) throw new CommandError('UNAUTHORIZED');
     const result = await this.transactions.run(async (context) => {
       // Hash проверялся без locks; смена пароля/блокировка за это время не должна принять старый пароль.
-      const current = await this.repository.user(context, candidate.id);
+      const current = await this.repository.lockAndFindUser(context, candidate.id);
       if (!current?.active || current.password_hash !== candidate.password_hash)
         throw new CommandError('UNAUTHORIZED');
       const session = await this.sessions.create(context, current.id);

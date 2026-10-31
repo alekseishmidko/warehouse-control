@@ -20,28 +20,41 @@ export interface SessionRow {
 /** Все параметры SQL экранируются Drizzle; raw fragments ниже только фиксированные server-side имена блокировок. */
 @Injectable()
 export class IdentityRepository {
-  /** Ограничивает короткие auth-транзакции; password hashing выполняется вне них. */
-  async bound(context: TransactionContext): Promise<void> {
+  /**
+   * Устанавливает локальные таймауты SQL и транзакции: по 5 секунд до её завершения.
+   * Получает context владельца сценария. Не открывает транзакцию и не меняет настройки пула.
+   * @throws Ошибка SQL передаётся владельцу; вычисление password hash выполняется вне этих блокировок.
+   */
+  async setLocalTransactionTimeouts(context: TransactionContext): Promise<void> {
     await transactionClient(context).execute(
       sql`select set_config('statement_timeout','5000',true),set_config('transaction_timeout','5000',true)`,
     );
   }
   /** Находит login без блокировки для дорогой проверки hash; результат позже перечитывается под lock. */
-  async byLogin(context: TransactionContext, login: string): Promise<UserRow | null> {
+  async findUserByLogin(context: TransactionContext, login: string): Promise<UserRow | null> {
     const result = await transactionClient(context).execute<UserRow & Record<string, unknown>>(
       sql`select * from users where login=${login}`,
     );
     return result.rows[0] ?? null;
   }
-  /** SHARE блокирует изменение роли/active/password до завершения запроса; UPDATE используется admin mutation. */
-  async user(context: TransactionContext, id: string, write = false): Promise<UserRow | null> {
+  /**
+   * Блокирует и читает пользователя по UUID, проверенному сервисом. SHARE удерживает права до commit;
+   * UPDATE нужен перед изменением пользователя. Режим выбирают до блокировки сессии.
+   * @returns Снимок с внутренним hash либо null; перед HTTP использовать toUserProfile.
+   * @throws Ошибка SQL или timeout выходит владельцу транзакции; commit здесь отсутствует.
+   */
+  async lockAndFindUser(
+    context: TransactionContext,
+    id: string,
+    lockMode: 'share' | 'update' = 'share',
+  ): Promise<UserRow | null> {
     const result = await transactionClient(context).execute<UserRow & Record<string, unknown>>(
-      sql`select * from users where id=${id} ${write ? sql`for update` : sql`for share`}`,
+      sql`select * from users where id=${id} ${lockMode === 'update' ? sql`for update` : sql`for share`}`,
     );
     return result.rows[0] ?? null;
   }
   /** Token lookup не изменяет idle; проверка под session lock выполняется после lock пользователя. */
-  async sessionByHash(
+  async findSessionByTokenHash(
     context: TransactionContext,
     hash: string,
   ): Promise<{ id: string; user_id: string } | null> {
@@ -50,27 +63,43 @@ export class IdentityRepository {
     );
     return result.rows[0] ?? null;
   }
-  /** Сроки проверяет clock_timestamp БД; UPDATE только для sliding touch, SHARE для command/replay. */
-  async session(
+  /**
+   * Блокирует сессию после пользователя и читает её валидность по часам БД после ожидания.
+   * UPDATE выбирают для logout или последующего продления срока. Метод срок не изменяет.
+   * @returns Снимок с valid либо null, если сессия не принадлежит указанному пользователю.
+   * @throws Ошибка SQL выходит владельцу транзакции; блокировка удерживается до commit/rollback.
+   */
+  async lockSessionAndReadValidity(
     context: TransactionContext,
     id: string,
     userId: string,
-    touchSeconds?: number,
+    lockMode: 'share' | 'update' = 'share',
   ): Promise<SessionRow | null> {
     const tx = transactionClient(context);
     // Target expressions SELECT FOR UPDATE могут вычислиться до ожидания lock. Отдельно
     // получаем владение строкой, затем новым statement сравниваем часы: истёкшая за время
     // ожидания сессия не должна ожить из-за последующего sliding touch.
     await tx.execute(sql`select id from sessions where id=${id} and user_id=${userId}
-      ${touchSeconds === undefined ? sql`for share` : sql`for update`}`);
+      ${lockMode === 'update' ? sql`for update` : sql`for share`}`);
     const result = await tx.execute<SessionRow & Record<string, unknown>>(sql`select id,user_id,
       (revoked_at is null and absolute_expires_at>clock_timestamp() and idle_expires_at>clock_timestamp()) as valid
       from sessions where id=${id} and user_id=${userId}`);
-    const row = result.rows[0];
-    if (row?.valid && touchSeconds !== undefined)
-      await tx.execute(sql`update sessions set idle_expires_at=least(absolute_expires_at,
-      clock_timestamp()+${touchSeconds}*interval '1 second') where id=${id}`);
-    return row ?? null;
+    return result.rows[0] ?? null;
+  }
+  /**
+   * Продлевает idle-срок действующей сессии, ограничивая его абсолютным сроком.
+   * @param idleSeconds Проверенное число секунд из IdentityConfig, не значение HTTP-запроса.
+   * Вызывающий уже проверил valid и держит UPDATE сессии в этом context. Самостоятельного commit нет.
+   * @throws Ошибка UPDATE откатывает весь сценарий у владельца транзакции.
+   */
+  async refreshSessionIdleDeadline(
+    context: TransactionContext,
+    id: string,
+    idleSeconds: number,
+  ): Promise<void> {
+    await transactionClient(context)
+      .execute(sql`update sessions set idle_expires_at=least(absolute_expires_at,
+      clock_timestamp()+${idleSeconds}*interval '1 second') where id=${id}`);
   }
   /** Вставляет только digest; исходный token никогда не передаётся SQL. */
   async createSession(
