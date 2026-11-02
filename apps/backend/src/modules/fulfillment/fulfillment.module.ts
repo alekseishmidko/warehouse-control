@@ -1,4 +1,7 @@
 /** @file Fulfillment API composition: controller → service → private repository, inventory — публичный владелец резервов. */
+import { ShippingService } from './services/shipping.service';
+import { ShipmentsRepository } from './repositories/shipments.repository';
+import { ShippingController } from './shipping.controller';
 import { PickingController } from './picking.controller';
 import { PickingService } from './services/picking.service';
 import { PickingRepository } from './repositories/picking.repository';
@@ -22,8 +25,15 @@ import { IdempotencyModule } from '../../infrastructure/idempotency/idempotency.
     OutboxModule,
     IdempotencyModule,
   ],
-  controllers: [FulfillmentController, PickingController],
-  providers: [FulfillmentService, OrdersRepository, PickingService, PickingRepository],
+  controllers: [ShippingController, FulfillmentController, PickingController],
+  providers: [
+    ShippingService,
+    ShipmentsRepository,
+    FulfillmentService,
+    OrdersRepository,
+    PickingService,
+    PickingRepository,
+  ],
   exports: [FulfillmentService],
 })
 export class FulfillmentModule {}

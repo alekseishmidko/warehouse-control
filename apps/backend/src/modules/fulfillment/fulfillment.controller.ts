@@ -122,7 +122,7 @@ export class FulfillmentController {
   ) {
     return this.execute(p, s, id, 'release', { quantity: body.quantity }, r, a.toLowerCase());
   }
-  /** Отмена до сборки освобождает все allocations и закрывает заказ. */
+  /** Запрос B3: без staged закрывает остаток; со staged переводит в cancel_pending до физического возврата. */
   @Post(':orderId/cancel')
   @ApiBody({
     required: false,
@@ -130,7 +130,7 @@ export class FulfillmentController {
   })
   @HttpCode(200)
   @HttpCommand('fulfillment.order.cancel')
-  @ApiOkResponse({ type: OrderDto, description: 'Cancelled order snapshot' })
+  @ApiOkResponse({ type: OrderDto, description: 'Cancel pending or closed order remainder' })
   cancel(
     @SessionPrincipal() p: Principal,
     @CommandContext() s: CommandScope,

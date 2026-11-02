@@ -55,9 +55,16 @@ pnpm contracts:generate # Типы и runtime schemas из JSON Schema
 pnpm contracts:check    # Проверка generation diff без изменения файлов
 pnpm openapi:generate   # Build и offline генерация OpenAPI текущих routes
 pnpm openapi:check      # Build и проверка OpenAPI diff без изменения JSON
+pnpm test:functional   # Все integration-сценарии с PostgreSQL, последовательно
+pnpm check:pr          # Полная обязательная проверка перед каждым PR
 ```
 
 Команды конкретного приложения: `pnpm --filter @warehouse/backend <команда>`.
+
+Перед каждым PR выполнять `pnpm check:pr`: форматирование, typecheck, contracts/build/OpenAPI
+и все unit/integration tests. Нужен работающий Docker. Без Docker проверка завершается ошибкой,
+а не пропускает функциональные сценарии. Это локальная команда; автоматический CI trigger
+ещё не настроен. [Порядок проверки](docs/pr-checks.md), [шаблон PR](docs/templates/pull-request.md).
 
 Документация: [pnpm workspaces](https://pnpm.io/workspaces), [NestJS](https://docs.nestjs.com/first-steps).
 

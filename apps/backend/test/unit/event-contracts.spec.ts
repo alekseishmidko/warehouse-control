@@ -297,3 +297,52 @@ test('PickingProgressed fixture validates producer/handler, preserves extensions
   ])
     expect(() => contracts.prepareForOutbox(invalid)).toThrow(EventContractError);
 });
+
+/** ShippingChanged новый тип в прежнем order stream: несовместимый enum старого OrderChanged не меняется. */
+test('ShippingChanged fixture validates both boundaries and rejects wrong version/action/UUID/UTC', () => {
+  const value = JSON.parse(
+    readFileSync(
+      resolve('../../docs/contracts/examples/fulfillment.shipping-changed.v1.json'),
+      'utf8',
+    ),
+  );
+  expect(contracts.parseForHandler(contracts.prepareForOutbox(value).message)).toEqual(value);
+  for (const invalid of [
+    { ...value, schemaVersion: 2 },
+    { ...value, payload: { ...value.payload, action: 'expired' } },
+    { ...value, payload: { ...value.payload, shipmentId: 'invalid' } },
+    { ...value, occurredAt: '2026-11-03T00:00:00+00:00' },
+  ])
+    expect(() => contracts.prepareForOutbox(invalid)).toThrow(EventContractError);
+});
+
+/** Идентификатор документа обязателен именно для shipment действий; отмена заказа не создаёт shipment. */
+test.each(['shipment-prepared', 'shipment-posted', 'shipment-cancelled'])(
+  'ShippingChanged %s requires shipmentId at producer and handler',
+  (action) => {
+    const value = JSON.parse(
+      readFileSync(
+        resolve('../../docs/contracts/examples/fulfillment.shipping-changed.v1.json'),
+        'utf8',
+      ),
+    );
+    value.payload.action = action;
+    delete value.payload.shipmentId;
+    expect(() => contracts.prepareForOutbox(value)).toThrow(EventContractError);
+    expect(() => contracts.parseForHandler(JSON.stringify(value))).toThrow(EventContractError);
+  },
+);
+test.each(['cancellation-requested', 'cancellation-completed'])(
+  'ShippingChanged %s only needs order identity',
+  (action) => {
+    const value = JSON.parse(
+      readFileSync(
+        resolve('../../docs/contracts/examples/fulfillment.shipping-changed.v1.json'),
+        'utf8',
+      ),
+    );
+    value.payload.action = action;
+    delete value.payload.shipmentId;
+    expect(contracts.parseForHandler(contracts.prepareForOutbox(value).message)).toEqual(value);
+  },
+);

@@ -234,7 +234,7 @@ stock_allocations и reserved. Fulfillment держит order lock и прове
 тот же context. Сервис inventory не открывает nested run и не меняет чужие order tables.
 
 Схема schemas/allocations.schema.ts: immutable lineId/balanceId/allocated, active/released int4,
-CHECK allocated=active+released+transferred. Нет expiration/TTL/consumed до shipment. Reserve выбирает только
+CHECK allocated=active+released+transferred+consumed. Нет expiration/TTL/consumed до shipment. Reserve выбирает только
 storage warehouse/product, lock по location UUID, без SKIP LOCKED. Нехватка выходит до runner,
 даже если часть UPDATE/INSERT уже выполнена. Release quantity<=active не меняет onHand.
 Полный release оставляет запись; новый reserve создаёт новый UUID. Allocation audit и order event
@@ -273,3 +273,19 @@ schemas/picking-transfers.schema.ts. Это private providers inventory, без 
 на commit. Даже вызывающий публичный InventoryService напрямую не может оставить план
 без исходного резерва. Согласованная отмена в той же транзакции разрешена.
 [Флоу и PostgreSQL evidence](../../../../../docs/flows/picking.md#защита-обеспечения-при-изменении-allocation-review-2026-11-02).
+
+## Отгрузка и компенсация WMS-206
+
+InventoryService.applyShippingEffects — публичный borrowed-context интерфейс списания
+shipping allocation или полного возврата при отмене. Private ShippingStockService проверяет
+сохранённые источники и storage target, ShippingStockRepository блокирует все затронутые
+balances до первой записи. Списание увеличивает consumed; возврат увеличивает released
+и не создаёт новый storage резерв. onHand/reserved/active меняются атомарно.
+
+ShippingEffect связывает allocation, shipment line либо компенсацию, quantity и audit.
+Movement.shippingEffectId отделён от putaway/picking оснований. Unique/FK/deferred guards
+сверяют документ, историю consumed/released, расход либо пару. Возврат нельзя закоммитить
+отдельно от закрытия отмены. DBA способен обойти guards. Исходный allocation не переписывается.
+[Флоу и evidence](../../../../../docs/flows/shipping.md); новые исходники:
+services/shipping-stock.service.ts, repositories/shipping-stock.repository.ts,
+schemas/shipping-effects.schema.ts. Миграции 0029/0030, без изменения applied SQL.

@@ -494,3 +494,40 @@ allocation связан через PickingTransfer. allocated=active+released+tr
 Автоматического expiration по B4 нет. GET заказа разделяет storage/shipping резерв.
 Source PickingProgressed v1 и registry/generated/examples обновляются вместе.
 Подписчиков нового aggregate нет. Миграции 0026/0027; тесты и Mermaid — docs/flows/picking.md.
+
+## Отгрузка и компенсация WMS-206
+
+WMS-206 реализует immutable shipment draft/posted/cancelled. Право ship для prepare/post/
+cancel draft, return — для полного физического возврата staged при отмене. Несколько draft
+не резервируют повторно. Order → shipment → все balances по product/location до записи.
+Inventory.applyShippingEffects — единственный владелец stock/consumed/released/movements.
+Allocated=active+released+transferred+consumed; active+consumed<=ordered, reserved=SUM(active).
+Movement.shippingEffectId не заменяет прежние putaway/picking FK. Effect history immutable,
+unique shipmentLineId и deferred проверки защищают расход/пару и документ. Return нельзя
+коммитить отдельно от закрытия отмены. DBA может обойти guards.
+
+Cancel со staged ставит cancel_pending, сохраняя все allocations и замораживая исполнение.
+Return DTO содержит весь staged остаток по order line и storage target; сервер раскрывает
+все source allocations. Release storage, отмена picking с сохранённым pickedTotal, physical
+return и закрытие order cancelled/closed_mixed — один commit. Shipped не обнуляется.
+Полная отгрузка — completed. Произвольное списание shortage/возврат shipped не утверждены.
+ShippingChanged v1 — новое имя в прежнем order stream, без новых consumers; старые event
+schemas не расширять несовместимо. Migrations 0029/0030 applied после применения не менять.
+Native raw SQL timestamps нормализовать в UTC ISO: нельзя доверять TS generic как runtime Date.
+Общий test fixture reserved-picking используется picking/shipping. Flow/evidence — docs/flows/shipping.md.
+
+Review WMS-206: shipment header/lines создаются одним context. Migration 0031 запрещает
+INSERT строки в закоммиченный header (DB xmin сравнивается только как локальный признак
+создающей транзакции, не API/version key). Не добавлять nested savepoints в prepare без
+пересмотра guard. ShippingChanged требует shipmentId для shipment-* actions; cancellation-*
+обходится orderId. Ajv strictRequired не ослаблять ради conditional schema.
+
+## Проверка перед каждым PR
+
+Перед каждым PR выполнять из корня pnpm check:pr на итоговом diff. Команда запускает
+format:check, typecheck, backend test:prepare один раз и обе Jest projects последовательно.
+pnpm test:functional — отдельный developer-прогон всех integration suites, не замена gate.
+Docker обязателен; недоступность означает ошибку, skip/fallback запрещены. Не запускать
+несколько test:prepare/check:pr одновременно. В PR фиксировать команду/результат/ограничения
+и связь бизнес-требований с tests; шаблон docs/templates/pull-request.md, порядок docs/pr-checks.md.
+Это локальное правило; внешний CI trigger/status check пока не настроен. Не объявлять его готовым.

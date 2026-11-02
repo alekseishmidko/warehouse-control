@@ -337,12 +337,16 @@ balances, включая отсутствие allocation history; mismatch су�
 
 ### WMS-206. Отгрузка и компенсирующие операции
 
-- [ ] **WMS-206.1** — Создать shipment и команды подготовки/подтверждения с допустимыми исходными состояниями.
-- [ ] **WMS-206.2** — При подтверждении проверить prepared stock/allocations, затем атомарно уменьшить onHand и reserved.
-- [ ] **WMS-206.3** — Защитить повторное подтверждение уникальными основаниями движений и HTTP idempotency.
-- [ ] **WMS-206.4** — Реализовать отмену/возврат в хранение/корректировку только в утверждённом объёме, отдельными операциями с причиной.
-- [ ] **WMS-206.5** — Проверить partial shipment, двойную отгрузку, недостаток фактического товара и отказ по правам.
-- [ ] **WMS-206.6** — Сверить movements, balances и allocations после полного и компенсирующего сценария.
+Реализовано 2026-11-03 по B1–B4: [ADR-0024](adr/0024-shipment-compensation.md),
+[исполнение](flows/shipping.md), [проверки](reports/wms-206.md). Компенсация ограничена
+полным физическим возвратом неотгруженного staged; произвольные корректировки не добавлены.
+
+- [x] **WMS-206.1** — Создать shipment и команды подготовки/подтверждения с допустимыми исходными состояниями.
+- [x] **WMS-206.2** — При подтверждении проверить prepared stock/allocations, затем атомарно уменьшить onHand и reserved.
+- [x] **WMS-206.3** — Защитить повторное подтверждение уникальными основаниями движений и HTTP idempotency.
+- [x] **WMS-206.4** — Реализовать отмену/возврат в хранение/корректировку только в утверждённом объёме, отдельными операциями с причиной.
+- [x] **WMS-206.5** — Проверить partial shipment, двойную отгрузку, недостаток фактического товара и отказ по правам.
+- [x] **WMS-206.6** — Сверить movements, balances и allocations после полного и компенсирующего сценария.
 
 ### WMS-207. Чтение и история
 
@@ -619,7 +623,7 @@ rollback приложения не выдаётся за rollback данных �
 WMS-101–WMS-112 и **WMS-201** завершены. B1–B4 приняты владельцем продукта 2026-10-29.
 WMS-202 реализована: users/sessions/auth/ACL/CSRF/bootstrap и проверка отсутствия утечек.
 WMS-203 выполнена: размещение, парные movements и атомарное завершение.
-WMS-204 выполнена. Следующая задача — **WMS-206**, сборка. Перед запуском текущего API/operator
+WMS-204–WMS-206 выполнены. Следующая задача — **WMS-207**, чтение и история. Перед запуском текущего API/operator
 bootstrap явно заполнить AUTH_ORIGIN и оба срока сессии, числовых defaults нет.
 Fulfillment, frontend, Kubernetes/NGINX/Kafka ещё не реализованы. Складские applied migrations
 не переписывать; dev actor не возвращать как fallback. Публикация/внешний deploy требуют
@@ -643,3 +647,17 @@ Review WMS-205 от 2026-11-02: новая migration 0028 проверяет all
 с fail-closed preflight и deferred commit-time guard. Regression cases охватывают ready,
 in_progress, shortage, совместный release/cancel и существующее расхождение.
 Комментарий reservedShipping актуализирован; контракт API не менялся.
+
+Review WMS-206: закрыт поздний INSERT в immutable shipment draft новой migration 0031.
+Conditional ShippingChanged требует shipmentId для shipment action. Добавлены runtime
+PostgreSQL и producer/handler regression cases; бизнес-права и этап WMS-207 не менялись.
+
+## Обязательная проверка каждого PR
+
+После изменения кода и документации выполнить `pnpm check:pr` из корня. Это единый
+локальный gate: format/typecheck, event contracts, build, OpenAPI и полный unit/integration
+прогон. Docker обязателен. Результат и связь требований с tests включать в PR по
+[шаблону](templates/pull-request.md). Быстрый `pnpm test:functional` запускает integration,
+но не заменяет gate. [Порядок и ограничения](pr-checks.md).
+[Покрытие текущего WMS-206 diff](reports/wms-206.md#соответствие-diff-документации-и-тестов).
+Внешняя CI-автоматизация roadmap не считается завершённой наличием локальной команды.

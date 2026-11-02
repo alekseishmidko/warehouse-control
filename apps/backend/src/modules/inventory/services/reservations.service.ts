@@ -16,6 +16,18 @@ export class ReservationsService {
       active: a.active,
       released: a.released,
       transferred: a.transferred,
+      consumed: a.consumed,
+      locationId: a.location_id,
+      state:
+        a.active > 0
+          ? 'active'
+          : a.transferred > 0
+            ? 'transferred'
+            : a.consumed > 0 && a.released > 0
+              ? 'closed_mixed'
+              : a.consumed > 0
+                ? 'consumed'
+                : 'released',
       locationKind: a.kind,
     }));
   }

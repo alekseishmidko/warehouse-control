@@ -199,3 +199,20 @@ release вместе с отменой в одном commit. Preflight под б
 при существующем mismatch без автоматического изменения истории. Индекс allocation_id
 ускоряет поиск затронутых строк. 0028_snapshot.json/journal созданы drizzle-kit custom;
 внешняя custom SQL-логика описана здесь и в source migration. Applied 0026/0027 не менялись.
+
+## WMS-206
+
+0029_shipment_documents.sql сгенерирована Drizzle из source schemas. Добавляет shipments,
+shipment_lines, shipping_effects, consumed и shipping_effect_id. 0030_shipment_guards.sql —
+custom grants, lifecycle/retention и deferred checks. Старые putaway/picking основания
+и guards сохраняются; отмена незавершённого picking сохраняет pickedTotal. Snapshot/journal
+генерирует drizzle-kit. Применять штатной db:migrate, без правки applied SQL или удаления volume.
+
+### Review WMS-206: миграция 0031
+
+0031_immutable_shipment_composition.sql добавляет BEFORE INSERT guard строк: header
+должен быть создан текущей PostgreSQL-транзакцией. Системный xmin используется только
+внутри DB guard, не как публичная или долгосрочная версия. Production runner создаёт
+header/lines одним context без nested savepoints. Это закрывает позднее дополнение draft,
+сохраняя штатный prepare/post/cancel и прежние quantity/FK/limit guards. Snapshot/journal
+созданы drizzle-kit custom. Applied 0029/0030 не изменены, существующие документы не переписаны.

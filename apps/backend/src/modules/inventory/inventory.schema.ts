@@ -2,6 +2,7 @@
  * Поля ниже объясняют предметный смысл, выбор типа и локальные ограничения.
  * Общие нюансы типов/NULL/индексов: docs/database-types.md.
  * Комментарии не меняют DDL: applied migrations остаются источником исполнения SQL. */
+import { shippingEffects } from './schemas/shipping-effects.schema';
 import { pickingTransfers } from './schemas/picking-transfers.schema';
 import { sql } from 'drizzle-orm';
 import {
@@ -106,7 +107,7 @@ export const stockMovements = pgTable(
      * text + CHECK receipt/transfer-out/transfer-in. Default receipt сохраняет старый producer; направление переноса задаётся kind, quantity всегда положительное.
      */
     kind: text('kind')
-      .$type<'receipt' | 'transfer-out' | 'transfer-in'>()
+      .$type<'receipt' | 'transfer-out' | 'transfer-in' | 'shipment'>()
       .default('receipt')
       .notNull(),
     /**
@@ -114,6 +115,8 @@ export const stockMovements = pgTable(
      * дельты текущая модель не принимает.
      */
     quantity: integer('quantity').notNull(),
+    /** Nullable UUID/FK: ship/return ссылаются на shipping_effects, прочие виды оставляют NULL. */
+    shippingEffectId: uuid('shipping_effect_id').references(() => shippingEffects.id),
     /** Nullable UUID/FK: для сборки ссылка на picking_transfers; NULL для receipt/putaway. UNIQUE пары задаёт custom migration. */
     pickingTransferId: uuid('picking_transfer_id').references(() => pickingTransfers.id),
     /** Nullable UUID/FK без default: для receipt NULL, для transfer — task.id. UNIQUE(transferId,kind) разрешает ровно одну запись каждого направления. */
@@ -147,10 +150,16 @@ export const stockMovements = pgTable(
       'movement_quantity_range',
       sql`${t.quantity} between 1 and ${sql.raw(String(MAX_STOCK_QUANTITY))}`,
     ),
-    check('movement_receipt_kind', sql`${t.kind} in ('receipt','transfer-out','transfer-in')`),
+    check(
+      'movement_receipt_kind',
+      sql`${t.kind} in ('receipt','transfer-out','transfer-in','shipment')`,
+    ),
     check(
       'movement_transfer_reference',
-      sql`(${t.kind}='receipt' and ${t.transferId} is null and ${t.pickingTransferId} is null) or (${t.kind} in ('transfer-out','transfer-in') and ((${t.transferId} is not null and ${t.pickingTransferId} is null) or (${t.transferId} is null and ${t.pickingTransferId} is not null)))`,
+      sql`(${t.kind}='receipt' and ${t.transferId} is null and ${t.pickingTransferId} is null and ${t.shippingEffectId} is null)
+        or (${t.kind}='shipment' and ${t.transferId} is null and ${t.pickingTransferId} is null and ${t.shippingEffectId} is not null)
+        or (${t.kind} in ('transfer-out','transfer-in') and
+          ((${t.transferId} is not null)::int+(${t.pickingTransferId} is not null)::int+(${t.shippingEffectId} is not null)::int)=1)`,
     ),
     // PostgreSQL допускает несколько NULL в UNIQUE: receipt по-прежнему dedup через operationId.
     unique('movement_transfer_leg_unique').on(t.transferId, t.kind),

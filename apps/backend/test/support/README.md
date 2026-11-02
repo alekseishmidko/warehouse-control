@@ -45,3 +45,9 @@ posted-receipt.fixture.ts создаёт production fixture/draft/post в общ
 при disposable admin cleanup; business audit/marker/task constraints остаются активны в tests.
 Child fixture имеет isolated TEST_PUTAWAY_HANDLER mode с реальными task/audit эффектами
 и IPC barrier до commit; затем отправляет notification только после production commit.
+
+reserved-picking.fixture.ts переиспользуется picking/shipping integration suites.
+Создаёт receipt → worker → placement → order/reserve → task через production owners и HTTP.
+warehouseCommand добавляет реальный browser context и key, не подменяет guards и не копирует
+логику остатков. Для двух конкурентных команд одного пользователя используются разные
+сессии, чтобы исследовать order/balance locks, а не случайную сериализацию idle touch.

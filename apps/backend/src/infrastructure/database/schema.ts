@@ -52,3 +52,6 @@ export { allocations } from '../../modules/inventory/schemas/allocations.schema'
 
 export { pickingTasks, pickingLines } from '../../modules/fulfillment/schemas/picking.schema';
 export { pickingTransfers } from '../../modules/inventory/schemas/picking-transfers.schema';
+
+export { shipments, shipmentLines } from '../../modules/fulfillment/schemas/shipments.schema';
+export { shippingEffects } from '../../modules/inventory/schemas/shipping-effects.schema';

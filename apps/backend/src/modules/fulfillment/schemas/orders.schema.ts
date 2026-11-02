@@ -11,10 +11,15 @@ export const orders = pgTable(
     /** Обязательный UUID FK склада, без default. */ warehouseId: uuid('warehouse_id')
       .notNull()
       .references(() => warehouses.id),
-    /** Text CHECK: draft/active/cancelled, default draft; terminal назад не открывается. */ status:
+    /** Text CHECK: draft/active/cancel_pending/cancelled/completed/closed_mixed, default draft; terminal назад не открывается. */ status:
       text('status').notNull().default('draft'),
   },
-  (t) => [check('order_status', sql`${t.status} in ('draft','active','cancelled')`)],
+  (t) => [
+    check(
+      'order_status',
+      sql`${t.status} in ('draft','active','cancel_pending','cancelled','completed','closed_mixed')`,
+    ),
+  ],
 );
 /** Состав заказа после создания неизменен; open вычисляется по active allocations. */
 export const orderLines = pgTable(

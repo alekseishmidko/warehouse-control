@@ -27,7 +27,7 @@ export class OrderLineDto {
     },
   )
   reservedShipping!: number;
-  /** Всегда 0 до реализации shipment. */ @ApiProperty({
+  /** Исторически отгруженные штуки, определяются consumed allocations. */ @ApiProperty({
     type: 'integer',
     minimum: 0,
     maximum: 2147483647,

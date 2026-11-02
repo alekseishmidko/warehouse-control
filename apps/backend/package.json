@@ -27,7 +27,9 @@
     "outbox:signal": "node dist/infrastructure/outbox/outbox-admin.js signal",
     "outbox:recovery-check": "pnpm test:prepare && jest --selectProjects integration --runInBand --runTestsByPath .test-dist/test/integration/outbox-recovery.spec.js",
     "identity:bootstrap": "node dist/modules/identity/bootstrap.js",
-    "test:identity:coverage": "pnpm test:prepare && jest --config jest.identity-coverage.config.cjs"
+    "test:identity:coverage": "pnpm test:prepare && jest --config jest.identity-coverage.config.cjs",
+    "test:functional": "pnpm test:prepare && jest --selectProjects integration --runInBand",
+    "test:pr": "pnpm test:prepare && jest --runInBand"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",

@@ -159,4 +159,15 @@ Inventory хранит allocations и меняет reserved; physical onHand/mov
 Release возвращает количество в open, cancel до сборки освобождает всё и закрывает заказ.
 Allocated=active+released, line active<=ordered, managed balance reserved=SUM(active).
 No TTL по B4. Сборка реализована WMS-205: [flow](flows/picking.md).
-Shipping и consumed — последующие задачи. [Резервирование](flows/reservations.md).
+Shipping и consumed реализованы WMS-206: [исполнение](flows/shipping.md).
+[Резервирование](flows/reservations.md).
+
+## Отгрузка и компенсация WMS-206
+
+Проведение shipment списывает только active shipping своего заказа. Consumed сохраняет
+историю отгруженного: allocated=active+released+transferred+consumed. На строке заказа
+active+consumed не превышает ordered. Reserved каждого balance равен сумме active.
+Cancel pending сохраняет резерв и запрещает исполнение. Полный подтверждённый физический
+возврат staged в storage освобождает резерв, сохраняет picked/shipped и закрывает только
+неотгруженный остаток. Completed означает fully shipped; closed_mixed — shipped плюс
+отменённый остаток. [Подробные состояния и SQL](flows/shipping.md).

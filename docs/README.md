@@ -155,3 +155,14 @@ WMS-205 реализована: [сборка заказа](flows/picking.md), �
 Review WMS-205 исправлен новой миграцией 0028: allocation update проверяет обеспечение
 открытого плана. Preflight сохраняет существующее расхождение для разбора и останавливает
 migrate. [Исполнение и regression tests](flows/picking.md#защита-обеспечения-при-изменении-allocation-review-2026-11-02).
+
+WMS-206 реализована: [отгрузка и компенсационная отмена](flows/shipping.md).
+Immutable shipment, consumed, cancel_pending и полный физический возврат неотгруженного
+остатка. [Результаты проверок](reports/wms-206.md). Произвольные корректировки не добавлены.
+
+Review WMS-206: immutable состав дополнительно защищён от позднего INSERT миграцией 0031;
+ShippingChanged требует shipmentId для действий над документом. [Подробности](flows/shipping.md#исправления-review-состав-документа-и-идентичность-события).
+
+Перед каждым PR: [check:pr и функциональные проверки](pr-checks.md),
+[шаблон описания](templates/pull-request.md). WMS-206 имеет явную
+[связь требований diff с tests](reports/wms-206.md#соответствие-diff-документации-и-тестов).
