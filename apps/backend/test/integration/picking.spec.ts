@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { INestApplication, INestApplicationContext } from '@nestjs/common';
 import { useDatabaseSuite } from '../support/database-harness';
-import { postedReceiptFixture } from '../support/posted-receipt.fixture';
+import { reservedPickingFixture } from '../support/reserved-picking.fixture';
 import { identityFixture, withIdentity, TestIdentity } from '../support/identity.fixture';
 import { waitForDatabaseLock } from '../support/database-lock';
 import { WorkerService } from '@backend/infrastructure/worker/services/worker.service';
@@ -30,41 +30,7 @@ function command(path: string, actor: TestIdentity, body: object = {}, key = ran
     .send(body);
 }
 /** Receipt → worker → placement → order → reserve → plan. Бизнес-логику в fixture не копируем. */
-async function setup() {
-  const x = await postedReceiptFixture(app, 10);
-  const [claim] = await worker.get(WorkerService).claim();
-  expect(await worker.get(WorkerService).process(claim)).toBe('completed');
-  const task = (
-    await db().connection.pool.query('select id from putaway_tasks where source_receipt_id=$1', [
-      x.document.id,
-    ])
-  ).rows[0];
-  await app
-    .get<TransactionRunner>(TRANSACTION_RUNNER)
-    .run((c) =>
-      app
-        .get(InventoryService)
-        .executePutawayTask(c, task.id, x.fixture.storage.id, x.fixture.metadata),
-    );
-  const manager = await identityFixture(app, {
-    warehouseId: x.fixture.warehouse.id,
-    role: 'order_manager',
-  });
-  const picker = await identityFixture(app, {
-    warehouseId: x.fixture.warehouse.id,
-    role: 'warehouse_operator',
-  });
-  const o = await command('orders', manager, {
-    warehouseId: x.fixture.warehouse.id,
-    lines: [{ productId: x.fixture.product.id, quantity: 10 }],
-  }).expect(201);
-  await command(`orders/${o.body.id}/confirm`, manager).expect(200);
-  await command(`orders/${o.body.id}/reserve`, manager, {
-    lines: [{ lineId: o.body.lines[0].id, quantity: 10 }],
-  }).expect(200);
-  const p = await command(`orders/${o.body.id}/picking-tasks`, manager).expect(201);
-  return { ...x, manager, picker, order: o.body, task: p.body };
-}
+const setup = () => reservedPickingFixture(app, worker, db());
 /** Наблюдаемый ledger: каждый balance сверяется с независимой суммой активных allocations. */
 async function reconcile() {
   expect(
@@ -111,7 +77,7 @@ test('partial picking and shortage preserve stock and reservation; retry never m
   ).expect(200);
   expect(o.body.lines[0]).toMatchObject({ open: 0, reservedStorage: 4, reservedShipping: 6 });
   await reconcile();
-  await command(`orders/${x.order.id}/cancel`, x.manager).expect(409);
+  // Отмена после переноса теперь переводит заказ в cancel_pending; отдельные проверки — shipping.spec.ts.
   await command(`picking-tasks/${x.task.id}/start`, x.picker).expect(200);
   await pick(x, 4)
     .expect(200)
@@ -247,10 +213,19 @@ test.each([
 test('concurrent confirmations cannot collect more than remaining', async () => {
   const x = await setup();
   await command(`picking-tasks/${x.task.id}/start`, x.picker).expect(200);
+  const secondSession = await identityFixture(app, { userId: x.picker.userId });
   const blocker = await db().connection.pool.connect();
   await blocker.query('begin');
   await blocker.query('select id from orders where id=$1 for update', [x.order.id]);
-  const pending = Promise.allSettled([pick(x, 6).then((r) => r), pick(x, 6).then((r) => r)]);
+  const pending = Promise.allSettled([
+    pick(x, 6).then((r) => r),
+    command(`picking-tasks/${x.task.id}/confirm`, secondSession, {
+      taskLineId: x.task.lines[0].id,
+      actualQuantity: 6,
+      shortage: false,
+      targetLocationId: x.fixture.shipping.id,
+    }).then((r) => r),
+  ]);
   try {
     await waitForDatabaseLock(db(), 'orders', 2);
     await blocker.query('commit');
@@ -282,9 +257,11 @@ test('cancel and confirmation race on the same order lock; no shipping stock is 
     await waitForDatabaseLock(db(), 'orders', 2);
     await blocker.query('commit');
     const r = await pending;
-    expect(r.map((v) => (v.status === 'fulfilled' ? v.value.status : 0)).sort()).toEqual([
-      200, 409,
-    ]);
+    const statuses = r.map((v) => (v.status === 'fulfilled' ? v.value.status : 0)).sort();
+    const orderState = (
+      await db().connection.pool.query('select status from orders where id=$1', [x.order.id])
+    ).rows[0].status;
+    expect(statuses).toEqual(orderState === 'cancel_pending' ? [200, 200] : [200, 409]);
   } finally {
     await blocker.query('rollback');
     blocker.release();

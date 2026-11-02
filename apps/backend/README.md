@@ -168,3 +168,12 @@ DevActorGuard. Worker отдельным graph не требует human session
 HTTP graph. API/bootstrap требуют явные AUTH_ORIGIN и absolute/idle seconds; без них startup
 отказывает, не подставляя предложенные сроки. [Полный flow](../../docs/flows/identity.md).
 Prettier root scripts format/format:check применяются и к backend; generated/SQL исключены.
+
+## Проверка перед PR
+
+Из корня репозитория запускать `pnpm check:pr`: format/typecheck и полный backend
+unit/integration прогон. Внутренний script test:pr использует test:prepare один раз и
+Jest --runInBand. `pnpm test:functional` запускает все PostgreSQL integration suites,
+но не заменяет итоговый gate. Docker обязателен, skip/fallback отсутствуют.
+[Порядок, Mermaid и ограничения](../../docs/pr-checks.md),
+[карта покрытия WMS-206](../../docs/reports/wms-206.md#соответствие-diff-документации-и-тестов).

@@ -2,8 +2,9 @@
 
 WMS-102: Jest unit/integration projects, Supertest и PostgreSQL Testcontainers.
 Для менеджера: проверки подтверждают изоляцию данных, commit/rollback, работу
-технического HTTP и освобождение ресурсов при ошибке. Полная приёмка ещё не реализована;
-проверки внутреннего stock baseline и контрактов описаны в разделах WMS-104/105 ниже.
+HTTP и освобождение ресурсов при ошибке. Приёмка, размещение, резервирование, сборка,
+отгрузка и возврат при отмене реализованы и проверяются соответствующими integration suites.
+WMS-104/105 разделы ниже описывают исходный baseline и контрактные проверки.
 
 ## Команды из корня
 
@@ -13,6 +14,8 @@ pnpm test:integration # реальные временные PostgreSQL container
 pnpm test            # оба проекта, максимум два Jest workers
 pnpm test:config     # совместимый alias test:unit
 pnpm typecheck       # production source и TypeScript tests
+pnpm test:functional # все integration suites последовательно, с реальной БД
+pnpm check:pr        # полный обязательный прогон перед каждым PR
 ```
 
 Команды test/test:unit/test:integration выполняют test:prepare: проверяют generation
@@ -23,6 +26,14 @@ Jest читает compiled tests; @backend/* отображается в нас�
 Без --passWithNoTests и --forceExit: пустая suite или незакрытые ресурсы не скрываются.
 Не запускать одновременно несколько test:prepare в одном checkout: они очищают output.
 Параллельность поддерживается между suites внутри одного Jest-прогона.
+
+check:pr добавляет format:check и typecheck перед backend test:pr; тот запускает
+test:prepare ровно один раз, затем обе Jest projects с --runInBand. test:functional
+также готовит output и запускает все integration suites последовательно. Unit остаются
+в полном check:pr. Нельзя считать отсутствие Docker успешным функциональным прогоном.
+Команды не используют dev Compose/.env и не чистят рабочие volume.
+Сценарии и ограничения — [правило перед PR](../../../docs/pr-checks.md),
+[traceability текущего diff](../../../docs/reports/wms-206.md#соответствие-diff-документации-и-тестов).
 
 ## Файлы
 

@@ -5,7 +5,9 @@ import { OrderLineDto } from './order-line.dto';
 export class OrderDto {
   /** UUID заказа. */ @ApiProperty({ format: 'uuid' }) id!: string;
   /** Один склад. */ @ApiProperty({ format: 'uuid' }) warehouseId!: string;
-  /** Состояние заказа. */ @ApiProperty({ enum: ['draft', 'active', 'cancelled'] }) status!:
-    'draft' | 'active' | 'cancelled';
+  /** Состояние заказа. */ @ApiProperty({
+    enum: ['draft', 'active', 'cancel_pending', 'cancelled', 'completed', 'closed_mixed'],
+  })
+  status!: 'draft' | 'active' | 'cancel_pending' | 'cancelled' | 'completed' | 'closed_mixed';
   /** Состав и обеспечение. */ @ApiProperty({ type: [OrderLineDto] }) lines!: OrderLineDto[];
 }

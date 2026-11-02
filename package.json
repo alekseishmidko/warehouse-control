@@ -41,7 +41,9 @@
     "identity:bootstrap": "pnpm --filter @warehouse/backend identity:bootstrap",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:identity:coverage": "pnpm --filter @warehouse/backend test:identity:coverage"
+    "test:identity:coverage": "pnpm --filter @warehouse/backend test:identity:coverage",
+    "test:functional": "pnpm --filter @warehouse/backend test:functional",
+    "check:pr": "pnpm format:check && pnpm typecheck && pnpm --filter @warehouse/backend test:pr"
   },
   "private": true,
   "devDependencies": {

@@ -65,7 +65,7 @@ applied SQL не редактируется; config и prerequisites те же, 
 reconciliation, faults/replay и runtime role. [DTO tests](../../../test/unit/order-dto.spec.ts)
 проверяют input limits без Docker. [ADR-0022](../../../../../docs/adr/0022-order-reservations.md).
 
-Сборка реализована WMS-205. Нет shipping/consumed и staged возврата, UI, automatic expiry или purge истории.
+Сборка реализована WMS-205, отгрузка и возврат при отмене — WMS-206. Нет UI, automatic expiry или purge истории.
 Allocation history в текущем GET пока не пагинируется. DBA способен обойти guards.
 
 ## Сборка WMS-205
@@ -75,7 +75,7 @@ Allocation history в текущем GET пока не пагинируется.
 Частичное подтверждение переносит найденное и сохраняет резерв недособранного.
 Нехватка сама не списывает остатки. После shortage сборщик возобновляет задание через start.
 Переназначения в этом API нет. До переноса отмена заказа закрывает план и освобождает резерв.
-После переноса отмена отклоняется до физического возврата WMS-206.
+После переноса отмена переводит заказ в cancel_pending; закрытие требует подтверждения физического возврата WMS-206.
 
 PickingController → HttpCommandsService → PickingService → PickingRepository.
 PickingService вызывает InventoryService.pickReservedQuantity с тем же context.
@@ -97,3 +97,33 @@ dto/confirm-picking.dto.ts, picking-line.dto.ts и picking-task.dto.ts.
 Review WMS-205, 2026-11-02: migration 0028 дополнительно проверяет открытые планы при
 изменении allocation, даже если release вызван другим сервисом. Deferred проверка
 разрешает согласованную отмену в общей транзакции. [Подробный SQL-флоу и тесты](../../../../../docs/flows/picking.md#защита-обеспечения-при-изменении-allocation-review-2026-11-02).
+
+## Отгрузка и физическая компенсация WMS-206
+
+Оператор с правом ship готовит shipment из shipping allocations своего заказа и проводит
+его. Draft не резервирует повторно; posting перепроверяет покрытие под order/header locks.
+Списание уменьшает stock и резерв вместе. Несколько partial shipment допустимы.
+Полностью исполненный заказ — completed, а posted документ не переоткрывается.
+
+Менеджер запрашивает отмену. Если есть staged, cancel_pending сохраняет товар/резерв
+и запрещает дальнейшее исполнение. Оператор с return физически перемещает весь staged
+остаток в storage и подтверждает вектор с reasonCode. Отмена закрывает только неотгруженное:
+closed_mixed сохраняет shipped, cancelled означает отсутствие shipped. Исторический pickedTotal
+не исчезает. Произвольного списания недостачи или возврата shipped товара нет.
+
+ShippingController → HttpCommandsService → ShippingService → ShipmentsRepository.
+ShippingService вызывает InventoryService.applyShippingEffects в том же context;
+inventory записывает расход/возврат и историю. Audit/outbox/saved result — один commit.
+Ошибка любого шага откатывает все учётные записи. Действия оператора происходят вне DB locks.
+
+[Подробный владелец флоу](../../../../../docs/flows/shipping.md) содержит реальные endpoints,
+DTO, примеры, Mermaid, состояния, SQL и ошибки. [PostgreSQL tests](../../../test/integration/shipping.spec.ts)
+проверяют race/fault/replay/roles. [ADR-0024](../../../../../docs/adr/0024-shipment-compensation.md).
+Новые source: schemas/shipments.schema.ts; repositories/shipments.repository.ts;
+services/shipping.service.ts; shipping.controller.ts; DTO prepare-shipment/line,
+shipment/line, reason и cancellation-return/line. ShippingService и repository — private providers.
+
+Review WMS-206: migration 0031 запрещает дополнение состава shipment после транзакции
+создания. Multi-line prepare создаёт header/lines вместе; posting в новой транзакции
+остаётся допустимым. ShippingChanged требует shipmentId для shipment action, но не
+для отмены заказа. [Подробности и regression evidence](../../../../../docs/flows/shipping.md#исправления-review-состав-документа-и-идентичность-события).

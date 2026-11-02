@@ -34,7 +34,7 @@ WMS-203 реализована: полное размещение из receiving
 и идемпотентный API с warehouse policy. WMS-204 выполнена: заказ и резервирование. Следующая задача — WMS-205: сборка.
 [ADR-0018](adr/0018-server-sessions.md), [ADR-0019](adr/0019-warehouse-role-matrix.md),
 [identity](identity.md).
-Сборка реализована WMS-205. Shipping и дополнительные проектные детали ещё не реализованы; auth/ACL готовы WMS-202.
+Сборка реализована WMS-205. Shipping и физический возврат реализованы WMS-206; дополнительные проектные детали ещё не реализованы; auth/ACL готовы WMS-202.
 
 Отчёты: [окружение WMS-101](reports/wms-101.md),
 [тестовая инфраструктура WMS-102](reports/wms-102.md),
@@ -68,7 +68,7 @@ WMS-203 реализована: полное размещение из receiving
 [Правила WMS-201](fulfillment-rules.md) фиксируют принятые B1–B4 и проект переходов.
 [Flow/AC](flows/fulfillment.md) и [контракты](contracts/fulfillment.md) — основа будущей
 реализации; дополнительные технические детали не утверждаются этим статусом.
-Заказ, резерв и release/cancel реализованы WMS-204; сборка — WMS-205, shipping ещё не реализована.
+Заказ, резерв и release/cancel реализованы WMS-204; сборка — WMS-205, shipping реализована WMS-206.
 
 Identity и роли, размещение, конкурентные резервы, сборка, отгрузка,
 компенсирующие операции. OpenAPI/client generation и простой web.
@@ -148,3 +148,12 @@ shortage и перенос allocations. Самоназначение испол�
 
 WMS-205 review: guard обеспечения плана расширен на изменения allocations миграцией 0028;
 добавлены runtime-role проверки rollback и согласованной отмены. Следующий этап — WMS-206.
+
+WMS-206 реализована: shipment и физический возврат B3, с сохранением shipped/picked
+истории и атомарным ledger. [Флоу](flows/shipping.md), [отчёт](reports/wms-206.md).
+
+Review WMS-206 исправил позднее дополнение draft и обязательность shipmentId в контракте.
+Новый guard — migration 0031. Следующий этап WMS-207 не менялся.
+
+Для каждого PR добавлен локальный pnpm check:pr с полным unit/integration прогоном.
+[Порядок](pr-checks.md). Внешние CI triggers и required status checks ещё не настроены.

@@ -1,4 +1,6 @@
 /** @file Публичный InventoryService: единственный владелец stock, putaway и reservations с borrowed transaction context. */
+import type { ShippingAllocationCommand } from '../dto/shipping-allocation-command.dto';
+import { ShippingStockService } from './shipping-stock.service';
 import { PickingStockService } from './picking-stock.service';
 import { ReservationsService } from './reservations.service';
 import { Injectable } from '@nestjs/common';
@@ -25,6 +27,7 @@ import type { CreatePutawayTasksDto, PutawayTaskDto } from '../dto/putaway-task.
 export class InventoryService {
   /** Внедряет свой repository, локальный putaway scenario и публичные сервисы справочников/audit. */
   constructor(
+    private readonly shipping: ShippingStockService,
     private readonly picking: PickingStockService,
     private readonly reservations: ReservationsService,
     private readonly repository: InventoryRepository,
@@ -34,6 +37,16 @@ export class InventoryService {
     private readonly putaway: PutawayService,
     private readonly execution: PutawayExecutionService,
   ) {}
+  /** Списывает shipment или возвращает staged товар в caller context; order lock и статус проверяет fulfillment. */
+  applyShippingEffects(
+    c: TransactionContext,
+    orderId: string,
+    kind: 'ship' | 'return',
+    items: ShippingAllocationCommand[],
+    m: OperationMetadata,
+  ) {
+    return this.shipping.applyShippingEffects(c, orderId, kind, items, m);
+  }
   /** Переносит зарезервированные штуки в shipping в транзакции задания; не создаёт нового run. */
   pickReservedQuantity(
     c: TransactionContext,

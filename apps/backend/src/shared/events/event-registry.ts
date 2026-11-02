@@ -7,6 +7,7 @@ import type {
   PutawayCompletedV1,
   OrderChangedV1,
   PickingProgressedV1,
+  ShippingChangedV1,
 } from './generated/event-types';
 
 // Обычный import 'ajv' выбирает другой dialect. Здесь явно нужен draft 2020-12,
@@ -39,6 +40,9 @@ addFormats(ajv, { mode: 'full' });
  * Внешнего Kafka Schema Registry и загрузки schemas по сети здесь нет.
  */
 export const EVENT_REGISTRY = Object.freeze({
+  'fulfillment.shipping-changed:1': ajv.compile<ShippingChangedV1>(
+    eventSchemas['fulfillment.shipping-changed.v1'],
+  ),
   'fulfillment.picking-progressed:1': ajv.compile<PickingProgressedV1>(
     eventSchemas['fulfillment.picking-progressed.v1'],
   ),

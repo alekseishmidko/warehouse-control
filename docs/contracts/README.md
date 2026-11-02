@@ -256,3 +256,18 @@ examples/fulfillment.picking-progressed.v1.json. payload содержит taskId
 OrderChanged v1 не расширялся. Подписчиков нового агрегата нет. Producer и handler проверяют
 schema/UUID/UTC/версию и общий лимит 262144 UTF-8 bytes. Optional extensions сохраняются.
 Реальные DTO, маршруты и ошибки — [флоу сборки](../flows/picking.md), generated OpenAPI.
+
+### ShippingChanged v1 — WMS-206
+
+fulfillment.shipping-changed v1 зарегистрирован в прежнем order stream. Payload:
+orderId/action и shipmentId для shipment-команд. Source schema/fixture — events и examples
+с тем же именем. Предел 262144 UTF-8 bytes и общий envelope protocol сохраняются.
+OrderChanged/PickingProgressed v1 не расширены несовместимыми enum. Нового consumer нет.
+API v1 заказов получает completed/cancel_pending/closed_mixed и consumed/locationId/state
+allocations; новые shipment/return DTO опубликованы в generated OpenAPI. Работающие
+маршруты, права, количества и ограничения — [флоу shipping](../flows/shipping.md).
+
+ShippingChanged review: payload.shipmentId обязателен для shipment-prepared,
+shipment-posted, shipment-cancelled. Для cancellation-requested/completed он остаётся
+необязательным. JSON Schema if/then проверяется на producer и handler; strictRequired,
+UUID formats, отсутствие coercion и сохранение optional extensions не изменились.

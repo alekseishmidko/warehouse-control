@@ -1,4 +1,5 @@
 /** @file Сценарии заказа ADR-0022: один borrowed context для order, inventory, audit и outbox, без внешнего I/O. */
+import { ShippingService } from './shipping.service';
 import { PickingService } from './picking.service';
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
@@ -18,6 +19,7 @@ import { ReserveOrderDto } from '../dto/reserve-order.dto';
 export class FulfillmentService {
   /** DI без циклической зависимости inventory → fulfillment service. */
   constructor(
+    private readonly shipping: ShippingService,
     private readonly picking: PickingService,
     private readonly repository: OrdersRepository,
     private readonly inventory: InventoryService,
@@ -39,19 +41,21 @@ export class FulfillmentService {
     for (const line of await this.repository.lines(c, id)) {
       const allocations = await this.inventory.allocations(c, line.id);
       const active = allocations.reduce((n, a) => n + a.active, 0);
+      const shipped = allocations.reduce((n, a) => n + a.consumed, 0);
+      const closed = ['cancelled', 'closed_mixed'].includes(order.status);
       lines.push({
         id: line.id,
         productId: line.product_id,
         quantity: line.quantity,
-        open: order.status === 'cancelled' ? 0 : line.quantity - active,
+        open: closed ? 0 : line.quantity - active - shipped,
         reservedStorage: allocations
           .filter((a) => a.locationKind === 'storage')
           .reduce((n, a) => n + a.active, 0),
         reservedShipping: allocations
           .filter((a) => a.locationKind === 'shipping')
           .reduce((n, a) => n + a.active, 0),
-        shipped: 0,
-        cancelled: order.status === 'cancelled' ? line.quantity : 0,
+        shipped,
+        cancelled: closed ? line.quantity - shipped : 0,
         allocations,
       });
     }
@@ -106,26 +110,8 @@ export class FulfillmentService {
       if (order.status !== 'draft') throw new CommandError('ORDER_STATE_CONFLICT');
       await this.repository.state(c, id, 'active');
     } else if (action === 'cancel') {
-      if (!['draft', 'active'].includes(order.status))
-        throw new CommandError('ORDER_STATE_CONFLICT');
-      // Собранное требует физического возврата WMS-206. Пока он не реализован, отмена безопасно отклоняется.
-      if (order.lines.some((l) => l.reservedShipping > 0))
-        throw new CommandError('ORDER_STATE_CONFLICT');
-      await this.picking.cancelUnpickedTasks(c, id, m);
-      // SKU/location порядок совпадает с reserve; release history не удаляется, onHand не меняется.
-      for (const l of order.lines)
-        for (const a of l.allocations)
-          if (a.active) {
-            await this.inventory.release(c, l.id, a.id, a.active);
-            await this.audit.write(c, {
-              ...m,
-              entityType: 'allocation',
-              entityId: a.id,
-              action: 'inventory.allocation-released',
-              changes: { quantity: { after: a.active } },
-            });
-          }
-      await this.repository.state(c, id, 'cancelled');
+      await this.shipping.requestOrderCancellation(c, id, m);
+      return this.read(c, id);
     } else {
       if (order.status !== 'active') throw new CommandError('ORDER_STATE_CONFLICT');
       if (action === 'reserve') {

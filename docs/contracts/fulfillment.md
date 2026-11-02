@@ -1,6 +1,6 @@
 # WMS-201: проект контрактов исполнения заказа
 
-**Заказ/резерв реализованы WMS-204, сборка — WMS-205 по ADR-0023. Shipping и staged возврат ниже остаются проектом.**
+**Заказ/резерв реализованы WMS-204, сборка — WMS-205 по ADR-0023. Отгрузка и физический возврат при отмене реализованы WMS-206; произвольные корректировки остаются вне объёма.**
 
 Реальные picking DTO, start/confirm/GET, состояния и примеры: [сборка](../flows/picking.md).
 Проектные формы команд ниже не заменяют контракт работающего OpenAPI.
@@ -95,6 +95,15 @@ outbox рассчитаны на receipt/inventory.putaway, редактиров
 GET /orders/:id, POST /orders, /:id/confirm, /:id/reserve, /:id/allocations/:allocationId/release,
 /:id/cancel под /api/v1. Empty commands не принимают status/actor. Reserve — явный атомарный
 вектор, release — явное количество allocation. DTO output различает open/reservedStorage/
-reservedShipping/shipped/cancelled; два последних физических этапа пока отсутствуют.
+reservedShipping/shipped/cancelled; физические этапы реализованы WMS-205/206.
 OrderChanged v1 зарегистрирован; остальные shipment контракты остаются draft.
 [Точный flow/коды/evidence](../flows/reservations.md), [пример события](examples/fulfillment.order-changed.v1.json).
+
+## Реализованный WMS-206
+
+Shipment draft/posted/cancelled, order completed/cancel_pending/closed_mixed и consumed
+allocation реализованы. Активный API требует ship для shipment и return для полного
+физического возврата staged. [Точные DTO/маршруты/ограничения](../flows/shipping.md)
+и generated OpenAPI заменяют ранние проектные формы выше. Возврат агрегирован по
+order line; источники allocations сервер определяет сам. ShippingChanged v1 — отдельный
+контракт в order stream. Произвольная корректировка/возврат shipped товара не реализованы.

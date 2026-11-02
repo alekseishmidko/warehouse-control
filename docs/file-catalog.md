@@ -488,3 +488,53 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | [0028_picking_allocation_backing.sql](../apps/backend/drizzle/0028_picking_allocation_backing.sql) | Новая custom migration: fail-closed preflight, индекс источника и deferred guard allocation → открытый picking plan.             |
 | [0028_snapshot.json](../apps/backend/drizzle/meta/0028_snapshot.json)                              | Generated drizzle-kit custom snapshot; вручную не менять. Дополнительная SQL-логика описана в source migration и drizzle README. |
+
+### WMS-206: отгрузка и компенсационная отмена
+
+| Файл                                                                                                               | Назначение                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| [shipments.schema.ts](../apps/backend/src/modules/fulfillment/schemas/shipments.schema.ts)                         | Source Drizzle immutable shipment/header/lines, SQL-типы, FK и state CHECK.                     |
+| [shipments.repository.ts](../apps/backend/src/modules/fulfillment/repositories/shipments.repository.ts)            | Private SQL документов и lifecycle без stock и собственного commit.                             |
+| [shipping.service.ts](../apps/backend/src/modules/fulfillment/services/shipping.service.ts)                        | Подготовка/posting/cancel draft, B3 pending/полный возврат, аудит/outbox с одним context.       |
+| [shipping.controller.ts](../apps/backend/src/modules/fulfillment/shipping.controller.ts)                           | Реальные HTTP routes, normalizers, ACL до replay, response DTO.                                 |
+| [reason.dto.ts](../apps/backend/src/modules/fulfillment/dto/reason.dto.ts)                                         | Проверенный ASCII reasonCode без свободного текста.                                             |
+| [prepare-shipment-line.dto.ts](../apps/backend/src/modules/fulfillment/dto/prepare-shipment-line.dto.ts)           | Недоверенные allocationId/quantity выбранной staged строки.                                     |
+| [prepare-shipment.dto.ts](../apps/backend/src/modules/fulfillment/dto/prepare-shipment.dto.ts)                     | Вектор 1..1000 строк, вложенная runtime валидация и причина.                                    |
+| [shipment-line.dto.ts](../apps/backend/src/modules/fulfillment/dto/shipment-line.dto.ts)                           | Публичный immutable состав проведённой партии.                                                  |
+| [shipment.dto.ts](../apps/backend/src/modules/fulfillment/dto/shipment.dto.ts)                                     | Безопасный OpenAPI output header/lines/posting timestamp.                                       |
+| [cancellation-return-line.dto.ts](../apps/backend/src/modules/fulfillment/dto/cancellation-return-line.dto.ts)     | Полное staged количество одной order line и storage target.                                     |
+| [cancellation-return.dto.ts](../apps/backend/src/modules/fulfillment/dto/cancellation-return.dto.ts)               | Полный вектор физического возврата с причиной.                                                  |
+| [shipping-allocation-command.dto.ts](../apps/backend/src/modules/inventory/dto/shipping-allocation-command.dto.ts) | Единый внутренний контракт fulfillment → inventory, без дублирования полей в сервисах.          |
+| [shipping-stock.service.ts](../apps/backend/src/modules/inventory/services/shipping-stock.service.ts)              | Проверки сохранённого shipping источника/target, audit и делегирование записи владельцу SQL.    |
+| [shipping-stock.repository.ts](../apps/backend/src/modules/inventory/repositories/shipping-stock.repository.ts)    | Общий порядок всех balance locks, debit/return, immutable effects и movements.                  |
+| [shipping-effects.schema.ts](../apps/backend/src/modules/inventory/schemas/shipping-effects.schema.ts)             | Source Drizzle оснований ship/return, FK, int4 и shape CHECK.                                   |
+| [0029_shipment_documents.sql](../apps/backend/drizzle/0029_shipment_documents.sql)                                 | Generated DDL из source Drizzle schemas; output вручную не редактировать.                       |
+| [0030_shipment_guards.sql](../apps/backend/drizzle/0030_shipment_guards.sql)                                       | Source custom grants, lifecycle/retention, effect/document/ledger deferred checks.              |
+| [0029_snapshot.json](../apps/backend/drizzle/meta/0029_snapshot.json)                                              | Generated drizzle-kit snapshot DDL, описание через source schemas.                              |
+| [0030_snapshot.json](../apps/backend/drizzle/meta/0030_snapshot.json)                                              | Generated snapshot custom migration, не редактировать вручную.                                  |
+| [shipping.spec.ts](../apps/backend/test/integration/shipping.spec.ts)                                              | Настоящие HTTP/PostgreSQL shipment/return/race/fault/roles/reconciliation.                      |
+| [shipping-dto.spec.ts](../apps/backend/test/unit/shipping-dto.spec.ts)                                             | Runtime DTO границы int4/UUID/reason/unknown fields без Docker.                                 |
+| [reserved-picking.fixture.ts](../apps/backend/test/support/reserved-picking.fixture.ts)                            | Общий production receipt/placement/reservation setup picking/shipping, без копии бизнес-логики. |
+| [fulfillment.shipping-changed.v1.schema.json](contracts/events/fulfillment.shipping-changed.v1.schema.json)        | Source JSON Schema нового события в order stream.                                               |
+| [fulfillment.shipping-changed.v1.json](contracts/examples/fulfillment.shipping-changed.v1.json)                    | Синтетический fixture без реальных credentials/ID, producer/handler unit evidence.              |
+| [0024-shipment-compensation.md](adr/0024-shipment-compensation.md)                                                 | Реализация B1–B4, состояния и ограниченный объём компенсаций.                                   |
+| [shipping.md](flows/shipping.md)                                                                                   | Владелец HTTP/SQL флоу, Mermaid, quantities, error/recovery и evidence.                         |
+| [wms-206.md](reports/wms-206.md)                                                                                   | Фактически выполненные проверки и ограничения.                                                  |
+
+### Исправления review WMS-206
+
+| Файл                                                                                                       | Назначение                                                                                                     |
+| ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [0031_immutable_shipment_composition.sql](../apps/backend/drizzle/0031_immutable_shipment_composition.sql) | Custom SQL guard INSERT строк только в транзакции создания header; существующие документы не меняются.         |
+| [0031_snapshot.json](../apps/backend/drizzle/meta/0031_snapshot.json)                                      | Generated drizzle-kit custom snapshot, не править вручную; SQL логика описана source migration/drizzle README. |
+
+### Проверки перед PR
+
+| Файл                                                   | Назначение                                                                                                        |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| [pr-checks.md](pr-checks.md)                           | Обязательный локальный gate check:pr, test:functional, prerequisites, Mermaid и границы evidence/CI.              |
+| [templates/pull-request.md](templates/pull-request.md) | Переносимый шаблон PR с результатом gate, бизнес-tests, документацией и миграциями; не хостинговый auto-template. |
+
+Root package.json описывает check:pr/test:functional, backend package.json — test:pr и
+test:functional через прежний test:prepare/Jest. JSON не поддерживает комментарии:
+назначение и порядок этих scripts документированы в pr-checks.md и test README.
