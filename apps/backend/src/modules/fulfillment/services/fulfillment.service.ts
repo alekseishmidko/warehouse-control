@@ -1,4 +1,5 @@
 /** @file Сценарии заказа ADR-0022: один borrowed context для order, inventory, audit и outbox, без внешнего I/O. */
+import { PickingService } from './picking.service';
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { OrdersRepository } from '../repositories/orders.repository';
@@ -17,6 +18,7 @@ import { ReserveOrderDto } from '../dto/reserve-order.dto';
 export class FulfillmentService {
   /** DI без циклической зависимости inventory → fulfillment service. */
   constructor(
+    private readonly picking: PickingService,
     private readonly repository: OrdersRepository,
     private readonly inventory: InventoryService,
     private readonly catalog: CatalogService,
@@ -42,8 +44,12 @@ export class FulfillmentService {
         productId: line.product_id,
         quantity: line.quantity,
         open: order.status === 'cancelled' ? 0 : line.quantity - active,
-        reservedStorage: active,
-        reservedShipping: 0,
+        reservedStorage: allocations
+          .filter((a) => a.locationKind === 'storage')
+          .reduce((n, a) => n + a.active, 0),
+        reservedShipping: allocations
+          .filter((a) => a.locationKind === 'shipping')
+          .reduce((n, a) => n + a.active, 0),
         shipped: 0,
         cancelled: order.status === 'cancelled' ? line.quantity : 0,
         allocations,
@@ -102,6 +108,10 @@ export class FulfillmentService {
     } else if (action === 'cancel') {
       if (!['draft', 'active'].includes(order.status))
         throw new CommandError('ORDER_STATE_CONFLICT');
+      // Собранное требует физического возврата WMS-206. Пока он не реализован, отмена безопасно отклоняется.
+      if (order.lines.some((l) => l.reservedShipping > 0))
+        throw new CommandError('ORDER_STATE_CONFLICT');
+      await this.picking.cancelUnpickedTasks(c, id, m);
       // SKU/location порядок совпадает с reserve; release history не удаляется, onHand не меняется.
       for (const l of order.lines)
         for (const a of l.allocations)
@@ -153,6 +163,7 @@ export class FulfillmentService {
               });
         }
       } else {
+        await this.picking.assertNoOpenTaskBeforeRelease(c, id);
         const line = order.lines.find((l) => l.allocations.some((a) => a.id === allocationId));
         if (!line) throw new CommandError('ALLOCATION_NOT_FOUND');
         const q = (input as { quantity: number }).quantity;

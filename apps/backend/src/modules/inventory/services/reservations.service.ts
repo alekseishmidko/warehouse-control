@@ -15,6 +15,8 @@ export class ReservationsService {
       allocated: a.allocated,
       active: a.active,
       released: a.released,
+      transferred: a.transferred,
+      locationKind: a.kind,
     }));
   }
   /** Borrowed reserve; ошибку нельзя подавлять после частичных UPDATE. */ reserve(

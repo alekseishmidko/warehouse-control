@@ -1,6 +1,9 @@
 # WMS-201: проект контрактов исполнения заказа
 
-**WMS-204 реализует order/reserve/release/cancel по ADR-0022. Picking/shipping и staged возврат ниже остаются проектом.**
+**Заказ/резерв реализованы WMS-204, сборка — WMS-205 по ADR-0023. Shipping и staged возврат ниже остаются проектом.**
+
+Реальные picking DTO, start/confirm/GET, состояния и примеры: [сборка](../flows/picking.md).
+Проектные формы команд ниже не заменяют контракт работающего OpenAPI.
 Здесь описаны предметные границы будущих команд, не OpenAPI routes или готовые DTO/JSON Schema.
 [Правила](../fulfillment-rules.md) владеют состояниями, [flow](../flows/fulfillment.md)
 — последовательностями и AC. Существующие receiving endpoints/ReceivingPosted v1
@@ -93,5 +96,5 @@ GET /orders/:id, POST /orders, /:id/confirm, /:id/reserve, /:id/allocations/:all
 /:id/cancel под /api/v1. Empty commands не принимают status/actor. Reserve — явный атомарный
 вектор, release — явное количество allocation. DTO output различает open/reservedStorage/
 reservedShipping/shipped/cancelled; два последних физических этапа пока отсутствуют.
-OrderChanged v1 зарегистрирован; остальные picking/shipment контракты остаются draft.
+OrderChanged v1 зарегистрирован; остальные shipment контракты остаются draft.
 [Точный flow/коды/evidence](../flows/reservations.md), [пример события](examples/fulfillment.order-changed.v1.json).

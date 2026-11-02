@@ -49,3 +49,6 @@ export { identityBootstrap } from '../../modules/identity/schemas/identity-boots
 
 export { orders, orderLines } from '../../modules/fulfillment/schemas/orders.schema';
 export { allocations } from '../../modules/inventory/schemas/allocations.schema';
+
+export { pickingTasks, pickingLines } from '../../modules/fulfillment/schemas/picking.schema';
+export { pickingTransfers } from '../../modules/inventory/schemas/picking-transfers.schema';

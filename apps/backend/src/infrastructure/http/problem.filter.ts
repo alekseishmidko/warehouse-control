@@ -5,6 +5,7 @@ import { CommandError } from '../../shared/errors/command-error';
 import { correlationIdOf } from './request-context';
 /** Статические публичные коды/статусы — allowlist, arbitrary error.message не сериализуется. */
 export const PROBLEMS = {
+  PICKING_TASK_NOT_FOUND: [404, 'Picking task not found'],
   ORDER_NOT_FOUND: [404, 'Order not found'],
   ORDER_STATE_CONFLICT: [409, 'Order state conflict'],
   ALLOCATION_NOT_FOUND: [404, 'Allocation not found'],

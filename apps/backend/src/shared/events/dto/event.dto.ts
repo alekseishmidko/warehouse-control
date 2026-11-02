@@ -3,6 +3,7 @@ import type {
   ReceivingPostedV1,
   PutawayCompletedV1,
   OrderChangedV1,
+  PickingProgressedV1,
 } from '../generated/event-types';
 
 /**
@@ -10,7 +11,8 @@ import type {
  * При добавлении типа/версии расширяется вместе с registry для narrowing по type/version.
  * Сам TypeScript-тип не доказывает корректность внешнего JSON: обязательна runtime-проверка.
  */
-export type KnownEvent = ReceivingPostedV1 | PutawayCompletedV1 | OrderChangedV1;
+export type KnownEvent =
+  ReceivingPostedV1 | PutawayCompletedV1 | OrderChangedV1 | PickingProgressedV1;
 
 /**
  * Payload факта проведённой приёмки из исходной JSON Schema, без ручного повторения полей.

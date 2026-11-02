@@ -475,3 +475,22 @@ target порядок caller user/session → target UPDATE прежний. Не
 после проверки сессии: это создаёт deadlock с authenticate. Репозиторий разделяет
 lockSessionAndReadValidity и refreshSessionIdleDeadline; requireSession принимает именованные
 sessionLock/refreshIdleSeconds. Полный flow и постоянные PostgreSQL race tests — docs/flows/identity.md.
+
+## Сборка WMS-205
+
+WMS-205 реализована, далее WMS-206. Менеджер создаёт PickingTask из текущих storage
+allocations; кладовщик сам принимает через start. Только закреплённый исполнитель
+с актуальным pick подтверждает приращение actualQuantity. shortage возобновляет тот же
+исполнитель через start. Ноль разрешён только при shortage и не создаёт movements.
+Один открытый план заказа, 1..1000 строк allocations. Переназначения пока нет.
+
+Policy → idempotency → order → task → balances по product/location. Inventory переносит
+onHand и reserved вместе. Источник allocation сохраняет transferred; новый shipping
+allocation связан через PickingTransfer. allocated=active+released+transferred.
+Не использовать unreserved putaway transfer для сборки. Movement.pickingTransferId
+отдельный от putaway transferId; FK/guards обеих историй сохраняются.
+Открытый план блокирует независимый release. До переноса cancel закрывает task и
+освобождает резерв; после переноса cancel даёт 409 до физического возврата WMS-206.
+Автоматического expiration по B4 нет. GET заказа разделяет storage/shipping резерв.
+Source PickingProgressed v1 и registry/generated/examples обновляются вместе.
+Подписчиков нового aggregate нет. Миграции 0026/0027; тесты и Mermaid — docs/flows/picking.md.

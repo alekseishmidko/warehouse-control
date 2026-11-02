@@ -247,3 +247,12 @@ Order API и события реализованы по ADR-0022: [flow](../flow
 [пример](examples/fulfillment.order-changed.v1.json). Лимиты заказа утверждены 1..1000 SKU,
 quantity int4, один warehouse. Reserve/release/cancel используют прежний idempotency protocol.
 OrderDto/OrderLineDto/AllocationDto — явные публичные output; OpenAPI generated, SQL types не экспортируются.
+
+### PickingProgressed v1 — WMS-205
+
+Registry знает также fulfillment.picking-progressed v1, aggregate picking-task.
+Source schema — events/fulfillment.picking-progressed.v1.schema.json, проверенный fixture —
+examples/fulfillment.picking-progressed.v1.json. payload содержит taskId/orderId/action;
+OrderChanged v1 не расширялся. Подписчиков нового агрегата нет. Producer и handler проверяют
+schema/UUID/UTC/версию и общий лимит 262144 UTF-8 bytes. Optional extensions сохраняются.
+Реальные DTO, маршруты и ошибки — [флоу сборки](../flows/picking.md), generated OpenAPI.

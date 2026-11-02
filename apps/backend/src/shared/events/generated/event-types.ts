@@ -49,6 +49,56 @@ export interface OrderChangedV1 {
 }
 
 /**
+ * Факт изменения задания сборки; план, движения и аудит сохраняются атомарно.
+ */
+export interface PickingProgressedV1 {
+  /**
+   * UUID события. Сохраняется при повторной доставке и смене транспорта; используется для дедупликации.
+   */
+  eventId: string;
+  /**
+   * Имя бизнес-факта. Вместе со schemaVersion выбирает точный контракт в локальном registry.
+   */
+  type: 'fulfillment.picking-progressed';
+  /**
+   * Major-версия контракта. Неизвестная версия отклоняется до вызова handler.
+   */
+  schemaVersion: 1;
+  aggregateType: 'picking-task';
+  /**
+   * UUID задания, равен payload.taskId.
+   */
+  aggregateId: string;
+  /**
+   * Порядковая версия события агрегата: положительное целое в безопасном диапазоне JavaScript number. Атомарное выделение версии выполняет OutboxService в транзакции бизнес-сценария.
+   */
+  aggregateVersion: number;
+  /**
+   * Время бизнес-факта RFC 3339 с UTC Z. format проверяет дату и время, pattern запрещает timezone offsets даже +00:00.
+   */
+  occurredAt: string;
+  /**
+   * UUID сквозного сценария для связи бизнес-операции, аудита и обработки события.
+   */
+  correlationId: string;
+  /**
+   * Необязательный UUID события-причины. Для корневой команды поле отсутствует.
+   */
+  causationId?: string;
+  /**
+   * Необязательный trace context длиной до 512 символов. Семантическую проверку W3C выполнит OTel; schema ограничивает только тип и длину.
+   */
+  traceparent?: string;
+  payload: {
+    orderId: string;
+    action: 'created' | 'started' | 'picked' | 'shortage' | 'completed' | 'cancelled';
+    taskId: string;
+    [k: string]: unknown;
+  };
+  [k: string]: unknown;
+}
+
+/**
  * Факт полного размещения задания: receiving → storage того же склада, без изменения общего количества и без переноса резерва.
  */
 export interface PutawayCompletedV1 {

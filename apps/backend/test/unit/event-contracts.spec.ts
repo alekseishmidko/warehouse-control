@@ -278,3 +278,22 @@ test('OrderChanged v1 fixture validates on both boundaries and rejects malformed
   ])
     expect(() => contracts.prepareForOutbox(invalid)).toThrow(EventContractError);
 });
+
+/** Новый aggregate имеет отдельный контракт, не расширяющий опубликованный OrderChanged v1. */
+test('PickingProgressed fixture validates producer/handler, preserves extensions and rejects wrong action/version/IDs', () => {
+  const value = JSON.parse(
+    readFileSync(
+      resolve('../../docs/contracts/examples/fulfillment.picking-progressed.v1.json'),
+      'utf8',
+    ),
+  );
+  const extended = { ...value, payload: { ...value.payload, optionalNote: 'synthetic' } };
+  expect(contracts.parseForHandler(contracts.prepareForOutbox(extended).message)).toEqual(extended);
+  for (const invalid of [
+    { ...value, schemaVersion: 2 },
+    { ...value, payload: { ...value.payload, action: 'expired' } },
+    { ...value, payload: { ...value.payload, taskId: 'invalid' } },
+    { ...value, occurredAt: '2026-11-01T00:00:00+00:00' },
+  ])
+    expect(() => contracts.prepareForOutbox(invalid)).toThrow(EventContractError);
+});

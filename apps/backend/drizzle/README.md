@@ -181,3 +181,21 @@ Harness отключает retained guards только внутри собст�
 миграция откатывается с 23514; нужно сначала восстановить правильные основания с аудитом,
 а не обнулить reserved автоматически. Старые applied SQL не меняются. Snapshot custom migration
 создан Drizzle Kit; схема колонок не меняется. Нулевая позиция без allocations допустима.
+
+## WMS-205
+
+0026_late_skrulls.sql сгенерирована Drizzle из picking/transfer schemas. Добавляет
+picking_tasks/picking_lines/picking_transfers, allocation.transferred и отдельный FK
+movement.picking_transfer_id. 0027_picking_guards.sql добавляет runtime grants,
+immutable/retained guards и deferred сверку плана, переноса, allocations и пары движений.
+Прежний putaway FK/guard сохранён. Snapshot 0026/0027 и journal создаёт drizzle-kit.
+Применять штатным db:migrate; applied SQL не редактировать. Автоматической TTL-очистки нет.
+
+### Review WMS-205: миграция 0028
+
+0028_picking_allocation_backing.sql проверяет обеспечение открытого PickingTask при
+изменении исходного allocation. Проверка deferred, читает конечное состояние и не запрещает
+release вместе с отменой в одном commit. Preflight под блокировками останавливает migrate
+при существующем mismatch без автоматического изменения истории. Индекс allocation_id
+ускоряет поиск затронутых строк. 0028_snapshot.json/journal созданы drizzle-kit custom;
+внешняя custom SQL-логика описана здесь и в source migration. Applied 0026/0027 не менялись.

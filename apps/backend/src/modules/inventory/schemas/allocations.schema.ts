@@ -13,11 +13,14 @@ export const allocations = pgTable(
     /** FK строки заказа; принадлежность склада/SKU проверяет service. */ lineId: uuid('line_id')
       .notNull()
       .references(() => orderLines.id),
-    /** FK физической позиции storage. */ balanceId: uuid('balance_id')
-      .notNull()
-      .references(() => stockBalances.id),
+    /** UUID/FK физической позиции storage или shipping, обязательный без default; при переносе источник не переписывается. */ balanceId:
+      uuid('balance_id')
+        .notNull()
+        .references(() => stockBalances.id),
     /** Исходное положительное int4 количество. */ allocated: integer('allocated').notNull(),
     /** Активное int4 количество 0..allocated, без default. */ active: integer('active').notNull(),
+    /** int4 перенесённые штуки, default 0: часть active переходит в новый shipping allocation, не считается release. */
+    transferred: integer('transferred').notNull().default(0),
     /** Накопленное освобождение int4, default 0; запись не удаляется. */ released: integer(
       'released',
     )
@@ -27,7 +30,7 @@ export const allocations = pgTable(
   (t) => [
     check(
       'allocation_quantities',
-      sql`${t.allocated}>0 and ${t.active}>=0 and ${t.released}>=0 and ${t.allocated}=${t.active}+${t.released}`,
+      sql`${t.allocated}>0 and ${t.active}>=0 and ${t.released}>=0 and ${t.transferred}>=0 and ${t.allocated}::bigint=${t.active}::bigint+${t.released}+${t.transferred}`,
     ),
   ],
 );
