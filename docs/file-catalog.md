@@ -451,3 +451,40 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | Файл                                  | Назначение                                                                                                                                 |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | [docs/code-review.md](code-review.md) | Требования к будущим review: инварианты, SQL/concurrency, тестовое evidence/coverage, модули, документация и формат приоритетных findings. |
+
+### Проект WMS-205
+
+| Файл                                 | Назначение                                                                                                                             |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| [flows/picking.md](flows/picking.md) | Реализованный флоу сборки: принятое назначение, границы fulfillment/inventory, Mermaid, перенос резерва, отмена и PostgreSQL evidence. |
+
+### Реализация WMS-205
+
+| Файл                                                                                                            | Назначение                                                                                            |
+| --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [picking.schema.ts](../apps/backend/src/modules/fulfillment/schemas/picking.schema.ts)                          | Source Drizzle task/lines, единицы, defaults, nullable assignee и ограничение одного открытого плана. |
+| [picking.repository.ts](../apps/backend/src/modules/fulfillment/repositories/picking.repository.ts)             | Private SQL плана, назначения, факта и отмены, без stock и собственного commit.                       |
+| [picking.service.ts](../apps/backend/src/modules/fulfillment/services/picking.service.ts)                       | Создание, самоназначение, частичная сборка, shortage, audit/outbox в общем context.                   |
+| [picking.controller.ts](../apps/backend/src/modules/fulfillment/picking.controller.ts)                          | HTTP, plain JSON normalization, session/warehouse/executor policy перед idempotency replay.           |
+| [confirm-picking.dto.ts](../apps/backend/src/modules/fulfillment/dto/confirm-picking.dto.ts)                    | Недоверенное фактическое приращение, target и shortage.                                               |
+| [picking-line.dto.ts](../apps/backend/src/modules/fulfillment/dto/picking-line.dto.ts)                          | OpenAPI output фактического, планового, отменённого и оставшегося количества.                         |
+| [picking-task.dto.ts](../apps/backend/src/modules/fulfillment/dto/picking-task.dto.ts)                          | OpenAPI output безопасного снимка задания/исполнителя/склада.                                         |
+| [picking-stock.service.ts](../apps/backend/src/modules/inventory/services/picking-stock.service.ts)             | Inventory проверки зоны/источника и аудит физической сборки.                                          |
+| [picking-stock.repository.ts](../apps/backend/src/modules/inventory/repositories/picking-stock.repository.ts)   | SQL переноса onHand/reserved и allocation с lineage и парными movements.                              |
+| [picking-transfers.schema.ts](../apps/backend/src/modules/inventory/schemas/picking-transfers.schema.ts)        | Source Drizzle неизменяемого основания переноса, FK и quantity.                                       |
+| [0026_late_skrulls.sql](../apps/backend/drizzle/0026_late_skrulls.sql)                                          | Generated drizzle-kit DDL из source schemas; output вручную не редактировать.                         |
+| [0027_picking_guards.sql](../apps/backend/drizzle/0027_picking_guards.sql)                                      | Source custom SQL runtime grants, retained/immutable/lifecycle и deferred reconciliation.             |
+| [0026_snapshot.json](../apps/backend/drizzle/meta/0026_snapshot.json)                                           | Generated снимок drizzle-kit; назначение таблиц описывают source schemas и drizzle README.            |
+| [0027_snapshot.json](../apps/backend/drizzle/meta/0027_snapshot.json)                                           | Generated снимок custom migration, без ручных правок output.                                          |
+| [fulfillment.picking-progressed.v1.schema.json](contracts/events/fulfillment.picking-progressed.v1.schema.json) | Source JSON Schema нового факта, UUID/UTC/version/action, не ORM-модель.                              |
+| [fulfillment.picking-progressed.v1.json](contracts/examples/fulfillment.picking-progressed.v1.json)             | Синтетический контрактный fixture, без реальных ID и credentials.                                     |
+| [picking.spec.ts](../apps/backend/test/integration/picking.spec.ts)                                             | Настоящие SQL/HTTP, barriers, rollback faults, ACL/replay и warehouse_app.                            |
+| [0023-picking-execution.md](adr/0023-picking-execution.md)                                                      | Принятое назначение исполнителя и реализация B1–B4, lineage, guards и границы WMS-206.                |
+| [wms-205.md](reports/wms-205.md)                                                                                | Фактические проверки, результат и ограничения реализации.                                             |
+
+### Исправление обеспечения PickingTask
+
+| Файл                                                                                               | Назначение                                                                                                                       |
+| -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| [0028_picking_allocation_backing.sql](../apps/backend/drizzle/0028_picking_allocation_backing.sql) | Новая custom migration: fail-closed preflight, индекс источника и deferred guard allocation → открытый picking plan.             |
+| [0028_snapshot.json](../apps/backend/drizzle/meta/0028_snapshot.json)                              | Generated drizzle-kit custom snapshot; вручную не менять. Дополнительная SQL-логика описана в source migration и drizzle README. |

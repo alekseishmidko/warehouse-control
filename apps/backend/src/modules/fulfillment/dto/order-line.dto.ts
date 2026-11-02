@@ -19,11 +19,13 @@ export class OrderLineDto {
     maximum: 2147483647,
   })
   reservedStorage!: number;
-  /** Всегда 0 до реализации picking. */ @ApiProperty({
-    type: 'integer',
-    minimum: 0,
-    maximum: 2147483647,
-  })
+  /** Действующий резерв в зоне отгрузки: собранное количество, которое ещё не отгружено. */ @ApiProperty(
+    {
+      type: 'integer',
+      minimum: 0,
+      maximum: 2147483647,
+    },
+  )
   reservedShipping!: number;
   /** Всегда 0 до реализации shipment. */ @ApiProperty({
     type: 'integer',

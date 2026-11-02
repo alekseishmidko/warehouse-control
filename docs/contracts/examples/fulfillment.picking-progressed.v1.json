@@ -1,0 +1,15 @@
+{
+  "eventId": "26000000-0000-4000-8000-000000000001",
+  "type": "fulfillment.picking-progressed",
+  "schemaVersion": 1,
+  "aggregateType": "picking-task",
+  "aggregateId": "26000000-0000-4000-8000-000000000002",
+  "aggregateVersion": 1,
+  "occurredAt": "2026-10-29T00:01:00Z",
+  "correlationId": "dbb37b21-1c4a-4b32-9307-148df1647f4c",
+  "payload": {
+    "taskId": "26000000-0000-4000-8000-000000000002",
+    "orderId": "26000000-0000-4000-8000-000000000003",
+    "action": "picked"
+  }
+}

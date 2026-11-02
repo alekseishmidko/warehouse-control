@@ -210,7 +210,8 @@ test.each(['update', 'delete', 'truncate'])(
     const statements = {
       update: "update audit_entries set reason_code='changed'",
       delete: 'delete from audit_entries',
-      truncate: 'truncate audit_entries, stock_movements, putaway_tasks, outbox_recovery_actions',
+      truncate:
+        'truncate audit_entries, stock_movements, putaway_tasks, outbox_recovery_actions, picking_transfers',
     };
     await expect(
       pool.query(statements[operation as keyof typeof statements]),

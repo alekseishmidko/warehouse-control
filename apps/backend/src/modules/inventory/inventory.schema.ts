@@ -2,6 +2,7 @@
  * Поля ниже объясняют предметный смысл, выбор типа и локальные ограничения.
  * Общие нюансы типов/NULL/индексов: docs/database-types.md.
  * Комментарии не меняют DDL: applied migrations остаются источником исполнения SQL. */
+import { pickingTransfers } from './schemas/picking-transfers.schema';
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -113,6 +114,8 @@ export const stockMovements = pgTable(
      * дельты текущая модель не принимает.
      */
     quantity: integer('quantity').notNull(),
+    /** Nullable UUID/FK: для сборки ссылка на picking_transfers; NULL для receipt/putaway. UNIQUE пары задаёт custom migration. */
+    pickingTransferId: uuid('picking_transfer_id').references(() => pickingTransfers.id),
     /** Nullable UUID/FK без default: для receipt NULL, для transfer — task.id. UNIQUE(transferId,kind) разрешает ровно одну запись каждого направления. */
     transferId: uuid('transfer_id').references(() => putawayTasks.id),
 
@@ -147,7 +150,7 @@ export const stockMovements = pgTable(
     check('movement_receipt_kind', sql`${t.kind} in ('receipt','transfer-out','transfer-in')`),
     check(
       'movement_transfer_reference',
-      sql`(${t.kind}='receipt' and ${t.transferId} is null) or (${t.kind} in ('transfer-out','transfer-in') and ${t.transferId} is not null)`,
+      sql`(${t.kind}='receipt' and ${t.transferId} is null and ${t.pickingTransferId} is null) or (${t.kind} in ('transfer-out','transfer-in') and ((${t.transferId} is not null and ${t.pickingTransferId} is null) or (${t.transferId} is null and ${t.pickingTransferId} is not null)))`,
     ),
     // PostgreSQL допускает несколько NULL в UNIQUE: receipt по-прежнему dedup через operationId.
     unique('movement_transfer_leg_unique').on(t.transferId, t.kind),

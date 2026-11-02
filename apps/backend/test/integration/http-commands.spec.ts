@@ -372,29 +372,35 @@ test('production OpenAPI includes only actual routes, technical exclusions and P
   const plain = await database().createHttpApplication();
   try {
     const document = createOpenApiDocument(plain);
-    expect(Object.keys(document.paths).sort()).toEqual([
-      '/',
-      '/api/v1/auth/login',
-      '/api/v1/auth/logout',
-      '/api/v1/auth/me',
-      '/api/v1/identity/users',
-      '/api/v1/identity/users/{userId}',
-      '/api/v1/identity/users/{userId}/sessions',
-      '/api/v1/identity/users/{userId}/sessions/{sessionId}',
-      '/api/v1/identity/users/{userId}/warehouses/{warehouseId}/roles',
-      '/api/v1/orders',
-      '/api/v1/orders/{orderId}',
-      '/api/v1/orders/{orderId}/allocations/{allocationId}/release',
-      '/api/v1/orders/{orderId}/cancel',
-      '/api/v1/orders/{orderId}/confirm',
-      '/api/v1/orders/{orderId}/reserve',
-      '/api/v1/putaway-tasks/{taskId}',
-      '/api/v1/putaway-tasks/{taskId}/execute',
-      '/api/v1/receipts',
-      '/api/v1/receipts/{receiptId}',
-      '/api/v1/receipts/{receiptId}/post',
-      '/health',
-    ]);
+    expect(Object.keys(document.paths).sort()).toEqual(
+      [
+        '/',
+        '/api/v1/auth/login',
+        '/api/v1/auth/logout',
+        '/api/v1/auth/me',
+        '/api/v1/identity/users',
+        '/api/v1/identity/users/{userId}',
+        '/api/v1/identity/users/{userId}/sessions',
+        '/api/v1/identity/users/{userId}/sessions/{sessionId}',
+        '/api/v1/identity/users/{userId}/warehouses/{warehouseId}/roles',
+        '/api/v1/orders',
+        '/api/v1/orders/{orderId}',
+        '/api/v1/orders/{orderId}/allocations/{allocationId}/release',
+        '/api/v1/orders/{orderId}/cancel',
+        '/api/v1/orders/{orderId}/confirm',
+        '/api/v1/orders/{orderId}/reserve',
+        '/api/v1/orders/{orderId}/picking-tasks',
+        '/api/v1/picking-tasks/{taskId}',
+        '/api/v1/picking-tasks/{taskId}/start',
+        '/api/v1/picking-tasks/{taskId}/confirm',
+        '/api/v1/putaway-tasks/{taskId}',
+        '/api/v1/putaway-tasks/{taskId}/execute',
+        '/api/v1/receipts',
+        '/api/v1/receipts/{receiptId}',
+        '/api/v1/receipts/{receiptId}/post',
+        '/health',
+      ].sort(),
+    );
     expect(document.components?.schemas?.Problem).toBeDefined();
     expect(document.paths['/health'].get?.parameters).toEqual(
       expect.arrayContaining([expect.objectContaining({ name: 'X-Correlation-Id' })]),

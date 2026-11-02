@@ -213,10 +213,14 @@ export async function createDatabaseHarness(): Promise<DatabaseHarness> {
           await tx.execute(
             sql`alter table orders disable trigger orders_retained; alter table order_lines disable trigger order_lines_retained; alter table stock_allocations disable trigger allocations_retained`,
           );
-          await tx.execute(sql`truncate table orders, order_lines, stock_allocations, application_metadata, audit_entries, stock_movements, stock_balances,
+          // Новые retained таблицы очищаются только в disposable admin-БД после завершения теста.
+          await tx.execute(
+            sql`alter table picking_tasks disable trigger picking_tasks_retained; alter table picking_lines disable trigger picking_lines_retained; alter table picking_transfers disable trigger picking_transfers_immutable`,
+          );
+          await tx.execute(sql`truncate table picking_transfers,picking_lines,picking_tasks,orders, order_lines, stock_allocations, application_metadata, audit_entries, stock_movements, stock_balances,
             locations, products, warehouses, outbox_deliveries, outbox_events, delivery_streams, outbox_aggregate_sequences, http_idempotency, receipts, receipt_lines, processed_events, consumer_streams, putaway_tasks, outbox_recovery_actions, users, sessions, warehouse_roles, auth_login_windows, identity_bootstrap`);
           await tx.execute(
-            sql`alter table orders enable trigger orders_retained; alter table order_lines enable trigger order_lines_retained; alter table stock_allocations enable trigger allocations_retained`,
+            sql`alter table picking_tasks enable trigger picking_tasks_retained; alter table picking_lines enable trigger picking_lines_retained; alter table picking_transfers enable trigger picking_transfers_immutable; alter table orders enable trigger orders_retained; alter table order_lines enable trigger order_lines_retained; alter table stock_allocations enable trigger allocations_retained`,
           );
           await tx.execute(
             sql`alter table identity_bootstrap enable trigger identity_bootstrap_retained`,

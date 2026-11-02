@@ -1,4 +1,7 @@
 /** @file Fulfillment API composition: controller → service → private repository, inventory — публичный владелец резервов. */
+import { PickingController } from './picking.controller';
+import { PickingService } from './services/picking.service';
+import { PickingRepository } from './repositories/picking.repository';
 import { Module } from '@nestjs/common';
 import { FulfillmentController } from './fulfillment.controller';
 import { FulfillmentService } from './services/fulfillment.service';
@@ -19,8 +22,8 @@ import { IdempotencyModule } from '../../infrastructure/idempotency/idempotency.
     OutboxModule,
     IdempotencyModule,
   ],
-  controllers: [FulfillmentController],
-  providers: [FulfillmentService, OrdersRepository],
+  controllers: [FulfillmentController, PickingController],
+  providers: [FulfillmentService, OrdersRepository, PickingService, PickingRepository],
   exports: [FulfillmentService],
 })
 export class FulfillmentModule {}

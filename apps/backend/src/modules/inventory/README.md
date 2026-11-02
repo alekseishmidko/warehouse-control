@@ -234,7 +234,7 @@ stock_allocations и reserved. Fulfillment держит order lock и прове
 тот же context. Сервис inventory не открывает nested run и не меняет чужие order tables.
 
 Схема schemas/allocations.schema.ts: immutable lineId/balanceId/allocated, active/released int4,
-CHECK allocated=active+released. Нет expiration/TTL/consumed до shipment. Reserve выбирает только
+CHECK allocated=active+released+transferred. Нет expiration/TTL/consumed до shipment. Reserve выбирает только
 storage warehouse/product, lock по location UUID, без SKIP LOCKED. Нехватка выходит до runner,
 даже если часть UPDATE/INSERT уже выполнена. Release quantity<=active не меняет onHand.
 Полный release оставляет запись; новый reserve создаёт новый UUID. Allocation audit и order event
@@ -249,3 +249,27 @@ Migration 0025 закрывает исключение reconciliation для о�
 проверку INSERT. Существующие расхождения блокируют миграцию до операторского разбора;
 автоматическое исправление stock/оснований не выполняется. Новые отрицательные PostgreSQL
 cases проверяют INSERT/UPDATE под runtime role и fail-closed migration preflight.
+
+## Физическая сборка WMS-205
+
+InventoryService.pickReservedQuantity принимает проверенное основание задания и заимствованный
+context. Внутренний PickingStockService проверяет исходный storage allocation и shipping
+ячейку того же склада через WarehousesService. PickingStockRepository блокирует balances
+в стабильном порядке, уменьшает/увеличивает onHand и reserved вместе. Source allocation
+сохраняет transferred, target получает новый allocation. released не увеличивается.
+
+PickingTransfer связывает источник, назначение, строку задания, quantity и audit.
+Парные movements используют pickingTransferId, а прежние движения размещения — transferId.
+Оба основания защищены FK, CHECK, unique и deferred guards. История retained/immutable;
+DBA способен обойти guards. Нулевую нехватку обрабатывает fulfillment без вызова inventory.
+
+Вход → проверки → SQL/движения → commit/rollback, пример и Mermaid:
+[флоу сборки](../../../../../docs/flows/picking.md). Подтверждающие проверки —
+[picking.spec.ts](../../../test/integration/picking.spec.ts).
+Новые файлы: services/picking-stock.service.ts, repositories/picking-stock.repository.ts,
+schemas/picking-transfers.schema.ts. Это private providers inventory, без своих транзакций.
+
+Миграция 0028 проверяет release/прочие изменения allocation против открытых picking lines
+на commit. Даже вызывающий публичный InventoryService напрямую не может оставить план
+без исходного резерва. Согласованная отмена в той же транзакции разрешена.
+[Флоу и PostgreSQL evidence](../../../../../docs/flows/picking.md#защита-обеспечения-при-изменении-allocation-review-2026-11-02).

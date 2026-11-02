@@ -34,7 +34,7 @@ WMS-203 реализована: полное размещение из receiving
 и идемпотентный API с warehouse policy. WMS-204 выполнена: заказ и резервирование. Следующая задача — WMS-205: сборка.
 [ADR-0018](adr/0018-server-sessions.md), [ADR-0019](adr/0019-warehouse-role-matrix.md),
 [identity](identity.md).
-Picking/shipping и дополнительные проектные детали ещё не реализованы; auth/ACL готовы WMS-202.
+Сборка реализована WMS-205. Shipping и дополнительные проектные детали ещё не реализованы; auth/ACL готовы WMS-202.
 
 Отчёты: [окружение WMS-101](reports/wms-101.md),
 [тестовая инфраструктура WMS-102](reports/wms-102.md),
@@ -68,7 +68,7 @@ Picking/shipping и дополнительные проектные детали
 [Правила WMS-201](fulfillment-rules.md) фиксируют принятые B1–B4 и проект переходов.
 [Flow/AC](flows/fulfillment.md) и [контракты](contracts/fulfillment.md) — основа будущей
 реализации; дополнительные технические детали не утверждаются этим статусом.
-Заказ, резерв и release/cancel реализованы WMS-204; picking/shipping ещё не реализованы.
+Заказ, резерв и release/cancel реализованы WMS-204; сборка — WMS-205, shipping ещё не реализована.
 
 Identity и роли, размещение, конкурентные резервы, сборка, отгрузка,
 компенсирующие операции. OpenAPI/client generation и простой web.
@@ -141,3 +141,10 @@ P2 WMS-204 reconciliation исправлен новой migration 0025: INSERT/U
 Identity: собственные admin-операции получают user UPDATE до session lock. Это исправление
 гонки с аутентификацией; HTTP-контракты, матрица ролей и следующий этап WMS-205 не изменены.
 [Порядок блокировок и evidence](flows/identity.md#собственные-административные-операции).
+
+WMS-205 завершена: [PickingTask и сборка](flows/picking.md), частичное подтверждение,
+shortage и перенос allocations. Самоназначение исполнителя утверждено 2026-11-01.
+[Проверки](reports/wms-205.md). Далее WMS-206: отгрузка и физический возврат.
+
+WMS-205 review: guard обеспечения плана расширен на изменения allocations миграцией 0028;
+добавлены runtime-role проверки rollback и согласованной отмены. Следующий этап — WMS-206.

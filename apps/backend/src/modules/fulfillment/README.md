@@ -1,4 +1,4 @@
-# Fulfillment: заказ и резервирование WMS-204
+# Fulfillment: заказ, резервирование и сборка
 
 ## Для менеджера
 
@@ -6,7 +6,8 @@
 Draft отдельно подтверждается в active. Можно явно зарезервировать часть заказа: на 10
 заказать резерв 6 и оставить open=4. Если запрошены 10 при доступных 6, ничего не резервируется.
 Release части возвращает её в open. Cancel до сборки освобождает все резервы и закрывает заказ.
-Stock физически не перемещается, onHand неизменен. TTL/expiration нет, решение об освобождении явное.
+При reserve/release stock физически не перемещается. При сборке WMS-205 товар и его
+резерв переносятся в отгрузку вместе. TTL/expiration нет, решение об освобождении явное.
 
 ## Границы и интерфейсы
 
@@ -64,5 +65,35 @@ applied SQL не редактируется; config и prerequisites те же, 
 reconciliation, faults/replay и runtime role. [DTO tests](../../../test/unit/order-dto.spec.ts)
 проверяют input limits без Docker. [ADR-0022](../../../../../docs/adr/0022-order-reservations.md).
 
-Нет picking/shipping/consumed и staged возврата, UI, automatic expiry или purge истории.
+Сборка реализована WMS-205. Нет shipping/consumed и staged возврата, UI, automatic expiry или purge истории.
 Allocation history в текущем GET пока не пагинируется. DBA способен обойти guards.
+
+## Сборка WMS-205
+
+Менеджер создаёт план из текущего резерва. Кладовщик сам принимает его через start.
+Подтверждает только закреплённый исполнитель с действующим складским доступом.
+Частичное подтверждение переносит найденное и сохраняет резерв недособранного.
+Нехватка сама не списывает остатки. После shortage сборщик возобновляет задание через start.
+Переназначения в этом API нет. До переноса отмена заказа закрывает план и освобождает резерв.
+После переноса отмена отклоняется до физического возврата WMS-206.
+
+PickingController → HttpCommandsService → PickingService → PickingRepository.
+PickingService вызывает InventoryService.pickReservedQuantity с тем же context.
+Inventory пишет stock, allocations, историю переноса и движения. Fulfillment пишет
+состояние, аудит и PickingProgressed v1; saved HTTP result фиксируется в том же commit.
+Ошибка любого шага откатывает весь сценарий. GET удерживает order SHARE.
+
+Схемы, последовательности, пример 10 → 6+4, команды, состояния и ошибки имеют одного
+владельца — [флоу сборки](../../../../../docs/flows/picking.md).
+[PostgreSQL tests](../../../test/integration/picking.spec.ts) подтверждают гонки, rollback,
+ACL/replay и runtime role. Решение — [ADR-0023](../../../../../docs/adr/0023-picking-execution.md).
+
+Новые файлы: picking.controller.ts; services/picking.service.ts;
+repositories/picking.repository.ts; schemas/picking.schema.ts;
+dto/confirm-picking.dto.ts, picking-line.dto.ts и picking-task.dto.ts.
+Внутренний PickingService не экспортируется из Nest-модуля. Inventory не импортирует
+его или OrdersRepository. Миграции 0026/0027 добавляют новые таблицы и guards.
+
+Review WMS-205, 2026-11-02: migration 0028 дополнительно проверяет открытые планы при
+изменении allocation, даже если release вызван другим сервисом. Deferred проверка
+разрешает согласованную отмену в общей транзакции. [Подробный SQL-флоу и тесты](../../../../../docs/flows/picking.md#защита-обеспечения-при-изменении-allocation-review-2026-11-02).

@@ -158,4 +158,5 @@ Inventory хранит allocations и меняет reserved; physical onHand/mov
 не меняются. Явный частичный reserve разрешён, нехватка вектора откатывает всю команду.
 Release возвращает количество в open, cancel до сборки освобождает всё и закрывает заказ.
 Allocated=active+released, line active<=ordered, managed balance reserved=SUM(active).
-No TTL по B4. Picking/shipping и consumed — последующие задачи. [Flow](flows/reservations.md).
+No TTL по B4. Сборка реализована WMS-205: [flow](flows/picking.md).
+Shipping и consumed — последующие задачи. [Резервирование](flows/reservations.md).

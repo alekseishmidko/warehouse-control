@@ -1,7 +1,7 @@
 # WMS-204: заказ, резервирование и явное освобождение
 
 Реализованный backend flow по [ADR-0022](../adr/0022-order-reservations.md).
-Fulfillment владеет заказом, inventory — allocations и reserved. Picking/shipping пока отсутствуют.
+Fulfillment владеет заказом, inventory — allocations и reserved. Shipping пока отсутствуют.
 
 ## Бизнес-сценарий и состояния
 
@@ -138,7 +138,7 @@ Release конкретного allocation берёт ровно его balance l
 ## Release и история
 
 Allocation связывает immutable lineId/balanceId с allocated. В текущем этапе
-allocated=active+released; consumed отсутствует до shipment. Partial release уменьшает active,
+allocated=active+released+transferred; consumed отсутствует до shipment. Partial release уменьшает active,
 увеличивает released и уменьшает balance.reserved. Закрытая запись не удаляется и не открывается
 обратно; следующий reserve создаёт новый allocation UUID. Изменения каждого allocation
 аудируются с точным количеством, субъектом и correlationId в общем commit.
@@ -205,7 +205,7 @@ Schema 2020-12/UUID/UTC Z/256KiB и неизвестные optional fields пр�
 500/503 — безопасный storage fault без SQL/payload/stack. Ошибки не кешируются.
 
 Ограничения: allocations/history в ответе пока без pagination и растут с числом операций;
-очистки истории/TTL нет. Picking/shipping/consumed, backorder/FIFO/межскладские операции,
+очистки истории/TTL нет. Shipping/consumed, backorder/FIFO/межскладские операции,
 UI и блокировка сомнительного физического stock — будущие задачи, не часть WMS-204.
 
 ## Evidence
@@ -217,3 +217,7 @@ release/cancel rollback, runtime grants, state/DTO/unknown allocation и denied 
 Прямой UPDATE managed reserved с несовпадением ledger отвергается deferred guard 23514.
 [DTO unit](../../apps/backend/test/unit/order-dto.spec.ts) и
 [event contract unit](../../apps/backend/test/unit/event-contracts.spec.ts) проверяют runtime границы.
+
+Сборка WMS-205 реализована отдельно: [текущий flow](picking.md). История allocation теперь
+учитывает transferred. GET различает storage/shipping. Открытое задание запрещает
+независимый release; после переноса отмена требует будущего физического возврата.

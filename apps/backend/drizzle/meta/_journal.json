@@ -183,6 +183,27 @@
       "when": 1793424877431,
       "tag": "0025_strict_reservation_reconciliation",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793549146657,
+      "tag": "0026_late_skrulls",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1793549269354,
+      "tag": "0027_picking_guards",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793606445534,
+      "tag": "0028_picking_allocation_backing",
+      "breakpoints": true
     }
   ]
 }

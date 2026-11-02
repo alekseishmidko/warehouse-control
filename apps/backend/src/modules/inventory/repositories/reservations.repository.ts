@@ -17,8 +17,10 @@ export class ReservationsRepository {
         allocated: number;
         active: number;
         released: number;
+        transferred: number;
+        kind: string;
       }>(
-        sql`select a.* from stock_allocations a join stock_balances b on b.id=a.balance_id where a.line_id=${lineId} order by b.product_id,b.location_id,a.id`,
+        sql`select a.*,l.kind from stock_allocations a join stock_balances b on b.id=a.balance_id join locations l on l.id=b.location_id where a.line_id=${lineId} order by b.product_id,b.location_id,a.id`,
       )
     ).rows;
   }

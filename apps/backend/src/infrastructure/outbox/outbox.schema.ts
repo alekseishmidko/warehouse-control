@@ -56,7 +56,7 @@ export const outboxAggregateSequences = pgTable(
     ),
     check(
       'outbox_sequence_aggregate',
-      sql`${t.aggregateType} in ('receipt','putaway-task','order')`,
+      sql`${t.aggregateType} in ('receipt','putaway-task','order','picking-task')`,
     ),
   ],
 );
