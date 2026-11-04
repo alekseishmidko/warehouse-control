@@ -24,3 +24,8 @@ pnpm-lock.yaml
 secrets/**
 **/*.pem
 **/*.key
+
+# Generated web API и browser outputs.
+apps/web/src/api/generated/**
+**/test-results/**
+**/playwright-report/**

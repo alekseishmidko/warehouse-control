@@ -15,10 +15,16 @@ closed, createHttpApplication/reset/dispose. dispose идемпотентен; c
 только после успешного cleanup всех ресурсов. Ошибка setup/cleanup не пропускается.
 Config содержит случайный тестовый пароль и не предназначен для логирования.
 
-Без фоновых jobs, бизнес-транзакционных портов и событий; их тестирование появится
-с реализацией соответствующих модулей. Ограничения, timeouts, команды и примеры
+Harness поддерживает отдельный worker graph и реальные транзакции/события.
+Ограничения, timeouts, команды и примеры
 жизненного цикла описаны в [общем README](../README.md), проверки — integration/*.spec.ts.
 Изменения support проверять на всех всех integration suites.
+
+WMS-208: createHttpApplication принимает необязательный origin для валидированной
+identity config через DI. Default прежний: http://127.0.0.1:3000. Browser gate передаёт
+случайный loopback origin Vite; process.env и рабочая .env не меняются. Эти настройки
+не отключают session, CSRF или warehouse ACL. Полный integration прогон проверяет всех
+потребителей общего harness.
 
 WMS-103: reset audit/movements выполняется владельцем disposable БД с временным отключением
 обоих triggers в одной транзакции. Runtime не имеет этой возможности; production cleanup

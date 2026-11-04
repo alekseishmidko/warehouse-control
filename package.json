@@ -4,11 +4,12 @@
   "description": "Warehouse controller monorepo",
   "packageManager": "pnpm@10.18.3",
   "engines": {
-    "node": "^22.13.0 || >=24",
+    "node": "^22.22.2 || ^24.15.0 || >=26",
     "pnpm": ">=10 <11"
   },
   "scripts": {
     "dev": "pnpm --filter @warehouse/backend dev",
+    "dev:all": "node scripts/dev-all.cjs",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "start": "pnpm --filter @warehouse/backend start",
@@ -43,16 +44,33 @@
     "format:check": "prettier --check .",
     "test:identity:coverage": "pnpm --filter @warehouse/backend test:identity:coverage",
     "test:functional": "pnpm --filter @warehouse/backend test:functional",
-    "check:pr": "pnpm format:check && pnpm lint && pnpm check:architecture && pnpm test:quality && pnpm typecheck && pnpm --filter @warehouse/backend test:pr",
-    "lint": "eslint apps/backend/src apps/backend/test --max-warnings 0",
+    "check:pr": "pnpm format:check && pnpm lint && pnpm check:architecture && pnpm test:quality && pnpm test:dev && pnpm web:api:check && pnpm typecheck && pnpm --filter @warehouse/web build && pnpm test:web && pnpm --filter @warehouse/backend test:pr",
+    "lint": "eslint apps/backend/src apps/backend/test apps/web/src apps/web/test apps/web/vite.config.ts --max-warnings 0",
     "check:architecture": "node scripts/quality/architecture.cjs",
     "test:quality": "node --test scripts/quality/*.test.cjs",
-    "test:coverage": "pnpm --filter @warehouse/backend test:coverage"
+    "test:dev": "node --test scripts/dev-all.test.cjs",
+    "test:coverage": "pnpm --filter @warehouse/backend test:coverage",
+    "web:dev": "pnpm --filter @warehouse/web dev",
+    "web:api:generate": "pnpm --filter @warehouse/web api:generate",
+    "web:api:check": "pnpm --filter @warehouse/web api:check",
+    "test:web": "pnpm --filter @warehouse/web test",
+    "test:web:gate": "pnpm --filter @warehouse/backend test:web:gate",
+    "dev:backend": "pnpm --filter @warehouse/backend dev"
   },
   "private": true,
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "eslint": "10.14.0",
+    "eslint-plugin-solid": "0.18.1",
     "prettier": "3.9.10",
     "typescript-eslint": "8.72.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "body-parser@2.3.0": "2.4.0",
+      "multer@2.4.0": "2.5.0",
+      "js-yaml@5.3.0": "5.4.1",
+      "fast-uri@3.1.8": "3.1.9"
+    }
   }
 }

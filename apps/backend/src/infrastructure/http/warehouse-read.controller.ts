@@ -1,20 +1,7 @@
 /** @file API-only чтение склада: одна session/policy транзакция и публичные сервисы владельцев данных. */
-import {
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Query,
-  applyDecorators,
-  type Type,
-} from '@nestjs/common';
-import {
-  ApiCookieAuth,
-  ApiTags,
-  ApiExtraModels,
-  ApiOkResponse,
-  getSchemaPath,
-} from '@nestjs/swagger';
+import { ApiReadPage } from './api-read-page.decorator';
+import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { IdentityAccess, SessionPrincipal } from '../../modules/identity/identity.http';
 import { AccessService } from '../../modules/identity/services/access.service';
 import type { Principal } from '../../modules/identity/dto/principal.dto';
@@ -39,22 +26,6 @@ import { ShipmentSummaryQueryDto } from '../../modules/fulfillment/dto/shipments
 import { ShipmentSummaryDto } from '../../modules/fulfillment/dto/shipments-read.dto';
 import { AuditSummaryQueryDto } from '../../modules/audit/dto/audit-query.dto';
 import { AuditSummaryDto } from '../../modules/audit/dto/audit-read.dto';
-/** Описывает реальный generic JSON page в OpenAPI, не возвращая ORM или generic object без полей. */
-function ApiReadPage(model: Type<unknown>) {
-  return applyDecorators(
-    ApiExtraModels(model),
-    ApiOkResponse({
-      schema: {
-        type: 'object',
-        required: ['items', 'nextCursor'],
-        properties: {
-          items: { type: 'array', items: { $ref: getSchemaPath(model) } },
-          nextCursor: { type: 'string', nullable: true },
-        },
-      },
-    }),
-  );
-}
 /** Не новый бизнес-модуль: HTTP composition читает только через сервисы соответствующих владельцев. */
 @Controller('warehouses/:warehouseId')
 @ApiCookieAuth('session')

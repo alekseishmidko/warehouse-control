@@ -1,4 +1,7 @@
 /** @file Warehouses SQL: только собственные таблицы, общий transaction context, без commit. */
+import { sql } from 'drizzle-orm';
+import { readKeysetPage } from '../../../infrastructure/database/read-keyset-page';
+import type { PageRequest } from '../../../shared/pagination/keyset-page';
 import { Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { transactionClient } from '../../../infrastructure/database/postgres-transaction-runner';
@@ -8,6 +11,30 @@ import type { LocationDto, LocationKind, WarehouseDto } from '../dto/warehouse.d
 /** Внутренний provider владельца склада/ячеек. */
 @Injectable()
 export class WarehousesRepository {
+  /** Список ограничен доверенным набором grants из AccessService, system_admin не даёт implicit доступа. */
+  listWarehouses(context: TransactionContext, ids: readonly string[], page: PageRequest) {
+    return readKeysetPage<import('../dto/warehouse-read.dto').WarehouseReadDto>(context, page, {
+      from: sql`warehouses w`,
+      id: sql`w.id`,
+      projection: sql`w.id,w.code,w.name`,
+      where: ids.length
+        ? sql`w.id in (${sql.join(
+            ids.map((id) => sql`${id}::uuid`),
+            sql`,`,
+          )})`
+        : sql`false`,
+    });
+  }
+  /** Читает только ячейки проверенного склада; выбор чужого UUID позже также проверяется owner команды. */
+  listLocations(context: TransactionContext, warehouseId: string, page: PageRequest) {
+    return readKeysetPage<import('../dto/location-read.dto').LocationReadDto>(context, page, {
+      from: sql`locations l`,
+      id: sql`l.id`,
+      projection: sql`l.id,l.warehouse_id as "warehouseId",l.code,l.kind`,
+      where: sql`l.warehouse_id=${warehouseId}::uuid`,
+    });
+  }
+
   /** Создаёт склад, unique violation не скрывается. */
   async createWarehouse(
     context: TransactionContext,

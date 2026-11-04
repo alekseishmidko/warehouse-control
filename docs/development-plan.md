@@ -363,14 +363,22 @@ balances, включая отсутствие allocation history; mismatch су�
 
 ### WMS-208. Пользовательский интерфейс
 
-- [ ] **WMS-208.1** — Создать React/Vite приложение, маршрутизацию и базовые UI-компоненты без backend-импортов.
-- [ ] **WMS-208.2** — Настроить generated api-client из OpenAPI и TanStack Query, единый разбор problem responses.
-- [ ] **WMS-208.3** — Добавить login, доступные склады и справочники с loading/empty/error состояниями.
-- [ ] **WMS-208.4** — Реализовать экраны приёмки и размещения с идемпотентной отправкой команд.
-- [ ] **WMS-208.5** — Добавить заказ, резерв, сборку и отгрузку; отображать фактические статусы и ожидание фоновых действий.
-- [ ] **WMS-208.6** — При timeout сохранять ключ команды и проверять её результат; не создавать новую операцию автоматически.
-- [ ] **WMS-208.7** — Добавить историю и понятные менеджеру ошибки; проверить клавиатурную навигацию и базовую доступность.
-- [ ] **WMS-208.8** — Пройти gate 2 через браузер, включая права, повтор клика, сетевую ошибку и частичные операции.
+Стек изменён по выбору пользователя: [ADR-0026](adr/0026-solid-frontend.md).
+Solid + TypeScript + Vite, Solid Router, `@tanstack/solid-query`, Tailwind CSS.
+SPA реализовано в apps/web. Версии и запуск — [web README](../apps/web/README.md).
+Базовые компоненты используют семантический HTML без сложной UI-библиотеки.
+[Флоу](flows/web.md), [ADR-0027](adr/0027-web-boundaries.md), [результаты ревью и тестов](reports/wms-208.md).
+Gate 2 пройден в Chromium с реальными PostgreSQL migrations/API/worker.
+Production static hosting, другие браузеры и полный WCAG audit не входят в результат.
+
+- [x] **WMS-208.1** — Создать Solid/TypeScript/Vite SPA в apps/web, Solid Router и базовые UI-компоненты без backend-импортов; закрепить совместимые версии, dev proxy/origin и Solid-совместимые lint/typecheck/build/компонентные тесты.
+- [x] **WMS-208.2** — Настроить generated api-client из OpenAPI и @tanstack/solid-query, единый разбор problem responses; query keys по складу/фильтрам/пользователю, очистка приватного cache при logout.
+- [x] **WMS-208.3** — Добавить login, доступные склады и справочники с loading/empty/error состояниями.
+- [x] **WMS-208.4** — Реализовать экраны приёмки и размещения с идемпотентной отправкой команд.
+- [x] **WMS-208.5** — Добавить заказ, резерв, сборку и отгрузку; отображать фактические статусы и ожидание фоновых действий.
+- [x] **WMS-208.6** — При timeout сохранять ключ команды и проверять её результат; не создавать новую операцию автоматически.
+- [x] **WMS-208.7** — Добавить историю и понятные менеджеру ошибки; проверить клавиатурную навигацию и базовую доступность.
+- [x] **WMS-208.8** — Пройти gate 2 через браузер, включая права, повтор клика, сетевую ошибку и частичные операции.
 
 Web можно вводить по мере готовности API, не ожидая завершения всех экранов.
 Бизнес-правила остаются на сервере. В UI учитывать повтор отправки и неопределённый
@@ -627,9 +635,9 @@ rollback приложения не выдаётся за rollback данных �
 WMS-101–WMS-112 и **WMS-201** завершены. B1–B4 приняты владельцем продукта 2026-10-29.
 WMS-202 реализована: users/sessions/auth/ACL/CSRF/bootstrap и проверка отсутствия утечек.
 WMS-203 выполнена: размещение, парные movements и атомарное завершение.
-WMS-204–WMS-206 выполнены. Следующая задача — **WMS-208**, пользовательский интерфейс. Перед запуском текущего API/operator
+WMS-204–WMS-208 выполнены. Следующая задача — **WMS-301**, локальный kind/Helm. Перед запуском текущего API/operator
 bootstrap явно заполнить AUTH_ORIGIN и оба срока сессии, числовых defaults нет.
-Fulfillment, frontend, Kubernetes/NGINX/Kafka ещё не реализованы. Складские applied migrations
+Frontend реализован; production static serving, Kubernetes/NGINX/Kafka ещё не реализованы. Складские applied migrations
 не переписывать; dev actor не возвращать как fallback. Публикация/внешний deploy требуют
 явно заданного окружения и TLS gateway.
 
@@ -659,8 +667,9 @@ PostgreSQL и producer/handler regression cases; бизнес-права и эт
 ## Обязательная проверка каждого PR
 
 После изменения кода и документации выполнить `pnpm check:pr` из корня. Это единый
-локальный gate: format/typecheck, event contracts, build, OpenAPI и полный unit/integration
-прогон. Docker обязателен. Результат и связь требований с tests включать в PR по
+локальный gate: format/lint/architecture/typecheck, contracts/OpenAPI/web generation,
+build, Vitest и полный Jest/integration/Chromium прогон, два coverage baseline.
+Docker и установленный Playwright Chromium обязательны. Результат и связь требований с tests включать в PR по
 [шаблону](templates/pull-request.md). Быстрый `pnpm test:functional` запускает integration,
 но не заменяет gate. [Порядок и ограничения](pr-checks.md).
 [Покрытие текущего WMS-206 diff](reports/wms-206.md#соответствие-diff-документации-и-тестов).

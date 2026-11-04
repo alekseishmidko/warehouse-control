@@ -30,6 +30,21 @@ const ACTIONS: Record<WarehouseRole, readonly WarehouseAction[]> = {
 /** Policy не выдаёт system_admin складские права и не меняет grants; изменения принадлежат UsersService. */
 @Injectable()
 export class AccessService {
+  /** Список readable warehouse IDs текущей session; caller не принимает разрешения из query/body. */
+  async listReadableWarehouseIds(
+    context: TransactionContext,
+    principal: Principal,
+  ): Promise<string[]> {
+    await this.sessions.requireSession(context, principal);
+    return [
+      ...new Set(
+        (await this.repository.roles(context, principal.userId))
+          .filter((row) => ACTIONS[row.role as WarehouseRole]?.includes('read'))
+          .map((row) => row.warehouse_id),
+      ),
+    ];
+  }
+
   /** Сессия проверяется владельцем, затем repository читает grants под тем же user lock. */
   constructor(
     private readonly transactions: IdentityTransactionsService,

@@ -16,3 +16,14 @@ test('floating Promise, explicit any и ts-ignore блокируются', async
       rule,
     );
 });
+
+test('Solid source rejects React/backend imports', async () => {
+  const [result] = await new ESLint().lintText(
+    "import React from 'react';\nimport {AppModule} from '../../../backend/src/app.module';",
+    { filePath: path.resolve('apps/web/src/api/client.ts') },
+  );
+  assert.equal(
+    result.messages.filter((message) => message.ruleId === 'no-restricted-imports').length,
+    2,
+  );
+});

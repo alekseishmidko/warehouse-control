@@ -48,7 +48,11 @@ Node/pnpm для convenience-команд/проверочных скрипто�
 2. Для старого .env добавить **CONTAINER_DATABASE_URL**: те же локальные credentials и
    база, но hostname `postgres`, внутренний порт `5432`. Пароль URL-encode.
    Host DATABASE_URL остаётся loopback:15432; это два разных сетевых адреса одной БД.
-3. Выполнить:
+3. Для browser login переопределить CONTAINER_AUTH_ORIGIN на HTTPS origin
+   браузера за TLS gateway; для запуска default https://warehouse.local уже задан.
+   AUTH_ORIGIN остаётся HTTP origin host dev; overlay передаёт CONTAINER_AUTH_ORIGIN
+   приложению под именем AUTH_ORIGIN. Существующую .env автоматически не менять.
+4. Выполнить:
 
 ```sh
 pnpm docker:build
@@ -60,7 +64,8 @@ worker стартует после миграции независимо от HT
 `127.0.0.1:${API_PORT:-3000}`, PostgreSQL — только на
 `127.0.0.1:${POSTGRES_PORT:-15432}`. Внутри контейнера API слушает 0.0.0.0:3000.
 NODE_ENV=production, dev actor удалён, admin CLI выключена по умолчанию.
-AUTH_ORIGIN и оба срока сессий обязательны; production origin HTTPS. GET /health — 200,
+Оба срока сессий обязательны; CONTAINER_AUTH_ORIGIN имеет default https://warehouse.local.
+Production origin HTTPS. GET /health — 200,
 anonymous business — 401; доступ с действующей session зависит от warehouse role/CSRF.
 Рабочую приёмку демонстрировать отдельным gate ниже; guard не ослаблен ради Docker.
 
@@ -272,3 +277,53 @@ Gate назначает своему синтетическому admin warehous
 release2 и cancel4. Read-only SQL должен показать onHand=10/reserved=0 и retained allocation
 allocated=6/active=0/released=6. Проект/volume/env остаются отдельными disposable, root .env не меняется.
 [Подробный заказ/reserve flow](reservations.md).
+
+## Исправление origin при совместном dev/Compose запуске
+
+Триггер: app:up с AUTH_ORIGIN=http://127.0.0.1:5173 в общем env-file.
+API завершался с Invalid AUTH_ORIGIN, поскольку overlay задаёт NODE_ENV=production.
+Вход задаёт локальный оператор; Compose использует отдельный CONTAINER_AUTH_ORIGIN
+с default https://warehouse.local для совместимости с существующей .env.
+Identity validator сохраняет проверку HTTPS и Secure cookies. SQL, ACL, сессионные
+сроки и бизнес-транзакции не меняются. Без нового значения или с пустым значением
+Compose использует default; явное HTTP значение отклоняет существующий identity validator.
+Backend сам TLS не завершает: health по HTTP не доказывает готовность browser login.
+
+```mermaid
+flowchart LR
+  E[Общий env-file] --> H[AUTH_ORIGIN: HTTP loopback для host dev]
+  E --> C[CONTAINER_AUTH_ORIGIN: HTTPS для Compose]
+  C --> A[API AUTH_ORIGIN + NODE_ENV production]
+  A --> V{Identity validation}
+  V -->|HTTPS и валидные сроки| R[API health 200]
+  V -->|HTTP или неверная policy| F[Startup отказ]
+```
+
+| AC               | Реализация                                                            | Проверка                                                                                                             |
+| ---------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| AC-APP-ORIGIN-01 | compose.app.yaml передаёт отдельный origin всем backend services      | docker-gate.cjs: effective config при host HTTP без новой переменной и с HTTPS override, затем production API health |
+| AC-APP-ORIGIN-02 | identity validator не ослаблен; production и Secure cookies сохранены | существующие identity unit tests; production anonymous access 401 в docker:gate                                      |
+
+Регрессия AC-APP-ORIGIN-01 перед исправлением завершилась с exit 1:
+ожидался HTTPS origin, фактически overlay передавал host HTTP origin.
+
+Проверки после исправления (2026-11-04):
+
+- `node scripts/docker-gate.cjs` — exit 0: default без новой переменной и явный
+  HTTPS override в effective config, production health/401,
+  миграции, worker, replay, складские сценарии и SIGTERM на отдельной БД.
+- `node scripts/docker-image-check.cjs` — exit 0: чистая no-cache сборка,
+  отсутствие fake secret во всех final layers, non-root entrypoint.
+- Identity unit suite (`jest --selectProjects unit --runInBand --runTestsByPath
+.test-dist/test/unit/identity.spec.js`, из apps/backend) — 3/3 на существующей
+  compiled сборке. Production HTTP origin по-прежнему отклоняется.
+- Ревью и повторное ревью: проверены overlay, environment precedence и gate cleanup.
+  Новый CONTAINER_AUTH_ORIGIN исключён из наследуемой shell environment gate,
+  чтобы export оператора не влиял на изолированную проверку. Других замечаний нет.
+
+Полный check:pr не запускался; coverage не измерялось. Backend source не менялся.
+Рабочая .env не менялась; dev volume не удалялся. Исходная команда app:up
+(Compose up -d --build --wait api worker) на существующей .env завершилась с exit 0:
+API healthy, worker running, GET /health — 200 на 127.0.0.1:4400.
+Browser login через реальный HTTPS gateway
+не проверялся; gateway не входит в локальный Compose.

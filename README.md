@@ -1,6 +1,7 @@
 # Warehouse Controller
 
-Монорепозиторий на pnpm workspaces. Backend на NestJS и TypeScript находится в `apps/backend`.
+Монорепозиторий на pnpm workspaces. NestJS backend находится в `apps/backend`,
+Solid/TypeScript/Vite SPA — в [apps/web](apps/web/README.md).
 Новые приложения добавляются в `apps/*`, общие пакеты — в `packages/*`.
 
 ## Проектная документация
@@ -19,11 +20,27 @@
 
 Реализованы WMS-101–112: PostgreSQL/Drizzle, runtime config, test harness,
 транзакции/audit, минимальные catalog/warehouses/inventory, event contracts, outbox writer, HTTP/idempotency и приёмка draft/posted.
-Worker/putaway handler готовы WMS-109/110; Docker image/Compose готовы WMS-112; Kubernetes запланирован.
+Worker/putaway handler готовы WMS-109/110; Docker image/Compose готовы WMS-112.
+WMS-201–208: серверные сессии/права, размещение, заказ/резерв/сборка/отгрузка,
+чтение/история и Solid UI. Браузерный gate 2 пройден; Kubernetes запланирован.
 
 ## Запуск
 
-Нужны Node.js 22.12+ и pnpm 10. Версия pnpm закреплена в `package.json`.
+Для ежедневной разработки запускать весь проект одной командой:
+
+```sh
+pnpm dev:all
+```
+
+Она проверяет локальный `.env`, собирает backend, поднимает PostgreSQL, применяет
+миграции и запускает API/worker/web. Web URL берётся из `AUTH_ORIGIN` (обычно
+`http://127.0.0.1:5173`), порт API — из `PORT`. После успешной пересборки backend
+перезапускаются API и worker, Solid обновляется через Vite HMR. `Ctrl+C` завершает
+процессы приложения; PostgreSQL и volume остаются. Перед первым запуском нужны
+установленные dependencies, Docker и заполненные auth-настройки.
+[Подробности, флоу и диагностика](docs/flows/dev-environment.md).
+
+Нужны Node.js `^22.22.2 || ^24.15.0 || >=26` и pnpm 10.18.3. Версии закреплены в `package.json`.
 Если pnpm ещё не установлен, используйте Corepack:
 
 ```sh
@@ -32,12 +49,13 @@ pnpm install
 cp .env.example .env # только если .env отсутствует
 pnpm db:up
 pnpm db:migrate
+# Перед стартом заполнить AUTH_ORIGIN и оба AUTH_SESSION_*_SECONDS по docs/identity.md.
 pnpm dev
 ```
 
 `corepack enable` добавляет команду `pnpm`, которая нужна в том числе для корневых скриптов.
 
-API доступен на `http://localhost:3000`:
+С текущим dev `.env` (`PORT=4400`) API доступен на `http://127.0.0.1:4400`:
 
 - `GET /` — приветствие API.
 - `GET /health` — `{ "status": "ok" }`.
@@ -48,6 +66,7 @@ API доступен на `http://localhost:3000`:
 
 ```sh
 pnpm dev        # Backend с перезапуском при изменении кода
+pnpm dev:all    # PostgreSQL/migrate + API/worker/web, один compiler и общий Ctrl+C
 pnpm typecheck  # Проверка TypeScript во всех пакетах
 pnpm build      # Сборка всех пакетов
 pnpm start      # Запуск собранного backend (после pnpm build)
@@ -57,12 +76,21 @@ pnpm openapi:generate   # Build и offline генерация OpenAPI текущ
 pnpm openapi:check      # Build и проверка OpenAPI diff без изменения JSON
 pnpm test:functional   # Все integration-сценарии с PostgreSQL, последовательно
 pnpm check:pr          # Полная обязательная проверка перед каждым PR
+pnpm web:dev           # Solid SPA на http://127.0.0.1:5173
+pnpm web:api:generate  # Generated типы/paths/limits из OpenAPI
+pnpm web:api:check     # Проверить generation diff
+pnpm test:web          # Vitest/components/transport/journal + web coverage baseline
+pnpm exec playwright install chromium # Подготовка browser gate, один раз
+pnpm test:web:gate     # UI → API → worker → PostgreSQL и SQL сверка
+pnpm test:dev          # Проверки env/портов/process shutdown dev supervisor, без Docker
 ```
 
-Команды конкретного приложения: `pnpm --filter @warehouse/backend <команда>`.
+Команды приложения: `pnpm --filter @warehouse/backend <команда>` либо `@warehouse/web`.
+`pnpm test` по-прежнему запускает Jest backend; полный web/backend gate — `pnpm check:pr`.
 
 Перед каждым PR выполнять `pnpm check:pr`: форматирование, typecheck, contracts/build/OpenAPI
-и все unit/integration tests. Нужен работающий Docker. Без Docker проверка завершается ошибкой,
+и все web/backend unit/integration tests с раздельным coverage. Нужны Docker и
+Playwright Chromium. Без них проверка завершается ошибкой,
 а не пропускает функциональные сценарии. Это локальная команда; автоматический CI trigger
 ещё не настроен. [Порядок проверки](docs/pr-checks.md), [шаблон PR](docs/templates/pull-request.md).
 
@@ -132,7 +160,7 @@ pnpm db:seed    # только development, создаёт новый товар
 
 [Локальный запуск, HTTP request/response и SQL proof](docs/receiving.md).
 Доступны создание draft, GET документа и posting с обязательным Idempotency-Key;
-бизнес-routes только для isolated dev/test actor. Остаток/movement/audit/outbox/HTTP result
+бизнес-routes требуют server session/warehouse role. Остаток/movement/audit/outbox/HTTP result
 атомарны, повтор posted с новым key даёт 409. Worker protocol готов; business handler и pending PutawayTask готовы WMS-110.
 
 ## Worker WMS-109
@@ -147,7 +175,7 @@ Claim/lease/token, durable markers/cursors, retry/dead и SIGTERM готовы. 
 `pnpm db:migrate`, `pnpm build`, затем API и отдельный `pnpm worker` с одной БД.
 Production inventory.putaway создаёт pending task на строку posted receipt; stock и movement
 приёмки не повторяются. Delivery completed означает, что task создана; физическое размещение
-ещё не реализовано. [Подробный flow/SQL](docs/flows/putaway.md), [отчёт](docs/reports/wms-110.md).
+выполняется отдельной командой WMS-203. [Подробный flow/SQL](docs/flows/putaway.md), [отчёт](docs/reports/wms-110.md).
 
 ## Local recovery WMS-111
 
@@ -160,7 +188,10 @@ UUID и total attempts, не сбрасывает markers/cursors. `pnpm outbox:
 ## Контейнерный запуск WMS-112
 
 Добавьте CONTAINER_DATABASE_URL из .env.example в существующий .env, согласовав
-credentials с PostgreSQL (внутри сети host=postgres, port=5432). Затем:
+credentials с PostgreSQL (внутри сети host=postgres, port=5432).
+CONTAINER_AUTH_ORIGIN имеет default https://warehouse.local; для browser login
+переопределите его на HTTPS origin браузера за TLS gateway.
+AUTH_ORIGIN остаётся HTTP origin локального web для dev:all. Затем:
 
 ```sh
 pnpm docker:build
@@ -168,7 +199,8 @@ pnpm app:up
 pnpm app:down # данные сохраняются
 ```
 
-API health публикуется на localhost:3000; business routes требуют session/warehouse role.
+С `.env.example` (`API_PORT=4400`) API health публикуется на localhost:4400;
+business routes требуют session/warehouse role. Внутри Docker остаётся порт 3000.
 Учебный сценарий приёмки: `pnpm docker:gate` (отдельные БД/project/volume с loopback
 auth). Проверка чистой сборки и исключения secret canary: `pnpm docker:image-check`.
 Все новые файлы/команды и Mermaid flow — [Docker gate](docs/flows/docker-gate.md),
@@ -211,6 +243,25 @@ API /api/v1/orders, warehouse ACL и idempotency до replay; allocations/reserv
 ## Проверки поддерживаемости
 
 Перед PR: pnpm check:pr — format, typed lint, import boundaries/cycles/self-tests,
-typecheck/build/contracts/OpenAPI, полный Jest с Docker и coverage baseline.
+typecheck/build/contracts/OpenAPI/web generation, Vitest, полный Jest с Docker/Chromium
+и отдельные coverage baseline обоих приложений.
 Отдельно: pnpm lint, pnpm check:architecture, pnpm test:quality, pnpm test:coverage.
 [Правила качества и AC](docs/quality.md).
+
+## Пользовательский интерфейс WMS-208
+
+Login, доступные склады/товары/ячейки, приёмка и размещение, заказы/резервы/сборка/
+отгрузка, отмены/физический возврат и история. Все бизнес-правила проверяет сервер.
+Для локального web передать API `AUTH_ORIGIN=http://127.0.0.1:5173` и явно выбранные
+сроки сессии. Web отправляет относительные /api через Vite proxy; CORS не нужен.
+Нужны bootstrap пользователя и складские назначения; публичной регистрации нет.
+[Пошаговый запуск и структура](apps/web/README.md).
+
+При потере ответа сохраняется исходный запрос с idempotency key. Явный повтор после
+reload той же вкладки возвращает результат без нового эффекта. Закрытие вкладки
+теряет клиентский журнал; production static serving/TLS ещё не настроены.
+[Подробный flow](docs/flows/web.md), [gate 2, ревью и тесты](docs/reports/wms-208.md).
+
+Результаты аудита и рефакторинга recovery/storage: [отчёт](docs/reports/application-audit.md).
+Version-specific pnpm.overrides в package.json фиксируют security patches четырёх
+транзитивных production-зависимостей; версии, причины и команды проверки приведены в отчёте.

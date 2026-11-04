@@ -1,7 +1,7 @@
 # 0001. Модульный монолит в pnpm workspace
 
 - Дата: 2026-10-17
-- Статус: Accepted
+- Статус: Accepted; выбор frontend частично заменён [ADR-0026](0026-solid-frontend.md).
 
 ## Контекст
 
@@ -11,7 +11,9 @@
 
 NestJS/TypeScript, pnpm workspace, модули по бизнес-возможностям.
 API и workers — отдельные процессы одного backend, одна PostgreSQL.
-React/Vite frontend добавляется после первого backend-сценария.
+Исторический выбор 2026-10-17: React/Vite frontend после первого backend-сценария.
+Текущий выбор frontend — Solid/Vite по [ADR-0026](0026-solid-frontend.md);
+модульный монолит и pnpm workspace сохраняются.
 
 ## Альтернативы
 

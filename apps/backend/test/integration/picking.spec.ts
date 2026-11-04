@@ -1,6 +1,7 @@
 /** @file WMS-205: настоящие HTTP/SQL, идемпотентность, конкуренция исполнителей, отмена и fault rollback переноса резерва. */
 import { transactionClient } from '@backend/infrastructure/database/postgres-transaction-runner';
 import { PickingService } from '@backend/modules/fulfillment/services/picking.service';
+import { FulfillmentService } from '@backend/modules/fulfillment/services/fulfillment.service';
 import { sql } from 'drizzle-orm';
 import request from 'supertest';
 import { readFileSync } from 'node:fs';
@@ -60,6 +61,45 @@ function pick(
     key,
   );
 }
+test('inventory refuses direct release of staged allocation without stock transfer', async () => {
+  const x = await setup();
+  await command(`picking-tasks/${x.task.id}/start`, x.picker).expect(200);
+  await pick(x, 1).expect(200);
+  const runner = app.get<TransactionRunner>(TRANSACTION_RUNNER);
+  const inventory = app.get(InventoryService);
+  const orders = app.get(FulfillmentService);
+  const staged = await runner.run(async (c) => {
+    const o = await orders.read(c, x.order.id, true);
+    return (await inventory.allocations(c, o.lines[0].id)).find(
+      (a) => a.locationKind === 'shipping',
+    )!;
+  });
+  // Проверяем защиту публичного inventory interface, а не private repository. Даже доверенный
+  // вызывающий с order lock не вправе освободить staged reserve без физического возврата.
+  // Snapshot сравнивает сохранённые факты, не копирует алгоритм расчёта доступности.
+  const snapshot = async () => {
+    const pool = db().connection.pool;
+    return Promise.all([
+      pool.query('select * from stock_balances order by id').then((r) => r.rows),
+      pool.query('select * from stock_allocations order by id').then((r) => r.rows),
+      pool
+        .query(
+          'select (select count(*) from stock_movements) movements, (select count(*) from audit_entries) audits, (select count(*) from outbox_events) events',
+        )
+        .then((r) => r.rows),
+    ]);
+  };
+  const before = await snapshot();
+  await expect(
+    runner.run(async (c) => {
+      await orders.read(c, x.order.id, true);
+      await inventory.release(c, x.order.lines[0].id, staged.id, 1);
+    }),
+  ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  expect(await snapshot()).toEqual(before);
+  await reconcile();
+});
+
 test('partial picking and shortage preserve stock and reservation; retry never moves twice', async () => {
   const x = await setup();
   await command(`picking-tasks/${x.task.id}/start`, x.picker).expect(200);

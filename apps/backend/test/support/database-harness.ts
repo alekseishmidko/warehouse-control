@@ -36,7 +36,7 @@ export interface DatabaseHarness {
   readonly closed: boolean;
   /** Запускает настоящий AppModule с config override; env/Compose и исходный startup не меняются. */
   createHttpApplication(
-    options?: ModuleMetadata & { config?: RuntimeConfig },
+    options?: ModuleMetadata & { config?: RuntimeConfig; origin?: string },
   ): Promise<INestApplication>;
   /** Создаёт отдельный настоящий worker graph без HTTP/env и регистрирует его закрытие в cleanup harness. */
   createWorkerApplication(
@@ -153,7 +153,7 @@ export async function createDatabaseHarness(): Promise<DatabaseHarness> {
           .useValue(
             validateIdentityConfig({
               NODE_ENV: 'test',
-              AUTH_ORIGIN: 'http://127.0.0.1:3000',
+              AUTH_ORIGIN: options.origin ?? 'http://127.0.0.1:3000',
               AUTH_SESSION_ABSOLUTE_SECONDS: '600',
               AUTH_SESSION_IDLE_SECONDS: '300',
             }),

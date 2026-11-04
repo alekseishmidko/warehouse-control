@@ -21,13 +21,15 @@
 - [ ] На итоговом diff выполнена `pnpm check:pr` с exit code 0.
 - [ ] Новое поведение, ошибки и rollback подтверждены соответствующими tests.
 - [ ] Для locks/idempotency/ledger выполнены реальные PostgreSQL tests.
+- [ ] Для web выполнены API generation diff, Vitest и Chromium gate; учтены user/warehouse cache, CSRF и неизвестный исход команды.
 - [ ] Обновлены контракт, документация, комментарии и migration, если применимо.
 - [ ] Указаны ручные проверки и всё, что не удалось проверить.
 
 Результат ревью: `<область, замечания, исправления, повторное ревью и открытые ограничения>`.
 Порядок: [обязательное ревью](../code-review.md#обязательное-ревью-после-изменения-функционала).
 
-Coverage: `<scope/provider, lines/branches/functions, uncovered и CLI gaps; baseline changes с причиной>`.
+Coverage: `<backend/web отдельно: scope/provider, lines/branches/functions, uncovered,
+CLI/browser gaps; baseline changes с причиной; browser evidence не выдавать за unit coverage>`.
 
 Результат команды: `<tests/suites, дата, окружение>`.
 Evidence: `<ссылки на tests/отчёт, без секретов и credentials>`.
