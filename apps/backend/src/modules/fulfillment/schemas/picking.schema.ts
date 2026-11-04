@@ -5,7 +5,16 @@
  * Нюансы типов: docs/database-types.md. Retention и lifecycle guards задаёт migration 0027.
  */
 import { sql } from 'drizzle-orm';
-import { pgTable, uuid, text, integer, timestamp, check, uniqueIndex } from 'drizzle-orm/pg-core';
+import {
+  index,
+  pgTable,
+  uuid,
+  text,
+  integer,
+  timestamp,
+  check,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 import { orders } from './orders.schema';
 import { users } from '../../identity/schemas/users.schema';
 import { allocations } from '../../inventory/schemas/allocations.schema';
@@ -27,6 +36,8 @@ export const pickingTasks = pgTable(
       timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    // Склад определяется order FK; индекс ускоряет join списка заданий с заказами.
+    index('picking_order_page_idx').on(t.orderId, t.createdAt, t.id),
     check(
       'picking_status',
       sql`${t.status} in ('ready','in_progress','shortage','completed','cancelled')`,

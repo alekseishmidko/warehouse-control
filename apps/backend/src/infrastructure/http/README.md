@@ -50,3 +50,11 @@ HTTPS перед внешней эксплуатацией обязателен;
 OpenAPI `pnpm openapi:generate/check` offline: DI config overrides без .env/БД/app.init.
 Тесты: unit http-foundation/identity, integration identity/http/receiving/http-commands,
 настоящие session fixtures вместо bypass. [Отчёт WMS-202](../../../../../docs/reports/wms-202.md).
+
+## WarehouseReadController WMS-207
+
+API-only adapter восьми warehouse-scoped GET списков регистрируется в AppModule.
+Он вызывает AccessService.run/requireWarehouse и публичные ReadService владельцев.
+DTO `dto/page-query.dto.ts` задаёт общий limit/cursor; ресурсные фильтры и output DTO
+принадлежат модулям. SQL и доменные repositories здесь отсутствуют.
+[Полный флоу и примеры](../../../../../docs/flows/warehouse-reads.md).

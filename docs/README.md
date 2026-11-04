@@ -93,8 +93,8 @@
   IdentityModule разделён на Auth/Sessions/Users/Access services с общим transaction context.
   Dev actor удалён; внешний TLS gateway/frontend ещё не реализованы.
 - Готово WMS-203: task execution receiving → storage, pair movements, audit/outbox, idempotent API и locks.
-- Описано, но не реализовано: сборка/отгрузка и остальные складские операции,
-  frontend, Kubernetes и CI/CD.
+- Сборка и отгрузка реализованы WMS-205/206; чтение и история — WMS-207.
+- Не реализованы frontend, Kubernetes, Kafka и внешний CI/CD.
 - Пример контракта `ReceivingPosted` — проектный образец, не опубликованный API.
 - Локальные schema/fixtures/generation проверки выполняются в unit suite;
   OpenAPI generation/diff готов локально; CI workflow и breaking-change comparison пока не настроены.
@@ -166,3 +166,10 @@ ShippingChanged требует shipmentId для действий над док�
 Перед каждым PR: [check:pr и функциональные проверки](pr-checks.md),
 [шаблон описания](templates/pull-request.md). WMS-206 имеет явную
 [связь требований diff с tests](reports/wms-206.md#соответствие-diff-документации-и-тестов).
+
+WMS-207 реализована: [складские списки и история](flows/warehouse-reads.md),
+явные DTO, filters/keyset pagination, read/audit ACL, migration 0032 и PostgreSQL
+EXPLAIN/проверки. [Отчёт](reports/wms-207.md). Следующая задача — **WMS-208**, UI.
+
+[Качество, критерии приёмки и coverage](quality.md): обязательные AC ID, typed lint,
+архитектурные guards и измерение собственного backend. [Отчёт](reports/quality-baseline.md).

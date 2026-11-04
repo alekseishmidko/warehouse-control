@@ -69,7 +69,7 @@ async function reconcile() {
 }
 /** B3 требует полный вектор по order line. Его количество не вводится как новая дельта stock. */
 function completeReturn(
-  x: Awaited<ReturnType<typeof setup>>,
+  x: Awaited<ReturnType<typeof reservedPickingFixture>>,
   quantity: number,
   key = randomUUID(),
 ) {
@@ -501,4 +501,69 @@ test('multi-line shipment can be prepared and posted atomically', async () => {
   await warehouseCommand(app, `shipments/${doc.body.id}/post`, x.picker).expect(200);
   expect((await readOrder(x)).lines[0]).toMatchObject({ shipped: 3, reservedShipping: 7 });
   await reconcile();
+});
+
+test('AC-QUALITY-01: reserve → partial pick → partial ship → cancel → return preserves ledger at every commit', async () => {
+  const x = await reservedPickingFixture(app, worker, db());
+  /** Независимый SQL oracle: не повторяет production расчёт, сверяет состояния всех allocations и balances. */
+  async function assertCommittedLedger(onHand: number, reserved: number, consumed: number) {
+    await reconcile();
+    expect(
+      (
+        await db().connection.pool.query(
+          'select coalesce(sum(on_hand),0)::int as "onHand",coalesce(sum(reserved),0)::int as reserved from stock_balances',
+        )
+      ).rows[0],
+    ).toEqual({ onHand, reserved });
+    expect(
+      (
+        await db().connection.pool.query(
+          'select coalesce(sum(consumed),0)::int as consumed from stock_allocations',
+        )
+      ).rows[0].consumed,
+    ).toBe(consumed);
+    expect(
+      (
+        await db().connection.pool.query(
+          'select id from stock_allocations where allocated::bigint<>active::bigint+released+transferred+consumed or active<0',
+        )
+      ).rows,
+    ).toEqual([]);
+  }
+  await assertCommittedLedger(10, 10, 0);
+  await warehouseCommand(app, `picking-tasks/${x.task.id}/start`, x.picker).expect(200);
+  await warehouseCommand(app, `picking-tasks/${x.task.id}/confirm`, x.picker, {
+    taskLineId: x.task.lines[0].id,
+    actualQuantity: 6,
+    targetLocationId: x.fixture.shipping.id,
+    shortage: false,
+  }).expect(200);
+  await assertCommittedLedger(10, 10, 0);
+  const allocation = (await readOrder(x)).lines[0].allocations.find(
+    (a: { locationKind: string }) => a.locationKind === 'shipping',
+  );
+  const shipment = (
+    await warehouseCommand(app, `orders/${x.order.id}/shipments`, x.picker, {
+      reasonCode: 'sequence-check',
+      lines: [{ allocationId: allocation.id, quantity: 4 }],
+    }).expect(201)
+  ).body;
+  await warehouseCommand(app, `shipments/${shipment.id}/post`, x.picker).expect(200);
+  await assertCommittedLedger(6, 6, 4);
+  await warehouseCommand(app, `orders/${x.order.id}/cancel`, x.manager).expect(200);
+  expect((await readOrder(x)).status).toBe('cancel_pending');
+  await assertCommittedLedger(6, 6, 4);
+  await completeReturn(x, 2).expect(200);
+  await assertCommittedLedger(6, 0, 4);
+  expect(await readOrder(x)).toMatchObject({
+    status: 'closed_mixed',
+    lines: [
+      expect.objectContaining({
+        shipped: 4,
+        cancelled: 6,
+        reservedStorage: 0,
+        reservedShipping: 0,
+      }),
+    ],
+  });
 });

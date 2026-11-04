@@ -289,3 +289,28 @@ Movement.shippingEffectId отделён от putaway/picking оснований
 [Флоу и evidence](../../../../../docs/flows/shipping.md); новые исходники:
 services/shipping-stock.service.ts, repositories/shipping-stock.repository.ts,
 schemas/shipping-effects.schema.ts. Миграции 0029/0030, без изменения applied SQL.
+
+## Чтение WMS-207
+
+Для менеджера: `GET /api/v1/warehouses/:warehouseId/` со списками `balances, movements, putaway-tasks`
+возвращает данные одного разрешённого склада. Право `read` проверяется для каждой
+страницы. Полные документы и задания остаются в существующем detail API.
+
+Для разработчика: `InventoryReadService` экспортируется, `InventoryReadRepository`
+остаётся private provider. Query/read DTO лежат отдельно в dto/. API-only
+WarehouseReadController регистрируется AppModule, worker его не импортирует.
+
+```mermaid
+flowchart LR
+  H[WarehouseReadController] --> A[AccessService: run и policy]
+  A --> S[InventoryReadService: normalize и cursor]
+  S --> R[Private InventoryReadRepository]
+  R --> P[readKeysetPage: borrowed context]
+  P --> DB[(SELECT PostgreSQL)]
+  DB --> J[JSON page после commit]
+```
+
+[Шаги, DTO/пример, commit/rollback, ошибки, индексы и согласованность](../../../../../docs/flows/warehouse-reads.md).
+Тесты: warehouse-reads.spec.ts, warehouse-read-plans.spec.ts, keyset-page.spec.ts.
+Чтение не создаёт audit, event или HTTP idempotency запись. SQL timeout/ошибка
+откатывает read run; публичный ответ не содержит SQL, credentials и ORM-модели.

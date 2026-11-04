@@ -115,3 +115,10 @@ WMS-202: identity экспортирует пять таблиц напряму�
 таблица на файл. Старого identity.schema.ts нет; разбиение исходников подтвердило no-diff
 Drizzle generation и не потребовало новой миграции. Seed CLI теперь создаёт только
 Catalog/Warehouses graph, не поднимает HTTP/auth и не требует session policy.
+
+## Keyset чтение WMS-207
+
+`read-keyset-page.ts` принимает только фиксированные SQL fragments private repositories
+и выполняет один параметризованный SELECT в borrowed context. Timestamp+UUID DESC
+или UUID ASC, limit+1, без COUNT/OFFSET. Cursor хранит микросекунды, служебные поля
+удаляются из projection. [Флоу и проверки](../../../../../docs/flows/warehouse-reads.md).

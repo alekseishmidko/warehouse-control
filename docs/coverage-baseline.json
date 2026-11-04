@@ -1,0 +1,1178 @@
+{
+  "src/app.controller.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/app.module.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/app.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/config/environment.ts": {
+    "lines": 83.58,
+    "statements": 83.58,
+    "functions": 50,
+    "branches": 96
+  },
+  "src/infrastructure/database/check.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/infrastructure/database/connection.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/database/database.module.ts": {
+    "lines": 94.33,
+    "statements": 94.33,
+    "functions": 100,
+    "branches": 85.71
+  },
+  "src/infrastructure/database/dev-fixtures.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/database/migrate.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/infrastructure/database/postgres-transaction-runner.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/database/read-keyset-page.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 94.11
+  },
+  "src/infrastructure/database/schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/database/seed-dev.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/infrastructure/http/auth.guard.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 91.3
+  },
+  "src/infrastructure/http/configure-http.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/http/dto/page-query.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/http/http-command.decorator.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 80
+  },
+  "src/infrastructure/http/http.module.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/http/openapi.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 90
+  },
+  "src/infrastructure/http/problem.filter.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 79.31
+  },
+  "src/infrastructure/http/request-context.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 83.33
+  },
+  "src/infrastructure/http/warehouse-read.controller.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/idempotency/idempotency.module.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/idempotency/idempotency.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/idempotency/repositories/idempotency.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 83.33
+  },
+  "src/infrastructure/idempotency/services/http-commands.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 81.25
+  },
+  "src/infrastructure/outbox/dto/append-event.dto.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/infrastructure/outbox/dto/recovery.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/outbox/outbox-admin.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/infrastructure/outbox/outbox-destinations.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/outbox/outbox.module.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/outbox/outbox.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/outbox/recovery-options.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/outbox/repositories/outbox.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/outbox/repositories/recovery.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 92.3
+  },
+  "src/infrastructure/outbox/services/outbox-recovery.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 92.3
+  },
+  "src/infrastructure/outbox/services/outbox.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/worker/delivery-logger.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/worker/delivery-policy.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 94.73
+  },
+  "src/infrastructure/worker/dto/delivery.dto.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/infrastructure/worker/repositories/worker.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 96
+  },
+  "src/infrastructure/worker/services/handler-registry.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/worker/services/receiving-posted.handler.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/worker/services/worker-loop.ts": {
+    "lines": 96.49,
+    "statements": 96.49,
+    "functions": 100,
+    "branches": 60
+  },
+  "src/infrastructure/worker/services/worker.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 92.5
+  },
+  "src/infrastructure/worker/worker-process.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/infrastructure/worker/worker.config.ts": {
+    "lines": 91.3,
+    "statements": 91.3,
+    "functions": 66.66,
+    "branches": 100
+  },
+  "src/infrastructure/worker/worker.module.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/worker/worker.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/main.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/audit/audit-entry.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/audit/audit.module.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/audit/audit.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/audit/dto/audit-entry.dto.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/audit/dto/audit-query.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/audit/dto/audit-read.dto.ts": {
+    "lines": 13.88,
+    "statements": 13.88,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/audit/repositories/audit-read.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/audit/repositories/audit.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/audit/services/audit-read.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/audit/services/audit.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/catalog/catalog.module.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/catalog/catalog.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/catalog/dto/product.dto.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/catalog/repositories/catalog.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/catalog/services/catalog.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/allocation.dto.ts": {
+    "lines": 34.21,
+    "statements": 34.21,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/cancellation-return-line.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/cancellation-return.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/confirm-picking.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/create-order.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/order-line.dto.ts": {
+    "lines": 18.18,
+    "statements": 18.18,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/order.dto.ts": {
+    "lines": 61.53,
+    "statements": 61.53,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/orders-query.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/orders-read.dto.ts": {
+    "lines": 52.63,
+    "statements": 52.63,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/picking-line.dto.ts": {
+    "lines": 25,
+    "statements": 25,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/picking-task.dto.ts": {
+    "lines": 32,
+    "statements": 32,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/picking-tasks-query.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/picking-tasks-read.dto.ts": {
+    "lines": 30.3,
+    "statements": 30.3,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/prepare-shipment-line.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/prepare-shipment.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/reason.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/release-allocation.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/reserve-order.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/shipment-line.dto.ts": {
+    "lines": 53.84,
+    "statements": 53.84,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/shipment.dto.ts": {
+    "lines": 29.62,
+    "statements": 29.62,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/shipments-query.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/dto/shipments-read.dto.ts": {
+    "lines": 30.3,
+    "statements": 30.3,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/fulfillment/fulfillment.controller.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/fulfillment.module.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/picking.controller.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/repositories/fulfillment-read.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/repositories/orders.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/repositories/picking.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/repositories/shipments.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/schemas/orders.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/schemas/picking.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/schemas/shipments.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/services/fulfillment-read.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/fulfillment/services/fulfillment.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 88
+  },
+  "src/modules/fulfillment/services/picking.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 86.44
+  },
+  "src/modules/fulfillment/services/shipping.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 88
+  },
+  "src/modules/fulfillment/shipping.controller.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 93.93
+  },
+  "src/modules/identity/bootstrap.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/identity/dto/create-user.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/identity/dto/current-user.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/identity/dto/login-response.dto.ts": {
+    "lines": 88.88,
+    "statements": 88.88,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/identity/dto/login.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/identity/dto/principal.dto.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/identity/dto/set-warehouse-roles.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/identity/dto/update-user.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/identity/dto/user-profile.dto.ts": {
+    "lines": 61.53,
+    "statements": 61.53,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/identity/dto/warehouse-grant.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/identity/dto/warehouse-role.types.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/identity/identity-admin.controller.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/identity/identity.config.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 95.23
+  },
+  "src/modules/identity/identity.controller.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/identity/identity.http.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/identity/identity.module.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/identity/repositories/identity.repository.ts": {
+    "lines": 94.71,
+    "statements": 94.71,
+    "functions": 88.23,
+    "branches": 93.1
+  },
+  "src/modules/identity/schemas/identity-bootstrap.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/identity/schemas/login-windows.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/identity/schemas/sessions.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/identity/schemas/users.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/identity/schemas/warehouse-roles.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/identity/services/access.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 90.9
+  },
+  "src/modules/identity/services/auth.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 96.29
+  },
+  "src/modules/identity/services/identity-transactions.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/identity/services/sessions.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 96.15
+  },
+  "src/modules/identity/services/user-profile.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/identity/services/users.service.ts": {
+    "lines": 90.77,
+    "statements": 90.77,
+    "functions": 90,
+    "branches": 93.5
+  },
+  "src/modules/inventory/dto/balances-query.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/dto/balances-read.dto.ts": {
+    "lines": 28.57,
+    "statements": 28.57,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/inventory/dto/execute-putaway.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/dto/movements-query.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/dto/movements-read.dto.ts": {
+    "lines": 16.39,
+    "statements": 16.39,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/inventory/dto/putaway-task-response.dto.ts": {
+    "lines": 17.77,
+    "statements": 17.77,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/inventory/dto/putaway-task.dto.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/inventory/dto/putaway-tasks-query.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/dto/putaway-tasks-read.dto.ts": {
+    "lines": 27.02,
+    "statements": 27.02,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/inventory/dto/shipping-allocation-command.dto.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/inventory/dto/stock.dto.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/inventory/inventory-http.module.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/inventory.controller.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/inventory.module.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/inventory.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/putaway-task.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/repositories/inventory-read.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/repositories/inventory.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/repositories/picking-stock.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 80
+  },
+  "src/modules/inventory/repositories/putaway.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/repositories/reservations.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 92.85
+  },
+  "src/modules/inventory/repositories/shipping-stock.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 96.42
+  },
+  "src/modules/inventory/repositories/stock-transfer.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/schemas/allocations.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/schemas/picking-transfers.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/schemas/shipping-effects.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/services/inventory-read.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/services/inventory.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/services/picking-stock.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 87.5
+  },
+  "src/modules/inventory/services/putaway-execution.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 84.21
+  },
+  "src/modules/inventory/services/putaway.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/services/reservations.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/inventory/services/shipping-stock.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 87.5
+  },
+  "src/modules/receiving/dto/receipt.dto.ts": {
+    "lines": 78.26,
+    "statements": 78.26,
+    "functions": 50,
+    "branches": 100
+  },
+  "src/modules/receiving/dto/receipts-query.dto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/receiving/dto/receipts-read.dto.ts": {
+    "lines": 30.3,
+    "statements": 30.3,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/receiving/receiving.controller.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 95.23
+  },
+  "src/modules/receiving/receiving.module.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/receiving/receiving.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/receiving/repositories/receiving-read.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/receiving/repositories/receiving.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/receiving/services/receiving-read.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/receiving/services/receiving.service.ts": {
+    "lines": 98.99,
+    "statements": 98.99,
+    "functions": 87.5,
+    "branches": 91.66
+  },
+  "src/modules/warehouses/dto/warehouse.dto.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/modules/warehouses/repositories/warehouses.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/warehouses/services/warehouses.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 90
+  },
+  "src/modules/warehouses/warehouses.module.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/modules/warehouses/warehouses.schema.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/shared/diagnostics/delivery-diagnostic.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/shared/errors/command-error.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/shared/events/dto/event.dto.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/shared/events/event-contract.error.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/shared/events/event-registry.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/shared/events/services/event-contracts.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 96.87
+  },
+  "src/shared/operations/dto/command-scope.dto.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/shared/operations/dto/operation-metadata.dto.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/shared/pagination/keyset-page.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/shared/quantities/quantity.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/shared/security/password.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 81.25
+  },
+  "src/shared/security/secrets.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/shared/serialization/canonical-json.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 93.93
+  },
+  "src/shared/transactions/transaction.port.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/shared/validation/empty-command.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/shared/validation/identifiers.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/shared/validation/resource-fields.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 88.88
+  },
+  "src/worker.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  }
+}

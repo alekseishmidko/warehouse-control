@@ -20,4 +20,9 @@ async function bootstrapWorker(): Promise<void> {
   }
 }
 // Импорт файла инструментами не запускает polling; только executable entrypoint.
-if (require.main === module) void bootstrapWorker();
+if (require.main === module)
+  bootstrapWorker().catch(() => {
+    // Последняя граница executable: не допускает необработанный rejection и не печатает credentials.
+    console.error('Worker entrypoint failed');
+    process.exitCode = 1;
+  });

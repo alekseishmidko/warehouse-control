@@ -29,7 +29,8 @@
     "identity:bootstrap": "node dist/modules/identity/bootstrap.js",
     "test:identity:coverage": "pnpm test:prepare && jest --config jest.identity-coverage.config.cjs",
     "test:functional": "pnpm test:prepare && jest --selectProjects integration --runInBand",
-    "test:pr": "pnpm test:prepare && jest --runInBand"
+    "test:pr": "pnpm test:coverage",
+    "test:coverage": "pnpm test:prepare && jest --config jest.coverage.config.cjs --runInBand && node ../../scripts/quality/coverage.cjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",

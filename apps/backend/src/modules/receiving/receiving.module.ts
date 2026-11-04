@@ -1,4 +1,6 @@
 /** @file Receiving composition: controller/service/repository и публичные зависимости владельцев данных. */
+import { ReceivingReadRepository } from './repositories/receiving-read.repository';
+import { ReceivingReadService } from './services/receiving-read.service';
 import { IdentityModule } from '../identity/identity.module';
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../../infrastructure/database/database.module';
@@ -24,7 +26,7 @@ import { ReceivingRepository } from './repositories/receiving.repository';
     InventoryModule,
   ],
   controllers: [ReceivingController],
-  providers: [ReceivingService, ReceivingRepository],
-  exports: [ReceivingService],
+  providers: [ReceivingReadRepository, ReceivingReadService, ReceivingService, ReceivingRepository],
+  exports: [ReceivingReadService, ReceivingService],
 })
 export class ReceivingModule {}

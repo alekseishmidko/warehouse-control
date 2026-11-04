@@ -38,3 +38,5 @@ ADR фиксирует причину решения и его последст�
 
 [0024. Отгрузка и компенсационная отмена](0024-shipment-compensation.md) — реализация
 WMS-206 по B1–B4, заменяет временный отказ отмены staged в ADR-0023.
+
+[0025. Складские read API](0025-warehouse-reads.md) — WMS-207: keyset, складской audit scope и statement snapshots.

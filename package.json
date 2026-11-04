@@ -4,7 +4,7 @@
   "description": "Warehouse controller monorepo",
   "packageManager": "pnpm@10.18.3",
   "engines": {
-    "node": ">=22.12.0",
+    "node": "^22.13.0 || >=24",
     "pnpm": ">=10 <11"
   },
   "scripts": {
@@ -43,10 +43,16 @@
     "format:check": "prettier --check .",
     "test:identity:coverage": "pnpm --filter @warehouse/backend test:identity:coverage",
     "test:functional": "pnpm --filter @warehouse/backend test:functional",
-    "check:pr": "pnpm format:check && pnpm typecheck && pnpm --filter @warehouse/backend test:pr"
+    "check:pr": "pnpm format:check && pnpm lint && pnpm check:architecture && pnpm test:quality && pnpm typecheck && pnpm --filter @warehouse/backend test:pr",
+    "lint": "eslint apps/backend/src apps/backend/test --max-warnings 0",
+    "check:architecture": "node scripts/quality/architecture.cjs",
+    "test:quality": "node --test scripts/quality/*.test.cjs",
+    "test:coverage": "pnpm --filter @warehouse/backend test:coverage"
   },
   "private": true,
   "devDependencies": {
-    "prettier": "3.9.10"
+    "eslint": "10.14.0",
+    "prettier": "3.9.10",
+    "typescript-eslint": "8.72.1"
   }
 }

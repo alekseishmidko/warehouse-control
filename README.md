@@ -207,3 +207,10 @@ GET /api/v1/putaway-tasks/:taskId и идемпотентный POST /:taskId/ex
 WMS-204: заказ draft/active/cancelled, явное резервирование и release/cancel по ADR-0022.
 API /api/v1/orders, warehouse ACL и idempotency до replay; allocations/reserved/audit/outbox
 атомарны. [Flow и примеры](docs/flows/reservations.md), [проверки](docs/reports/wms-204.md).
+
+## Проверки поддерживаемости
+
+Перед PR: pnpm check:pr — format, typed lint, import boundaries/cycles/self-tests,
+typecheck/build/contracts/OpenAPI, полный Jest с Docker и coverage baseline.
+Отдельно: pnpm lint, pnpm check:architecture, pnpm test:quality, pnpm test:coverage.
+[Правила качества и AC](docs/quality.md).
