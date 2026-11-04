@@ -1,7 +1,7 @@
 /** @file Source Drizzle документов отгрузки: один заказ, immutable состав, draft → posted/cancelled.
  * UUID — JS/JSON string, int4 штуки — точный number; время pg Date сериализуется UTC ISO.
  * CHECK и custom guards проверяют lifecycle; наличие TypeScript типа не проверяет ввод. */
-import { pgTable, uuid, text, integer, timestamp, check, unique } from 'drizzle-orm/pg-core';
+import { index, pgTable, uuid, text, integer, timestamp, check, unique } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { orders } from './orders.schema';
 import { allocations } from '../../inventory/schemas/allocations.schema';
@@ -25,6 +25,8 @@ export const shipments = pgTable(
       timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    // Склад приходит из заказа; поддерживает orderId filter и чтение связанных документов.
+    index('shipment_order_page_idx').on(t.orderId, t.createdAt, t.id),
     check(
       'shipment_state',
       sql`(${t.status} in ('draft','cancelled') and ${t.postedAt} is null) or (${t.status}='posted' and ${t.postedAt} is not null)`,

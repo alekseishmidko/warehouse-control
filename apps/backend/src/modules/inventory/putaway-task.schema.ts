@@ -4,6 +4,7 @@
  * Комментарии не меняют DDL: applied migrations остаются источником исполнения SQL. */
 import { sql } from 'drizzle-orm';
 import {
+  index,
   check,
   foreignKey,
   integer,
@@ -100,6 +101,8 @@ export const putawayTasks = pgTable(
   (t) => [
     // UNIQUE строки запрещает вторую task вообще; UNIQUE(event,line) дополнительно выражает
     // идемпотентность повторной доставки того же события. Это не повторное начисление остатков.
+    // Индекс очереди заданий одного склада; UUID разрешает равные createdAt.
+    index('putaway_warehouse_page_idx').on(t.warehouseId, t.createdAt, t.id),
     unique('putaway_event_line_unique').on(t.sourceEventId, t.sourceReceiptLineId),
     // Composite FK проверяют business provenance без чтения чужих repositories:
     // документ posted именно этим event, line/product/quantity действительно принадлежат ему.

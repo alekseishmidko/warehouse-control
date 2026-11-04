@@ -280,3 +280,23 @@ HTTP session/ACL/idempotency и migrations 0022–0024. Проверяет дв�
 несколько ячеек, многострочный недостаток, explicit partial reserve, release/cancel/history,
 reserve/release race, audit/outbox/allocated AFTER faults, managed mismatch 23514 и runtime grants.
 DTO tests отдельно без Docker. Нельзя считать unit input validation доказательством ledger correctness.
+
+## Чтение WMS-207
+
+`warehouse-reads.spec.ts` проверяет восемь списков, DTO/фильтры, cursor, одинаковые
+timestamps, microseconds, пустые результаты, все audit entity scopes, 401/403 и
+существующие detail routes. `warehouse-read-plans.spec.ts` создаёт представительский
+синтетический набор через владельцев, исполняет EXPLAIN ANALYZE реальных queries и
+полностью обходит страницы. `keyset-page.spec.ts` проверяет bounded cursor protocol.
+[Матрица требований и ограничения](../../../docs/reports/wms-207.md).
+Обе integration suites входят в `pnpm test:functional` и `pnpm check:pr`.
+
+## Покрытие и критерии качества
+
+pnpm test:coverage запускает все suites с jest.coverage.config.cjs. В отчёте все
+собственные dist JS, исключён только generated output; source map связывает TS.
+Child CLI coverage с родителем не объединяется. IdentityController 100% gate сохранён.
+JSON/HTML — coverage/backend. Новые baseline changes требуют ревью и объяснения.
+Сквозной AC-QUALITY-01 в shipping.spec.ts сверяет ledger после каждой стадии; worker
+lease fencing проверяется test-only expiry под уже взятыми locks, без 200ms гонки.
+[Политика](../../../docs/quality.md).

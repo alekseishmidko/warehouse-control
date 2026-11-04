@@ -225,6 +225,13 @@
       "when": 1793643180394,
       "tag": "0031_immutable_shipment_composition",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793726975763,
+      "tag": "0032_warehouse_read_indexes",
+      "breakpoints": true
     }
   ]
 }

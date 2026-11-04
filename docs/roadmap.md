@@ -157,3 +157,11 @@ Review WMS-206 исправил позднее дополнение draft и о�
 
 Для каждого PR добавлен локальный pnpm check:pr с полным unit/integration прогоном.
 [Порядок](pr-checks.md). Внешние CI triggers и required status checks ещё не настроены.
+
+WMS-207 реализована: [складские списки и история](flows/warehouse-reads.md),
+явные DTO, filters/keyset pagination, read/audit ACL, migration 0032 и PostgreSQL
+EXPLAIN/проверки. [Отчёт](reports/wms-207.md). Следующая задача — **WMS-208**, UI.
+
+Инженерные проверки дополнены typed lint, architecture guards/self-tests и coverage
+в локальном check:pr. Бизнес-этап остаётся WMS-208; это не настройка внешнего CI.
+[Политика](quality.md), [evidence](reports/quality-baseline.md).

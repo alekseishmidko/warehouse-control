@@ -271,3 +271,14 @@ ShippingChanged review: payload.shipmentId обязателен для shipment-
 shipment-posted, shipment-cancelled. Для cancellation-requested/completed он остаётся
 необязательным. JSON Schema if/then проверяется на producer и handler; strictRequired,
 UUID formats, отсутствие coercion и сохранение optional extensions не изменились.
+
+## Реализованное чтение WMS-207
+
+`GET /api/v1/warehouses/:warehouseId/{balances|movements|receipts|orders|putaway-tasks|picking-tasks|shipments|audit}`
+возвращает `{items,nextCursor}` с явными JSON DTO, без ORM объектов. Это восемь отдельных
+маршрутов, а не произвольный параметр имени таблицы. Limit 1..100, default 20.
+Списки требуют read, audit требует audit; system_admin не получает обхода складских прав.
+Cursor привязан к фильтрам, timestamp сохраняет microseconds; страницы читают текущие
+statement snapshots. Summary не заменяет существующий detail response со строками.
+[Фильтры, пример и согласованность](../flows/warehouse-reads.md); generated [OpenAPI](openapi.json).
+Audit view исключает глобальные identity/catalog/recovery записи и JSON changes.

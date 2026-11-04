@@ -1,4 +1,6 @@
-/** @file InventoryModule: единственный экспорт InventoryService; repositories других модулей не импортируются. */
+/** @file InventoryModule: экспортирует InventoryService и InventoryReadService; repositories других модулей не импортируются. */
+import { InventoryReadRepository } from './repositories/inventory-read.repository';
+import { InventoryReadService } from './services/inventory-read.service';
 import { ShippingStockService } from './services/shipping-stock.service';
 import { ShippingStockRepository } from './repositories/shipping-stock.repository';
 import { PickingStockService } from './services/picking-stock.service';
@@ -20,6 +22,8 @@ import { PutawayService } from './services/putaway.service';
 @Module({
   imports: [AuditModule, CatalogModule, WarehousesModule, OutboxModule],
   providers: [
+    InventoryReadRepository,
+    InventoryReadService,
     ShippingStockService,
     ShippingStockRepository,
     PickingStockService,
@@ -33,6 +37,6 @@ import { PutawayService } from './services/putaway.service';
     PutawayService,
     InventoryService,
   ],
-  exports: [InventoryService],
+  exports: [InventoryReadService, InventoryService],
 })
 export class InventoryModule {}

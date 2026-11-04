@@ -10,11 +10,20 @@ pnpm check:pr
 считать проверку завершённой. После изменения поведения нужно повторить запуск
 на итоговом diff. Указать команду и результат в описании PR.
 
+## Ревью до итогового прогона
+
+Каждое завершённое изменение интерфейса, бизнес-требований или фичи запускает
+обязательное ревью исполнителем без отдельного запроса. Исправления проходят
+повторное ревью и проверки функционала. Полный порядок и критерии —
+[требования к код-ревью](code-review.md#обязательное-ревью-после-изменения-функционала).
+В PR зафиксировать результат этого цикла. `check:pr` проверяет код командами,
+но не заменяет смысловую проверку реализации и требований.
+
 ## Предусловия и границы
 
 Установить dependencies через `pnpm install --frozen-lockfile`. Нужны Node/pnpm
 из package.json и работающий Docker-compatible daemon с доступным socket.
-Для первой загрузки образов нужен доступ к registry. PostgreSQL/Testcontainers
+Для typed lint нужен Node ^22.13.0 либо >=24. Для первой загрузки образов нужен доступ к registry. PostgreSQL/Testcontainers
 должен запускаться локально. Dev Compose и рабочая .env для этих тестов не нужны.
 Миграции применяются к отдельным disposable БД. Рабочие volume не очищаются.
 
@@ -32,14 +41,20 @@ forceExit не включены. Без успешного integration прог�
 ```mermaid
 flowchart TD
   A[pnpm check:pr] --> B[Prettier check без изменения файлов]
-  B --> C[TypeScript source и tests typecheck]
+  B --> L[Typed lint: Promise, any, TS comments]
+  L --> R[Architecture graph и negative self-tests]
+  R --> C[TypeScript source и tests typecheck]
   C --> D[Проверить generated event contracts]
   D --> E[Production build]
   E --> F[Проверить generated OpenAPI]
   F --> G[Очистить test output и скомпилировать tests]
   G --> H[Jest unit и integration последовательно]
   H --> I[PostgreSQL migrations, HTTP, ledger, locks, faults и worker processes]
-  I --> J[Exit 0: проверка текущего diff пройдена]
+  I --> V[Coverage собственного backend и baseline guard]
+  V --> J[Exit 0: проверка текущего diff пройдена]
+  L -->|Ошибка| X
+  R -->|Ошибка| X
+  V -->|Ошибка| X
   B -->|Ошибка| X[Exit nonzero: исправить и повторить]
   C -->|Ошибка| X
   D -->|Ошибка| X
@@ -49,8 +64,9 @@ flowchart TD
   H -->|Ошибка| X
 ```
 
-Root check:pr вызывает backend test:pr. Тот использует существующий test:prepare
-один раз, затем Jest --runInBand. Подготовка не дублируется двумя параллельными
+Root check:pr сначала проверяет lint/архитектуру/self-tests, затем вызывает backend
+test:pr → test:coverage: test:prepare один раз, Jest с jest.coverage.config.cjs
+и --runInBand, затем проверка coverage baseline. Подготовка не дублируется двумя параллельными
 командами. Последовательное исполнение уменьшает конкуренцию ресурсов тестового
 стенда; явные конкурентные тесты внутри suites продолжают создавать реальные гонки.
 Build/test output может перезаписываться; source/generated contracts не регенерируются
@@ -83,3 +99,6 @@ DB locks и SQL fault injection. Unit-тесты в эту команду не �
 Новых бизнес-сценариев нельзя считать проверенными только потому, что старые tests
 прошли. Для изменения добавить проверки его наблюдаемых результатов, отказов,
 конкуренции и rollback. Внешние/ручные проверки и неисполненные команды отметить отдельно.
+
+[Политика качества и покрытия](quality.md). HTML/JSON coverage — apps/backend/coverage/backend.
+Новые или пропавшие source записи и снижение метрик блокируют baseline guard.

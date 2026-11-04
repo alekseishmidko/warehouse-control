@@ -127,3 +127,28 @@ Review WMS-206: migration 0031 запрещает дополнение сост�
 создания. Multi-line prepare создаёт header/lines вместе; posting в новой транзакции
 остаётся допустимым. ShippingChanged требует shipmentId для shipment action, но не
 для отмены заказа. [Подробности и regression evidence](../../../../../docs/flows/shipping.md#исправления-review-состав-документа-и-идентичность-события).
+
+## Чтение WMS-207
+
+Для менеджера: `GET /api/v1/warehouses/:warehouseId/` со списками `orders, picking-tasks, shipments`
+возвращает данные одного разрешённого склада. Право `read` проверяется для каждой
+страницы. Полные документы и задания остаются в существующем detail API.
+
+Для разработчика: `FulfillmentReadService` экспортируется, `FulfillmentReadRepository`
+остаётся private provider. Query/read DTO лежат отдельно в dto/. API-only
+WarehouseReadController регистрируется AppModule, worker его не импортирует.
+
+```mermaid
+flowchart LR
+  H[WarehouseReadController] --> A[AccessService: run и policy]
+  A --> S[FulfillmentReadService: normalize и cursor]
+  S --> R[Private FulfillmentReadRepository]
+  R --> P[readKeysetPage: borrowed context]
+  P --> DB[(SELECT PostgreSQL)]
+  DB --> J[JSON page после commit]
+```
+
+[Шаги, DTO/пример, commit/rollback, ошибки, индексы и согласованность](../../../../../docs/flows/warehouse-reads.md).
+Тесты: warehouse-reads.spec.ts, warehouse-read-plans.spec.ts, keyset-page.spec.ts.
+Чтение не создаёт audit, event или HTTP idempotency запись. SQL timeout/ошибка
+откатывает read run; публичный ответ не содержит SQL, credentials и ORM-модели.

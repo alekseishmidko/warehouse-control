@@ -27,15 +27,15 @@
 
 ## Модули
 
-| Модуль      | Владеет                                                                      |
-| ----------- | ---------------------------------------------------------------------------- |
-| identity    | Пользователи, роли, сессии                                                   |
-| catalog     | WMS-104: создание/lookup Product, SKU, name, unit=piece, без HTTP            |
-| warehouses  | WMS-104: Warehouse/Location, kind зоны, без HTTP                             |
-| receiving   | Документы и строки приёмки, проведение                                       |
-| inventory   | WMS-104: balance/receipt/movement; резервы и перемещения ещё запланированы   |
-| fulfillment | Заказы на отгрузку, задания сборки, отгрузки                                 |
-| audit       | Журнал бизнес-действий: WMS-103 write interface реализован, read API ещё нет |
+| Модуль      | Владеет                                                              |
+| ----------- | -------------------------------------------------------------------- |
+| identity    | Пользователи, роли, сессии                                           |
+| catalog     | WMS-104: создание/lookup Product, SKU, name, unit=piece, без HTTP    |
+| warehouses  | WMS-104: Warehouse/Location, kind зоны, без HTTP                     |
+| receiving   | Документы и строки приёмки, проведение                               |
+| inventory   | Balance/movement, резервы, размещение, сборка и отгрузка WMS-104–206 |
+| fulfillment | Заказы на отгрузку, задания сборки, отгрузки                         |
+| audit       | Журнал бизнес-действий: write WMS-103, warehouse-scoped read WMS-207 |
 
 Инфраструктура предоставляет транзакции, outbox, логи и транспорт.
 Модули общаются через экспортируемые сервисы; никто не пишет напрямую
@@ -102,12 +102,12 @@ repository выполняет SQL/ORM. Межмодульные вызовы п�
 
 Services, repositories и DTO всегда группируются в собственных services/,
 repositories/ и dto/, включая единственный файл. Отсутствующий вид компонента
-не требует пустой папки. В audit DTO внутренние, а HTTP-контроллера пока нет.
+не требует пустой папки. Audit имеет внутренний write DTO и складские read DTO WMS-207.
 README каждого модуля показывает взаимодействие компонентов, движение/преобразование
 данных, ошибки и транзакционные границы с конкретным примером.
 
-Не создаём пустые слои или interface для каждого класса. В AuditModule сейчас
-только AuditService/AuditRepository, потому что внешнего HTTP пока нет.
+Не создаём пустые слои или interface для каждого класса. В AuditModule write и read сервисы используют собственные private repositories;
+складской HTTP adapter подключается только в AppModule.
 Отдельные сценарии, domain-модель или ports/adapters допустимы при конкретной
 необходимости. Причина описывается в README, существенное изменение границ — в ADR.
 Подход по умолчанию: [ADR-0009](adr/0009-nest-service-repository-default.md).
@@ -204,8 +204,16 @@ aggregate, не receipt sequence, без consumers до отдельного rep
 ## WMS-204: fulfillment и inventory
 
 FulfillmentModule — API graph controller/service/private repository для orders/order_lines,
-экспортируется только FulfillmentService. InventoryService делегирует private ReservationsService/
+экспортируются FulfillmentService и FulfillmentReadService. InventoryService делегирует private ReservationsService/
 Repository, владеет stock_allocations/reserved. Общий transaction context проходит через audit/outbox,
 HTTP result фиксируется тем же runner. Schema FK через source таблицы не создаёт обратной Nest DI
 зависимости inventory → fulfillment service; worker не импортирует fulfillment HTTP graph.
 Order aggregate имеет retained OrderChanged facts без consumers. [ADR-0022](adr/0022-order-reservations.md).
+
+## WMS-207: синхронные read API
+
+API-only WarehouseReadController делегирует публичным ReadService модулей. Private
+repositories возвращают явные проекции, common keyset SQL adapter — infrastructure,
+cursor protocol — shared. Audit scope читает retained FK связи без межмодульной записи.
+Новых read-model таблиц и consumers нет. [ADR-0025](adr/0025-warehouse-reads.md),
+[движение данных](flows/warehouse-reads.md).

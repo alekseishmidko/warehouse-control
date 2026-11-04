@@ -6,10 +6,10 @@
 
 Фиксирует, кто, когда, над каким объектом выполнил действие и на каком основании.
 Ошибка записи истории откатывает связанную операцию. Исправление оформляется новой
-записью, не редактированием старой. Авторизация пользователей и экран истории ещё
-не реализованы. DBA может изменить БД: криптографической защиты журнала нет.
+записью, не редактированием старой. Session/warehouse авторизация реализована WMS-202. Складской read API добавлен
+WMS-207; пользовательского экрана пока нет. DBA может изменить БД: криптографической защиты журнала нет.
 
-Критерий текущей реализации: техническая metadata-запись и история атомарны,
+Критерий записи: бизнес-изменение и история атомарны,
 права runtime не позволяют изменить/удалить audit, unsafe data отфильтрованы.
 
 ## Для разработчика
@@ -29,7 +29,7 @@ Repository не получает pool и не создаёт транзакци�
 передаётся вызывающему сервису и должна откатывать весь сценарий. Повтор write
 в новой транзакции создаёт новую запись: это не HTTP/consumer deduplication.
 
-Endpoints, read interface, event producer/consumer и собственная конфигурация отсутствуют.
+Складской read interface WMS-207 описан ниже. Event producer/consumer и собственная конфигурация отсутствуют.
 Общий DB URL и pool конфигурируются database adapter. Событий аудита нет, поэтому
 рекурсивного audit-of-audit здесь не создаётся.
 
@@ -55,8 +55,8 @@ Unit audit-entry.spec.ts проверяет маскирование, audit.serv
 
 ## Схема взаимодействия
 
-Сейчас это внутренний модуль: вход — AuditService.write от другого сервиса.
-HTTP controller, auth guard и consumer аудита пока отсутствуют. Владельцы складских сценариев receiving/inventory/fulfillment вызывают audit в общем context;
+Запись входит через AuditService.write от другого сервиса. Чтение входит через API-only
+WarehouseReadController с session/warehouse policy. Consumer аудита отсутствует. Владельцы складских сценариев receiving/inventory/fulfillment вызывают audit в общем context;
 worker планирует задания с техническим server-side actor. Общая цепочка уже проверена на PostgreSQL:
 
 ```mermaid
@@ -190,3 +190,28 @@ SQL/JSONB модель аудита не менялась, старые applied 
 WMS-203: безопасная allowlist включает status pending/completed и UUID sourceLocationId/
 targetLocationId. Это позволяет объяснить placement completion; строки/произвольный payload
 по-прежнему redacted. Completion audit отдельный от audit создания task, связан с обоими movements.
+
+## Чтение WMS-207
+
+Для менеджера: `GET /api/v1/warehouses/:warehouseId/` со списками `audit`
+возвращает данные одного разрешённого склада. Право `audit` проверяется для каждой
+страницы. Полные документы и задания остаются в существующем detail API.
+
+Для разработчика: `AuditReadService` экспортируется, `AuditReadRepository`
+остаётся private provider. Query/read DTO лежат отдельно в dto/. API-only
+WarehouseReadController регистрируется AppModule, worker его не импортирует.
+
+```mermaid
+flowchart LR
+  H[WarehouseReadController] --> A[AccessService: run и policy]
+  A --> S[AuditReadService: normalize и cursor]
+  S --> R[Private AuditReadRepository]
+  R --> P[readKeysetPage: borrowed context]
+  P --> DB[(SELECT PostgreSQL)]
+  DB --> J[JSON page после commit]
+```
+
+[Шаги, DTO/пример, commit/rollback, ошибки, индексы и согласованность](../../../../../docs/flows/warehouse-reads.md).
+Тесты: warehouse-reads.spec.ts, warehouse-read-plans.spec.ts, keyset-page.spec.ts.
+Чтение не создаёт audit, event или HTTP idempotency запись. SQL timeout/ошибка
+откатывает read run; публичный ответ не содержит SQL, credentials и ORM-модели.

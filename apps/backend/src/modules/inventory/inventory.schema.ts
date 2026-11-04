@@ -6,6 +6,7 @@ import { shippingEffects } from './schemas/shipping-effects.schema';
 import { pickingTransfers } from './schemas/picking-transfers.schema';
 import { sql } from 'drizzle-orm';
 import {
+  index,
   check,
   foreignKey,
   integer,
@@ -62,6 +63,9 @@ export const stockBalances = pgTable(
   (t) => [
     // Это бизнес-ключ единственного баланса и цель ON CONFLICT guarded upsert.
     // UNIQUE защищает конкурентное создание, CHECK — допустимый результат арифметики.
+    // B-tree: склад + UUID поддерживает bounded список без сортировки всех balances.
+    index('stock_warehouse_page_idx').on(t.warehouseId, t.id),
+    index('stock_product_page_idx').on(t.warehouseId, t.productId, t.id),
     unique('stock_balance_key_unique').on(t.warehouseId, t.locationId, t.productId),
     foreignKey({
       name: 'balance_location_warehouse_fk',
@@ -162,6 +166,9 @@ export const stockMovements = pgTable(
           ((${t.transferId} is not null)::int+(${t.pickingTransferId} is not null)::int+(${t.shippingEffectId} is not null)::int)=1)`,
     ),
     // PostgreSQL допускает несколько NULL в UNIQUE: receipt по-прежнему dedup через operationId.
+    // Время + UUID устраняет неоднозначность одинаковых timestamps в истории склада.
+    index('movement_warehouse_page_idx').on(t.warehouseId, t.createdAt, t.id),
+    index('movement_product_page_idx').on(t.warehouseId, t.productId, t.createdAt, t.id),
     unique('movement_transfer_leg_unique').on(t.transferId, t.kind),
   ],
 );

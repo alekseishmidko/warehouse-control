@@ -1,5 +1,5 @@
 /** @file Заказ и immutable строки ADR-0022. UUID — строковые идентификаторы JS/JSON; int4 — целые штуки. */
-import { pgTable, uuid, text, integer, check, unique } from 'drizzle-orm/pg-core';
+import { index, pgTable, uuid, text, integer, check, unique } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { warehouses } from '../../warehouses/warehouses.schema';
 import { products } from '../../catalog/catalog.schema';
@@ -15,6 +15,8 @@ export const orders = pgTable(
       text('status').notNull().default('draft'),
   },
   (t) => [
+    // У заказа пока нет createdAt: сортировка по UUID не обещает хронологию.
+    index('order_warehouse_page_idx').on(t.warehouseId, t.id),
     check(
       'order_status',
       sql`${t.status} in ('draft','active','cancel_pending','cancelled','completed','closed_mixed')`,

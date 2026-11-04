@@ -176,3 +176,28 @@ Controller передаёт authorize callback четвёртым аргумен
 read(context,id) и permission в одной транзакции; nested get/run из command запрещён.
 DTO/строки приёмки, stock/movement/outbox semantics и ReceivingPosted v1 не менялись.
 Fixtures/tests и Docker gate теперь создают настоящие сессии/роли, без env bypass.
+
+## Чтение WMS-207
+
+Для менеджера: `GET /api/v1/warehouses/:warehouseId/` со списками `receipts`
+возвращает данные одного разрешённого склада. Право `read` проверяется для каждой
+страницы. Полные документы и задания остаются в существующем detail API.
+
+Для разработчика: `ReceivingReadService` экспортируется, `ReceivingReadRepository`
+остаётся private provider. Query/read DTO лежат отдельно в dto/. API-only
+WarehouseReadController регистрируется AppModule, worker его не импортирует.
+
+```mermaid
+flowchart LR
+  H[WarehouseReadController] --> A[AccessService: run и policy]
+  A --> S[ReceivingReadService: normalize и cursor]
+  S --> R[Private ReceivingReadRepository]
+  R --> P[readKeysetPage: borrowed context]
+  P --> DB[(SELECT PostgreSQL)]
+  DB --> J[JSON page после commit]
+```
+
+[Шаги, DTO/пример, commit/rollback, ошибки, индексы и согласованность](../../../../../docs/flows/warehouse-reads.md).
+Тесты: warehouse-reads.spec.ts, warehouse-read-plans.spec.ts, keyset-page.spec.ts.
+Чтение не создаёт audit, event или HTTP idempotency запись. SQL timeout/ошибка
+откатывает read run; публичный ответ не содержит SQL, credentials и ORM-модели.

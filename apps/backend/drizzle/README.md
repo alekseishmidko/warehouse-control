@@ -216,3 +216,13 @@ custom grants, lifecycle/retention и deferred checks. Старые putaway/pick
 header/lines одним context без nested savepoints. Это закрывает позднее дополнение draft,
 сохраняя штатный prepare/post/cancel и прежние quantity/FK/limit guards. Snapshot/journal
 созданы drizzle-kit custom. Applied 0029/0030 не изменены, существующие документы не переписаны.
+
+## WMS-207: 0032_warehouse_read_indexes
+
+Новая generated миграция добавляет 11 B-tree индексов чтения. Warehouse/id обслуживает
+stock/orders; warehouse/time/id — movement/receipt/putaway; product prefixes — stock/
+movement; order/time/id — picking/shipment; time/id и entityType/entityId/time/id — audit.
+Данные и guards прежних миграций не меняются. Snapshot/journal сгенерированы Drizzle Kit.
+На больших таблицах обычный CREATE INDEX требует отдельного окна миграции: CONCURRENTLY
+в текущем transactional runner не используется. Проверка выполнена на disposable БД;
+рабочая БД автоматически не менялась. [Реальные планы](../../../docs/reports/wms-207.md).

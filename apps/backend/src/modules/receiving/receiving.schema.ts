@@ -4,6 +4,7 @@
  * Комментарии не меняют DDL: applied migrations остаются источником исполнения SQL. */
 import { sql } from 'drizzle-orm';
 import {
+  index,
   check,
   foreignKey,
   integer,
@@ -66,6 +67,8 @@ export const receipts = pgTable(
   (t) => [
     // Расширенный UNIQUE нужен как цель составного FK task: документ, склад, ячейка и event
     // должны принадлежать одному источнику. Иммутабельность posted обеспечивают отдельные триггеры.
+    // Индекс списка приёмок: равенство склада, затем стабильный временной ключ.
+    index('receipt_warehouse_page_idx').on(t.warehouseId, t.createdAt, t.id),
     unique('receipt_putaway_source_unique').on(
       t.id,
       t.warehouseId,

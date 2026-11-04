@@ -60,4 +60,9 @@ async function main(): Promise<void> {
     if (timer) clearTimeout(timer);
   }
 }
-if (require.main === module) void main();
+if (require.main === module)
+  main().catch(() => {
+    // Последняя граница executable: не допускает необработанный rejection и не печатает credentials.
+    console.error(JSON.stringify({ code: 'ADMIN_ENTRYPOINT_FAILED' }));
+    process.exitCode = 1;
+  });

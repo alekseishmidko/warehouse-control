@@ -155,14 +155,7 @@ test('active processing row locks fence reclaim even after expiry and block only
   const b = await worker();
   await events(2);
   const [claim] = await a.service.claim();
-  await expire();
-  // Возвращаем lease всего на 200 ms, затем handler держит обе реальные row locks.
-  await database().connection.pool.query(
-    "update delivery_streams set lease_until=clock_timestamp()+interval '200 milliseconds'",
-  );
-  await database().connection.pool.query(
-    "update outbox_deliveries set lease_until=clock_timestamp()+interval '200 milliseconds' where status='processing'",
-  );
+  // Lease истечёт внутри processing context после взятия locks: нет гонки с 200 ms на входе.
   let release!: () => void;
   let entered!: () => void;
   const barrier = new Promise<void>((resolve) => {
@@ -174,15 +167,27 @@ test('active processing row locks fence reclaim even after expiry and block only
   const original = a.repository.prepareConsumer.bind(a.repository);
   const spy = jest.spyOn(a.repository, 'prepareConsumer').mockImplementation(async (...args) => {
     const result = await original(...args);
+    // Test-only clock mutation в той же транзакции уже удерживает обе строки.
+    // Reclaim другого worker обязан пропустить их, хотя DB expiry теперь в прошлом.
+    await transactionClient(args[0]).execute(
+      sql`update delivery_streams set lease_until=clock_timestamp()-interval '1 second' where lease_token=${claim.token}`,
+    );
+    await transactionClient(args[0]).execute(
+      sql`update outbox_deliveries set lease_until=clock_timestamp()-interval '1 second' where lease_token=${claim.token}`,
+    );
     entered();
     await barrier;
     return result;
   });
   const pending = a.service.process(claim);
   try {
-    await started;
-    // DB clock wait внутри независимого SELECT (не transaction handler), пока удерживаются locks.
-    await database().connection.pool.query('select pg_sleep(0.25)');
+    // Если processing завершился до барьера (stale/error), тест падает сразу, а не зависает до общего timeout.
+    await Promise.race([
+      started,
+      pending.then(() => {
+        throw new Error('Processing ended before lock barrier');
+      }),
+    ]);
     const other = await events();
     const available = await b.service.claim();
     expect(available.map((value) => value.eventId)).toEqual([other[0].eventId]);

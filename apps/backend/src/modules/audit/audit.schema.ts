@@ -23,8 +23,8 @@ export const auditEntries = pgTable(
     actorType: text('actor_type').notNull(),
 
     /**
-     * UUID субъекта, сформированный серверным контекстом. Нет FK на пользователей: identity-модуль ещё
-     * не реализован, системный субъект также имеет UUID.
+     * UUID субъекта, сформированный серверным контекстом. Нет общего FK на users: системный
+     * субъект также имеет UUID, а audit сохраняется независимо от lifecycle пользователя.
      */
     actorId: uuid('actor_id').notNull(),
 
@@ -93,6 +93,9 @@ export const auditEntries = pgTable(
     check('audit_changes_object', sql`jsonb_typeof(${table.changes}) = 'object'`),
     // Составной B-tree обслуживает историю конкретного entityType/entityId по времени.
     // Его левый префикс важен: выборка только по entityId не эквивалентна выборке по всему ключу.
+    // Обратный scan даёт новые записи первыми; entity FK scope проверяется отдельно.
+    index('audit_time_page_idx').on(table.occurredAt, table.id),
+    index('audit_entity_page_idx').on(table.entityType, table.entityId, table.occurredAt, table.id),
     index('audit_entity_time_idx').on(table.entityType, table.entityId, table.occurredAt),
     // Отдельный B-tree для связи записей одного сценария, без обхода JSONB changes.
     index('audit_correlation_idx').on(table.correlationId),
