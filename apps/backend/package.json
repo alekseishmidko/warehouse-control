@@ -30,7 +30,8 @@
     "test:identity:coverage": "pnpm test:prepare && jest --config jest.identity-coverage.config.cjs",
     "test:functional": "pnpm test:prepare && jest --selectProjects integration --runInBand",
     "test:pr": "pnpm test:coverage",
-    "test:coverage": "pnpm test:prepare && jest --config jest.coverage.config.cjs --runInBand && node ../../scripts/quality/coverage.cjs"
+    "test:coverage": "pnpm test:prepare && jest --config jest.coverage.config.cjs --runInBand && node ../../scripts/quality/coverage.cjs",
+    "test:web:gate": "pnpm test:prepare && jest --selectProjects integration --runInBand --runTestsByPath .test-dist/test/integration/web-gate.spec.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",

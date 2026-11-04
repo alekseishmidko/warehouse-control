@@ -7,6 +7,13 @@ named volume, healthcheck и host binding только `127.0.0.1:15432` по у
 
 ## Запуск из корня репозитория
 
+Для всего проекта в dev-режиме использовать `pnpm dev:all`: PostgreSQL запускается
+из базового compose.yaml, API/worker/web работают на host с watch/HMR. Команда сама
+применяет migrations. `Ctrl+C` сохраняет PostgreSQL и volume; `pnpm db:down` отдельно
+останавливает БД. [Полный flow](../../docs/flows/dev-environment.md).
+`pnpm app:up` — отдельный контейнерный backend в production mode, без frontend;
+он требует HTTPS origin и свободный API_PORT. Он не заменяет dev:all.
+
 ```sh
 cp .env.example .env # только если .env ещё нет; существующий файл не перезаписывать
 pnpm install --frozen-lockfile
@@ -96,7 +103,11 @@ pnpm app:migrate
 pnpm app:down # volume сохраняется
 ```
 
-Обычный app API: http://127.0.0.1:3000/health, API_PORT меняет только published port.
+С `.env.example` app API публикуется на http://127.0.0.1:4400/health:
+`API_PORT=4400` задаёт только published port, внутри контейнера остаётся 3000.
+`PORT=4400` задаёт отдельный host API для pnpm dev/dev:all. Одновременно запускать
+host API и app:up на одном внешнем порту нельзя. dev:all сам направляет web proxy
+на PORT; для отдельного web:dev задать `WEB_API_TARGET=http://127.0.0.1:4400`.
 Business routes требуют настоящую session/warehouse role/CSRF. NODE_ENV/HTTP_HOST/dev actor/admin
 CLI заданы overlay явно, host .env не включает identity в контейнере.
 Только isolated gate включает её через exec и loopback, не через внешний HTTP:
@@ -122,9 +133,52 @@ inspect Env: runtime credentials доступны Docker-администрат�
 
 ## WMS-202: обязательные auth настройки
 
-Для app overlay задать AUTH_ORIGIN (HTTPS при NODE_ENV=production) и оба срока seconds,
-без числовых defaults. Host .env для pnpm dev может содержать loopback HTTP origin;
-для Compose переопределить AUTH_ORIGIN на HTTPS. До внешней эксплуатации нужен TLS gateway,
+Для app overlay задать оба срока seconds без числовых defaults.
+CONTAINER_AUTH_ORIGIN необязателен, default https://warehouse.local. Host .env для pnpm dev может содержать loopback HTTP origin;
+для browser login в Compose переопределить CONTAINER_AUTH_ORIGIN на адрес HTTPS gateway.
+Overlay передаёт его приложению как AUTH_ORIGIN; host dev сохраняет свой HTTP origin. До внешней эксплуатации нужен TLS gateway,
 backend сам TLS не завершает. Для изолированной демонстрации pnpm docker:gate использует
 свой env, реальные bootstrap/login/grants и dev/test loopback HTTP. DEV_ACTOR_ENABLED=true
 теперь отклоняет startup: это не способ включить бизнес-команды. [Флоу](../../docs/flows/identity.md).
+
+## ENOSPC при установке dependencies в Docker
+
+`ERR_PNPM_ENOSPC ... mkdir` может означать нехватку inode внутри Docker VM, даже если
+на диске macOS и в Docker ещё есть свободные гигабайты. Inode — запись файловой
+системы для файла/каталога. Проверять нужно и байты (`df -h`), и inode (`df -i`).
+Если локальный backend image уже существует, выполнить read-only диагностику:
+
+```sh
+docker run --rm --pull=never --network none --read-only --entrypoint /bin/sh warehouse-backend:local -c 'df -h /; df -i /'
+docker system df
+docker buildx du --filter 'description~="warehouse/backend"' --verbose
+```
+
+В проверенном случае Docker VM имела 4,5 ГБ свободного места, но лишь около 21 тыс.
+свободных inode из 3,9 млн. Следующая установка pnpm не могла создавать каталоги.
+После освобождения ресурсов свободно около 17 ГБ и 1,3 млн inode. Адресный prune
+ниже вернул `0 B`; нельзя приписывать ему всё изменение показателей VM.
+
+Перед очисткой проверить список cache records. Адресная команда затрагивает только
+описания нашего backend и записи, не использованные более суток:
+
+```sh
+docker buildx prune --filter 'description~="warehouse/backend"' --filter 'until=24h'
+```
+
+Фильтры объединяются через AND. У Buildx 0.23 значение regex с `/` и пробелами
+передаётся с внутренними кавычками, как в примере. `Shared: true` означает общие
+данные cache/image: удаление только cache metadata может освободить `0 B`.
+По одному выводу `Reclaimable` нельзя обещать освобождение всех байтов или inode.
+[Фильтры Buildx](https://docs.docker.com/reference/cli/docker/buildx/prune/).
+
+Глобальный `docker system prune`, удаление volumes и Docker-wide очистка не входят
+в диагностику проекта. Если места/inode всё ещё недостаточно, пересмотреть ненужные
+образы в Docker Desktop и лимит виртуального диска в Settings → Resources → Advanced
+→ Disk usage limit; [настройки Docker](https://docs.docker.com/desktop/settings-and-maintenance/settings/#resources).
+После освобождения ресурсов повторить `pnpm docker:build`, затем `pnpm app:up`.
+Успешная сборка не отменяет требования HTTPS origin для app overlay.
+
+Повторная `pnpm docker:build` на проверенном окружении завершилась с exit 0:
+обе frozen install стадии, Nest build и export image прошли. В ходе скачивания
+встречались ECONNRESET/timeout с успешными retry; они не повторили ENOSPC.

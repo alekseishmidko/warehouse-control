@@ -11,6 +11,10 @@
 | [Shared и DRY](shared.md)                                             | Повторное использование и границы общей логики                                           |
 | [Каталог файлов](file-catalog.md)                                     | Назначение собственных файлов                                                            |
 | [Шаблон модуля](templates/module.md)                                  | Бизнес- и техническая документация                                                       |
+| [Web: запуск и устройство](../apps/web/README.md)                     | Solid SPA, команды, тесты и ограничения                                                  |
+| [Web flow](flows/web.md)                                              | Auth, query scope, журнал команд, commit и recovery                                      |
+| [Единый dev-запуск](flows/dev-environment.md)                         | pnpm dev:all, env/порты, один compiler, общий shutdown и диагностика                     |
+| [WMS-208 evidence](reports/wms-208.md)                                | Gate 2, ревью, тесты и фактическое покрытие                                              |
 | [Текущий backend](../apps/backend/README.md)                          | Реализованный корневой модуль                                                            |
 | [Архитектура](architecture.md)                                        | Модули, зависимости, процессы, целевой стек                                              |
 | [Поля и PostgreSQL-типы](database-types.md)                           | Обоснование типов, NULL/default, ключей и индексов; пояснения в schema-файлах            |
@@ -49,6 +53,11 @@
 | [ADR](adr/README.md)                                                  | Принятые решения и шаблон новых решений                                                  |
 | [Восстановление обработки](runbooks/event-recovery.md)                | Зависшие, ошибочные и повторные события                                                  |
 | [Контекст агента](../AGENTS.md)                                       | Ограничения и правила работы с проектом                                                  |
+
+WMS-208 реализована: [Solid SPA](../apps/web/README.md), login и складские экраны,
+generated API-контракты, Query cache и журнал команд. Gate 2 пройден в Chromium
+с настоящими API/worker/PostgreSQL. [Флоу](flows/web.md), [проверки и ограничения](reports/wms-208.md).
+Следующий этап — WMS-301, локальный Kubernetes; внешний web hosting ещё не настроен.
 
 ## Подход к коду
 
@@ -91,10 +100,12 @@
 - Готово WMS-202: users/sessions, login/logout/me, session/warehouse policies, admin API,
   one-time bootstrap и real PostgreSQL tests. Числовых defaults TTL нет; настройки обязательны явно.
   IdentityModule разделён на Auth/Sessions/Users/Access services с общим transaction context.
-  Dev actor удалён; внешний TLS gateway/frontend ещё не реализованы.
+  Dev actor удалён; внешний TLS gateway ещё не реализован. SPA работает локально.
 - Готово WMS-203: task execution receiving → storage, pair movements, audit/outbox, idempotent API и locks.
 - Сборка и отгрузка реализованы WMS-205/206; чтение и история — WMS-207.
-- Не реализованы frontend, Kubernetes, Kafka и внешний CI/CD.
+- WMS-208: Solid SPA, read справочники, команда/recovery, browser gate 2 и отдельное web coverage.
+- Dev окружение запускается одной `pnpm dev:all`: PostgreSQL/migrate и host API/worker/web с общим shutdown.
+- Не реализованы production web serving, Kubernetes, Kafka и внешний CI/CD.
 - Пример контракта `ReceivingPosted` — проектный образец, не опубликованный API.
 - Локальные schema/fixtures/generation проверки выполняются в unit suite;
   OpenAPI generation/diff готов локально; CI workflow и breaking-change comparison пока не настроены.
@@ -169,7 +180,9 @@ ShippingChanged требует shipmentId для действий над док�
 
 WMS-207 реализована: [складские списки и история](flows/warehouse-reads.md),
 явные DTO, filters/keyset pagination, read/audit ACL, migration 0032 и PostgreSQL
-EXPLAIN/проверки. [Отчёт](reports/wms-207.md). Следующая задача — **WMS-208**, UI.
+EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI также выполнена; далее WMS-301.
 
 [Качество, критерии приёмки и coverage](quality.md): обязательные AC ID, typed lint,
 архитектурные guards и измерение собственного backend. [Отчёт](reports/quality-baseline.md).
+
+Аудит текущего приложения и исправления recovery/storage: [отчёт](reports/application-audit.md).

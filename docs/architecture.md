@@ -10,32 +10,38 @@
 
 ## Стек и статус
 
-| Слой             | Решение                                               | Статус                                                          |
-| ---------------- | ----------------------------------------------------- | --------------------------------------------------------------- |
-| Workspace        | pnpm + TypeScript                                     | Реализован                                                      |
-| Backend          | NestJS                                                | WMS-108: приёмка draft/posted и HTTP-команды                    |
-| Данные           | PostgreSQL + Drizzle + SQL                            | WMS-101–110: stock/audit/outbox/idempotency/receiving           |
-| Надёжные события | PostgreSQL transactional outbox                       | WMS-110 writer/worker/putaway handler готовы                    |
-| Event transport  | Kafka, затем Schema Registry                          | Последующий этап                                                |
-| UI               | React, Vite, TanStack Query, Tailwind, shadcn/ui      | Целевой стек                                                    |
-| Контейнеры       | Docker, Compose                                       | PostgreSQL + non-root API/worker image и Compose готовы WMS-112 |
-| Оркестрация      | kind, Kubernetes, Helm                                | Обязательно                                                     |
-| Внешний HTTP     | NGINX Gateway Fabric + Gateway API                    | Принято                                                         |
-| Телеметрия       | Pino, OpenTelemetry, Prometheus, Grafana, Loki, Tempo | По этапам                                                       |
-| Проверки         | Jest, Supertest, Testcontainers, k6                   | WMS-102: первые три готовы, k6 запланирован                     |
-| Поставка         | GitHub Actions, GHCR, Argo CD                         | После проверки репозитория и окружения                          |
+| Слой             | Решение                                                      | Статус                                                          |
+| ---------------- | ------------------------------------------------------------ | --------------------------------------------------------------- |
+| Workspace        | pnpm + TypeScript                                            | Реализован                                                      |
+| Backend          | NestJS                                                       | WMS-108: приёмка draft/posted и HTTP-команды                    |
+| Данные           | PostgreSQL + Drizzle + SQL                                   | WMS-101–110: stock/audit/outbox/idempotency/receiving           |
+| Надёжные события | PostgreSQL transactional outbox                              | WMS-110 writer/worker/putaway handler готовы                    |
+| Event transport  | Kafka, затем Schema Registry                                 | Последующий этап                                                |
+| UI               | Solid, TypeScript, Vite, Solid Router, Solid Query, Tailwind | Реализовано WMS-208; static hosting ещё не настроен             |
+| Контейнеры       | Docker, Compose                                              | PostgreSQL + non-root API/worker image и Compose готовы WMS-112 |
+| Оркестрация      | kind, Kubernetes, Helm                                       | Обязательно                                                     |
+| Внешний HTTP     | NGINX Gateway Fabric + Gateway API                           | Принято                                                         |
+| Телеметрия       | Pino, OpenTelemetry, Prometheus, Grafana, Loki, Tempo        | По этапам                                                       |
+| Проверки         | Jest, Supertest, Testcontainers, k6                          | WMS-102: первые три готовы, k6 запланирован                     |
+| Поставка         | GitHub Actions, GHCR, Argo CD                                | После проверки репозитория и окружения                          |
+
+Frontend выбран по [ADR-0026](adr/0026-solid-frontend.md): Solid SPA в apps/web,
+Solid Router и `@tanstack/solid-query`. Реализован WMS-208: [web](../apps/web/README.md),
+[flow](flows/web.md). [ADR-0027](adr/0027-web-boundaries.md) описывает read справочники
+и клиентский журнал команд. Локальный Vite proxy не является production gateway.
+SolidStart/SSR и библиотека сложных UI-компонентов в текущий объём не включены.
 
 ## Модули
 
-| Модуль      | Владеет                                                              |
-| ----------- | -------------------------------------------------------------------- |
-| identity    | Пользователи, роли, сессии                                           |
-| catalog     | WMS-104: создание/lookup Product, SKU, name, unit=piece, без HTTP    |
-| warehouses  | WMS-104: Warehouse/Location, kind зоны, без HTTP                     |
-| receiving   | Документы и строки приёмки, проведение                               |
-| inventory   | Balance/movement, резервы, размещение, сборка и отгрузка WMS-104–206 |
-| fulfillment | Заказы на отгрузку, задания сборки, отгрузки                         |
-| audit       | Журнал бизнес-действий: write WMS-103, warehouse-scoped read WMS-207 |
+| Модуль      | Владеет                                                               |
+| ----------- | --------------------------------------------------------------------- |
+| identity    | Пользователи, роли, сессии                                            |
+| catalog     | Product, SKU, name, piece; WMS-208 добавил read-only список через API |
+| warehouses  | Warehouse/Location и зоны; WMS-208 добавил списки складов и ячеек     |
+| receiving   | Документы и строки приёмки, проведение                                |
+| inventory   | Balance/movement, резервы, размещение, сборка и отгрузка WMS-104–206  |
+| fulfillment | Заказы на отгрузку, задания сборки, отгрузки                          |
+| audit       | Журнал бизнес-действий: write WMS-103, warehouse-scoped read WMS-207  |
 
 Инфраструктура предоставляет транзакции, outbox, логи и транспорт.
 Модули общаются через экспортируемые сервисы; никто не пишет напрямую
@@ -49,6 +55,10 @@ context, если изменения обязаны фиксироваться �
 создают задания размещения или обновляют производные представления.
 
 ## Процессы
+
+Ниже целевая схема. Сейчас web использует локальный Vite proxy, API и PostgreSQL worker
+реализованы. NGINX/Kubernetes, Kafka и отдельные Kafka consumers ещё не развернуты.
+[Реализованный web flow](flows/web.md).
 
 ```mermaid
 flowchart LR

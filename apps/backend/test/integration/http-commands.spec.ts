@@ -413,6 +413,9 @@ test('production OpenAPI includes only actual routes, technical exclusions and P
           'shipments',
           'audit',
         ].map((resource) => `/api/v1/warehouses/{warehouseId}/${resource}`),
+        '/api/v1/warehouses',
+        '/api/v1/warehouses/{warehouseId}/products',
+        '/api/v1/warehouses/{warehouseId}/locations',
         '/health',
       ].sort(),
     );

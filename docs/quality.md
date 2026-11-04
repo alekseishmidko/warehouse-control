@@ -32,22 +32,28 @@ Promise await/return/catch обязательны; void сам по себе н�
 
 ## Автоматические проверки
 
-| Команда                 | Что реально проверяется                                                                                                      |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| pnpm lint               | Typed ESLint source/tests: explicit any, floating/misused Promises, TS suppressions                                          |
-| pnpm check:architecture | Статические source imports/exports/литеральные require/import: shared boundaries, чужие private repositories, runtime cycles |
-| pnpm test:quality       | Отрицательные self-tests guards и настоящих lint rules                                                                       |
-| pnpm test:coverage      | Все Jest suites с Docker, build/generation; покрытие всех собственных dist JS файлов                                         |
-| pnpm check:pr           | Полная цепочка выше, format/typecheck/contracts/OpenAPI и tests/coverage                                                     |
+| Команда                 | Что реально проверяется                                                                                                             |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| pnpm lint               | Typed ESLint backend/web/tests, Solid rules, запрет backend/React imports в web, any/Promises/TS suppressions                       |
+| pnpm check:architecture | Статические TS/TSX imports/exports/литеральные require/import: shared, private repositories, web/backend boundaries, runtime cycles |
+| pnpm test:quality       | Отрицательные self-tests guards и настоящих lint rules                                                                              |
+| pnpm test:dev           | Env/порты и lifecycle dev:all на настоящих child processes: SIGTERM, crash, deadline и ошибка drain                                 |
+| pnpm test:coverage      | Все Jest suites с Docker, build/generation; покрытие всех собственных dist JS файлов                                                |
+| pnpm test:web           | Vitest/jsdom и V8 всех собственных web TS/TSX, критические пороги и отдельный baseline                                              |
+| pnpm test:web:gate      | Chromium + Vite proxy + настоящие API/worker/PostgreSQL; Docker и установленный Chromium                                            |
+| pnpm check:pr           | Полная цепочка выше, format/typecheck/contracts/OpenAPI и tests/coverage                                                            |
 
 ESLint 10.14.0 и typescript-eslint 8.72.1 закреплены в lockfile. Typed parser использует
-оба tsconfig, включая tests. Node: ^22.13.0 либо >=24; Docker runtime Node 24 совместим.
+backend tsconfig/source/tests и web tsconfig. Solid lint 0.18.1 проверяет реактивный JSX.
+Node: ^22.22.2, ^24.15.0 либо >=26; нижняя граница учитывает jsdom 30.1.3.
+Docker runtime Node 24 совместим.
 Настройка по [ESLint flat config](https://eslint.org/docs/latest/use/configure/configuration-files)
 и [typed linting](https://typescript-eslint.io/getting-started/typed-linting/).
 
 Architecture guard не исполняет код и не анализирует произвольную вычисляемую загрузку.
-Schema FK callbacks создают допустимые взаимные ссылки, поэтому *.schema.ts и агрегатор
-schema.ts исключены только из runtime cycle graph. Их boundaries продолжают проверяться;
+Backend schema FK callbacks создают допустимые взаимные ссылки, поэтому backend *.schema.ts
+и агрегатор schema.ts исключены только из runtime cycle graph. Web это исключение не получает.
+Их boundaries продолжают проверяться;
 DDL проверяют реальные migrations. Dynamic/computed imports требуют ручного ревью.
 Это не полное доказательство отсутствия всех runtime циклов. Межмодульная SQL запись
 и качество декомпозиции по-прежнему проверяются ревью и интеграционными тестами.
@@ -111,6 +117,29 @@ JSON baseline — принятая исходная точка, не коман�
 Для intentional изменения файла reviewer сверяет AC/tests и причину baseline diff;
 новое бизнес-правило по-прежнему имеет цель 100% ветвей. Baseline не разрешает оставлять
 новый сценарий непроверенным из-за низкого прежнего процента.
+
+### Web и актуальный baseline WMS-208
+
+Vitest/V8 включает все собственные src TS/TSX, в том числе неисполненные main/pages;
+исключён только generated API output. Отдельный docs/web-coverage-baseline.json
+фиксирует 22 файла. Текущее измерение: lines 62%, statements 57.71%,
+branches 71.78%, functions 52.65%.
+Это исходное измерение, не утверждение о полном покрытии UI. Browser gate исполняет
+экраны в Chromium, но его coverage не смешивается с unit V8. JSX callbacks создают
+отдельные функции; часть page/main callbacks не вызывается в jsdom. Их gaps видны в HTML.
+
+ApiClient имеет пороги lines 95/statements 90/branches 90/functions 90. CommandJournal —
+95/95/95/100. Полный web baseline сравнивается тем же ratchet через `--web`; снижение
+любого файла или новый файл без рассмотренного baseline блокирует pnpm test:web.
+Baseline не обновляется этой командой.
+
+Backend после WMS-208: 201 файл, lines/statements 90.52%, branches 94.49%, functions
+89.76%. Добавлены полностью проверенные read controller/decorator и три DTO.
+OpenAPI decorator callbacks DTO выполняются offline generator, не runtime suite,
+поэтому DTO functions=0 явно сохранены в baseline. Покрытие существующих файлов не
+снижено; baseline пересмотрен только для изменённых/new source после успешных 576 tests.
+Пять новых source имеют принятые entries, остальные baseline не ослаблены.
+[Точная traceability, review и gaps](reports/wms-208.md).
 
 ## Регрессии и независимость тестов
 

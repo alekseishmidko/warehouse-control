@@ -58,3 +58,21 @@ API-only adapter восьми warehouse-scoped GET списков регистр
 DTO `dto/page-query.dto.ts` задаёт общий limit/cursor; ресурсные фильтры и output DTO
 принадлежат модулям. SQL и доменные repositories здесь отсутствуют.
 [Полный флоу и примеры](../../../../../docs/flows/warehouse-reads.md).
+
+## DirectoryReadController WMS-208
+
+API-only composition добавляет GET warehouses/products/locations. AccessService
+проверяет session и текущие readable grants в том же context; CatalogService и
+WarehousesService формируют read DTO через свои private repositories.
+Общий `api-read-page.decorator.ts` переиспользует описание OpenAPI page
+с WarehouseReadController. Headers/errors задаёт общий openapi.ts.
+Нового shared бизнес-сервиса или cross-module SQL нет.
+Products — общий справочник одной организации, locations — строго выбранного склада.
+Подробное движение DTO/SQL/commit/errors и примеры принадлежат
+[web flow](../../../../../docs/flows/web.md) и README владельцев справочников.
+
+Локальный web работает на 127.0.0.1:5173 и передаёт /api через Vite proxy с неизменным
+Origin. Backend AUTH_ORIGIN должен совпадать с web origin. Cookie/CSRF policy не
+ослаблена; CORS выключен. Browser gate использует отдельные случайные loopback ports
+и передаёт origin через DI harness, не process.env. `directory-reads.spec.ts`
+проверяет реальный ACL/paging, `web-gate.spec.ts` — полный UI/HTTP/SQL сценарий.

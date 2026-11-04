@@ -47,15 +47,31 @@ function normalizeSummary(summary, backend) {
 module.exports = { compareCoverage, normalizeSummary };
 if (require.main === module) {
   const root = path.resolve(__dirname, '../..'),
-    backend = path.join(root, 'apps/backend');
+    backend = path.join(root, process.argv.includes('--web') ? 'apps/web' : 'apps/backend');
   const current = normalizeSummary(
     JSON.parse(
-      fs.readFileSync(path.join(backend, 'coverage/backend/coverage-summary.json'), 'utf8'),
+      fs.readFileSync(
+        path.join(
+          backend,
+          process.argv.includes('--web')
+            ? 'coverage/coverage-summary.json'
+            : 'coverage/backend/coverage-summary.json',
+        ),
+        'utf8',
+      ),
     ),
     backend,
   );
   const baseline = JSON.parse(
-    fs.readFileSync(path.join(root, 'docs/coverage-baseline.json'), 'utf8'),
+    fs.readFileSync(
+      path.join(
+        root,
+        process.argv.includes('--web')
+          ? 'docs/web-coverage-baseline.json'
+          : 'docs/coverage-baseline.json',
+      ),
+      'utf8',
+    ),
   );
   const errors = compareCoverage(current, baseline);
   if (errors.length) {

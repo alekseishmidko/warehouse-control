@@ -7,7 +7,8 @@
 Склад имеет UUID, уникальный code и название. Ячейка имеет UUID, code внутри склада
 и назначение receiving/storage/shipping. В этом релизе зона выражена назначением
 ячейки, отдельного справочника Zone нет. Dev набор создаёт по одной ячейке каждого
-назначения. Размещение receiving→storage реализовано в inventory WMS-203; изменение назначения ячейки и UI ещё не реализованы.
+назначения. Размещение receiving→storage реализовано в inventory WMS-203.
+UI WMS-208 читает склады/ячейки. Изменение назначения ячейки не реализовано.
 
 ## Для разработчика
 
@@ -23,7 +24,7 @@
 нормализуются shared helpers, kind проверяет сервис и SQL CHECK. Composite unique
 (warehouseId,id) на locations нужен FK inventory: корректный UUID ячейки другого
 склада не подходит. requireLocation(context,warehouseId,locationId) возвращает
-LocationDto или ошибку ownership; он не заменяет будущую проверку прав пользователя.
+LocationDto или ошибку ownership; он не заменяет session/warehouse policy вызывающего.
 
 ## Схема и движение данных
 
@@ -47,7 +48,8 @@ sequenceDiagram
 
 Пример: {warehouseId: UUID склада, code: " receiving ", kind: "receiving", metadata}
 → {warehouseId, code: "RECEIVING", kind} → DB генерирует id → LocationDto с теми же
-warehouseId/code/kind. DTO внутренний; public HTTP DTO/controller сейчас отсутствуют.
+warehouseId/code/kind. DTO создания внутренний; публичный read использует отдельные
+WarehouseReadDto/LocationReadDto и DirectoryReadController в HTTP composition.
 
 Для чтения inventory передаёт warehouseId/locationId → requireLocation → SELECT
 по id через repository → сервис сравнивает warehouseId → возвращает LocationDto.
@@ -76,3 +78,31 @@ operator/supervisor могут принимать/размещать, order_mana
 все назначенные warehouse роли могут читать; system_admin без назначения не получает складских прав.
 Матрица: [ADR-0019](../../../../../docs/adr/0019-warehouse-role-matrix.md),
 исполнение policy: [identity flow](../../../../../docs/flows/identity.md).
+
+## Read справочники WMS-208
+
+GET `/api/v1/warehouses` возвращает только склады с readable ролью пользователя;
+system_admin без назначения получает `{items:[],nextCursor:null}`.
+GET `/api/v1/warehouses/:warehouseId/locations` возвращает только ячейки этого склада:
+`{items:[{id,warehouseId,code,kind}],nextCursor:null|string}`.
+
+```mermaid
+sequenceDiagram
+  participant C as DirectoryReadController
+  participant A as AccessService / SessionsService
+  participant S as WarehousesService
+  participant R as WarehousesRepository / PostgreSQL
+  C->>A: run; session и readable warehouse IDs либо requireWarehouse
+  A-->>C: Разрешения сервера под user/session locks
+  C->>S: listReadableWarehouses либо listLocations, тот же context
+  S->>S: Cursor scope: user + grants либо warehouse
+  S->>R: WHERE id IN grants либо warehouse_id; id ASC, limit+1
+  R-->>C: Явные DTO и cursor
+  Note over C,R: Runner завершает read транзакцию; нет domain write/audit/outbox
+```
+
+Limit 1..100/default20. Cursor связывает выборку с текущим scope; изменение набора
+назначений отклоняет прежний warehouse cursor (400). Пустая выборка успешна, чужой
+склад даёт 403, отсутствующая session — 401. SQL predicate повторяет warehouse scope.
+Проверки: [directory-reads.spec.ts](../../../test/integration/directory-reads.spec.ts),
+общий UI flow — [web](../../../../../docs/flows/web.md). Записи справочников API не предоставляет.

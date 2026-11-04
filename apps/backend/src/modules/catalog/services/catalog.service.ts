@@ -1,4 +1,6 @@
 /** @file Публичный CatalogService: нормализация товара, обязательный audit и lookup для inventory. */
+import { preparePageRequest } from '../../../shared/pagination/keyset-page';
+import type { PageQueryDto } from '../../../infrastructure/http/dto/page-query.dto';
 import { Injectable } from '@nestjs/common';
 import { CommandError } from '../../../shared/errors/command-error';
 import type { TransactionContext } from '../../../shared/transactions/transaction.port';
@@ -10,6 +12,19 @@ import type { CreateProductDto, ProductDto } from '../dto/product.dto';
 /** Модуль-владелец SKU; не начисляет остатки. */
 @Injectable()
 export class CatalogService {
+  /** Возвращает общий catalog организации после policy caller; cache scope всё равно содержит склад. */
+  listProducts(context: TransactionContext, warehouseId: string, query: PageQueryDto) {
+    return this.repository.listProducts(
+      context,
+      preparePageRequest(
+        'products',
+        { warehouseId: warehouseId.toLowerCase() },
+        query.limit,
+        query.cursor,
+      ),
+    );
+  }
+
   /** Внедряет собственный repository и AuditService; других repositories не использует. */
   constructor(
     private readonly repository: CatalogRepository,

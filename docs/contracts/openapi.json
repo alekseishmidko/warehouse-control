@@ -1,6 +1,550 @@
 {
   "openapi": "3.0.0",
   "paths": {
+    "/api/v1/warehouses": {
+      "get": {
+        "operationId": "DirectoryReadController_listWarehouses",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^(?:[1-9]|[1-9][0-9]|100)$",
+              "default": "20",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/WarehouseReadDto"
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "directories"
+        ]
+      }
+    },
+    "/api/v1/warehouses/{warehouseId}/products": {
+      "get": {
+        "operationId": "DirectoryReadController_listProducts",
+        "parameters": [
+          {
+            "name": "warehouseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^(?:[1-9]|[1-9][0-9]|100)$",
+              "default": "20",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProductReadDto"
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "directories"
+        ]
+      }
+    },
+    "/api/v1/warehouses/{warehouseId}/locations": {
+      "get": {
+        "operationId": "DirectoryReadController_listLocations",
+        "parameters": [
+          {
+            "name": "warehouseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^(?:[1-9]|[1-9][0-9]|100)$",
+              "default": "20",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Correlation-Id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LocationReadDto"
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Безопасный problem response; stack/driver input не раскрываются.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Идентификатор текущего HTTP запроса, включая replay.",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "tags": [
+          "directories"
+        ]
+      }
+    },
     "/api/v1/warehouses/{warehouseId}/balances": {
       "get": {
         "operationId": "WarehouseReadController_listBalances",
@@ -8008,6 +8552,83 @@
       }
     },
     "schemas": {
+      "WarehouseReadDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name"
+        ]
+      },
+      "ProductReadDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "piece"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "sku",
+          "name",
+          "unit"
+        ]
+      },
+      "LocationReadDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "warehouseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "receiving",
+              "storage",
+              "shipping"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "warehouseId",
+          "code",
+          "kind"
+        ]
+      },
       "BalanceDto": {
         "type": "object",
         "properties": {

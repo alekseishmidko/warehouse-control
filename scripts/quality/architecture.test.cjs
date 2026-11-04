@@ -62,3 +62,21 @@ test('TypeScript resolver проверяет реальный импорт, вк
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('web cannot import backend even as type-only', () => {
+  assert.equal(
+    inspectGraph([
+      { from: 'web/api.ts', to: 'backend/src/modules/inventory/dto/stock.dto.ts', runtime: false },
+    ]).length,
+    1,
+  );
+});
+
+test('frontend schema filenames do not inherit the database FK cycle exception', () => {
+  assert.ok(
+    inspectGraph([
+      { from: 'web/a.schema.ts', to: 'web/b.tsx', runtime: true },
+      { from: 'web/b.tsx', to: 'web/a.schema.ts', runtime: true },
+    ]).some((error) => error.startsWith('runtime cycle:')),
+  );
+});

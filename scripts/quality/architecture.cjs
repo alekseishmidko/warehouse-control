@@ -6,7 +6,7 @@ const ts = require('../../apps/backend/node_modules/typescript');
 function sourceFiles(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const file = path.join(directory, entry.name);
-    return entry.isDirectory() ? sourceFiles(file) : file.endsWith('.ts') ? [file] : [];
+    return entry.isDirectory() ? sourceFiles(file) : /\.tsx?$/.test(file) ? [file] : [];
   });
 }
 /** Проверяет уже разрешённый граф. Type-only связи проверяют границы, но не образуют runtime cycle. */
@@ -16,11 +16,15 @@ function inspectGraph(edges) {
   for (const { from, to, runtime } of edges) {
     if (from.startsWith('shared/') && /^(modules|infrastructure)\//.test(to))
       errors.push(`shared boundary: ${from} -> ${to}`);
+    if (from.startsWith('web/') && to.startsWith('backend/'))
+      errors.push(`frontend boundary: ${from} -> ${to}`);
     const owner = from.match(/^modules\/([^/]+)\//)?.[1];
     const target = to.match(/^modules\/([^/]+)\/repositories\//)?.[1];
     if (target && owner !== target) errors.push(`private repository: ${from} -> ${to}`);
     // Drizzle FK callbacks намеренно связывают schema definitions циклически. Их DDL проверяет migration suite.
-    const schema = (file) => file.endsWith('.schema.ts') || path.basename(file) === 'schema.ts';
+    const schema = (file) =>
+      !file.startsWith('web/') &&
+      (file.endsWith('.schema.ts') || path.basename(file) === 'schema.ts');
     if (runtime && !schema(from) && !schema(to)) {
       if (!graph.has(from)) graph.set(from, []);
       graph.get(from).push(to);
@@ -46,13 +50,14 @@ function inspectGraph(edges) {
   return errors;
 }
 /** Разрешает imports/exports/dynamic imports через тот же TypeScript resolver, что использует проект. */
-function checkArchitecture(root) {
+function checkArchitecture(root, frontend = false) {
   const config = ts.readConfigFile(path.join(root, 'tsconfig.json'), ts.sys.readFile);
   const options = ts.parseJsonConfigFileContent(config.config, ts.sys, root).options;
   const source = path.join(root, 'src'),
     files = sourceFiles(source),
     edges = [];
-  const relative = (file) => path.relative(source, file).split(path.sep).join('/');
+  const relative = (file) =>
+    (frontend ? 'web/' : '') + path.relative(source, file).split(path.sep).join('/');
   for (const file of files) {
     const ast = ts.createSourceFile(
       file,
@@ -63,6 +68,14 @@ function checkArchitecture(root) {
     const add = (specifier, runtime) => {
       const resolved = ts.resolveModuleName(specifier, file, options, ts.sys).resolvedModule
         ?.resolvedFileName;
+      if (frontend && resolved && resolved.startsWith(path.resolve(root, '../backend') + path.sep))
+        edges.push({
+          from: relative(file),
+          to:
+            'backend/' +
+            path.relative(path.resolve(root, '../backend'), resolved).split(path.sep).join('/'),
+          runtime,
+        });
       if (resolved && resolved.startsWith(source + path.sep))
         edges.push({ from: relative(file), to: relative(resolved), runtime });
     };
@@ -105,7 +118,10 @@ function checkArchitecture(root) {
 }
 module.exports = { inspectGraph, checkArchitecture };
 if (require.main === module) {
-  const errors = checkArchitecture(path.resolve(__dirname, '../../apps/backend'));
+  const errors = [
+    ...checkArchitecture(path.resolve(__dirname, '../../apps/backend')),
+    ...checkArchitecture(path.resolve(__dirname, '../../apps/web'), true),
+  ];
   if (errors.length) {
     console.error(errors.join('\n'));
     process.exitCode = 1;

@@ -16,6 +16,9 @@ pnpm test:config     # совместимый alias test:unit
 pnpm typecheck       # production source и TypeScript tests
 pnpm test:functional # все integration suites последовательно, с реальной БД
 pnpm check:pr        # полный обязательный прогон перед каждым PR
+pnpm exec playwright install chromium # подготовка браузера до integration, один раз
+pnpm test:web:gate   # отдельный UI gate с настоящими API/worker/PostgreSQL
+pnpm test:web        # frontend unit/components; без Docker
 ```
 
 Команды test/test:unit/test:integration выполняют test:prepare: проверяют generation
@@ -27,11 +30,23 @@ Jest читает compiled tests; @backend/* отображается в нас�
 Не запускать одновременно несколько test:prepare в одном checkout: они очищают output.
 Параллельность поддерживается между suites внутри одного Jest-прогона.
 
-check:pr добавляет format:check и typecheck перед backend test:pr; тот запускает
+check:pr добавляет format/lint/architecture/self-tests, web generation/typecheck/build/Vitest
+и web coverage baseline перед backend test:pr; тот запускает
 test:prepare ровно один раз, затем обе Jest projects с --runInBand. test:functional
 также готовит output и запускает все integration suites последовательно. Unit остаются
 в полном check:pr. Нельзя считать отсутствие Docker успешным функциональным прогоном.
 Команды не используют dev Compose/.env и не чистят рабочие volume.
+
+WMS-208 добавила directory-reads.spec.ts (readable grants, общий каталог, scoped locations,
+cursor и отозванные права) и web-gate.spec.ts. Последний поднимает Vite на случайном
+loopback-порту и Chromium. API origin передаётся через DI override harness; global
+process.env не меняется. Браузер выполняет login/receiving/putaway/order/pick/ship/cancel/return.
+Тест управляет production worker для проверки ожидания. SQL независимо сверяет balances,
+movements и allocations. Ответ после commit приёмки намеренно теряется; reload/replay
+с тем же ключом не создаёт вторую приёмку. Ресурсы закрываются в afterAll/finally;
+cleanup Vite ограничен deadline и завершается ошибкой при зависании, не forceExit.
+Chromium требуется для любых integration-команд, так как gate входит в эту suite.
+[Подробный flow](../../../docs/flows/web.md), [evidence](../../../docs/reports/wms-208.md).
 Сценарии и ограничения — [правило перед PR](../../../docs/pr-checks.md),
 [traceability текущего diff](../../../docs/reports/wms-206.md#соответствие-diff-документации-и-тестов).
 

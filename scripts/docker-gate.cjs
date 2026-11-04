@@ -4,7 +4,7 @@
  * Временные синтетические credentials хранятся в файле 0600; ошибки не раскрывают SQL и конфигурацию.
  */
 const { spawn } = require('node:child_process');
-const { mkdtemp, writeFile, rm } = require('node:fs/promises');
+const { mkdtemp, writeFile, readFile, rm } = require('node:fs/promises');
 const { tmpdir } = require('node:os');
 const { join, resolve } = require('node:path');
 const { randomUUID, randomBytes } = require('node:crypto');
@@ -23,7 +23,7 @@ function run(args, label, timeout = 60000, input) {
     const env = Object.fromEntries(
       Object.entries(process.env).filter(
         ([key]) =>
-          !/^(POSTGRES_|CONTAINER_DATABASE_URL$|API_PORT$|BACKEND_IMAGE$|WORKER_|COMPOSE_|AUTH_|IDENTITY_BOOTSTRAP_)/.test(
+          !/^(POSTGRES_|CONTAINER_DATABASE_URL$|CONTAINER_AUTH_ORIGIN$|API_PORT$|BACKEND_IMAGE$|WORKER_|COMPOSE_|AUTH_|IDENTITY_BOOTSTRAP_)/.test(
             key,
           ),
       ),
@@ -86,7 +86,7 @@ async function main() {
   const password = randomBytes(24).toString('hex');
   await writeFile(
     envFile,
-    `POSTGRES_USER=warehouse\nPOSTGRES_PASSWORD=${password}\nPOSTGRES_DB=warehouse\nPOSTGRES_PORT=0\nAPI_PORT=0\nCONTAINER_DATABASE_URL=postgresql://warehouse:${password}@postgres:5432/warehouse\nBACKEND_IMAGE=warehouse-backend:local\nAUTH_ORIGIN=https://warehouse.local\nAUTH_SESSION_ABSOLUTE_SECONDS=600\nAUTH_SESSION_IDLE_SECONDS=300\n`,
+    `POSTGRES_USER=warehouse\nPOSTGRES_PASSWORD=${password}\nPOSTGRES_DB=warehouse\nPOSTGRES_PORT=0\nAPI_PORT=0\nCONTAINER_DATABASE_URL=postgresql://warehouse:${password}@postgres:5432/warehouse\nBACKEND_IMAGE=warehouse-backend:local\nAUTH_ORIGIN=http://127.0.0.1:5173\nAUTH_SESSION_ABSOLUTE_SECONDS=600\nAUTH_SESSION_IDLE_SECONDS=300\n`,
     { mode: 0o600 },
   );
   const common = [
@@ -150,6 +150,24 @@ async function main() {
   };
   let receiptId;
   try {
+    // Один env-file обслуживает host dev и production Compose без смены browser origin.
+    // Проверяем effective config до сборки; credentials из config не печатаются.
+    const config = JSON.parse(await compose(['config', '--format', 'json']));
+    for (const service of ['api', 'worker', 'migrate']) {
+      assert.equal(config.services[service].environment.AUTH_ORIGIN, 'https://warehouse.local');
+      assert.equal(config.services[service].environment.NODE_ENV, 'production');
+    }
+    const initialEnv = await readFile(envFile, 'utf8');
+    await writeFile(envFile, initialEnv + 'CONTAINER_AUTH_ORIGIN=https://custom.warehouse.local\n');
+    const overriddenConfig = JSON.parse(await compose(['config', '--format', 'json']));
+    for (const service of ['api', 'worker', 'migrate']) {
+      assert.equal(
+        overriddenConfig.services[service].environment.AUTH_ORIGIN,
+        'https://custom.warehouse.local',
+      );
+    }
+    await writeFile(envFile, initialEnv);
+    console.log('PASS default HTTPS origin without new env settings + explicit override');
     // Сначала проверяем обычный production-режим: анонимный доступ к business запрещён.
     // Подставленная среда берётся только из созданного нами env-file, а не из root .env.
     await compose(['up', '-d', '--build', '--wait', 'api', 'worker'], false, 120000);

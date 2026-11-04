@@ -1,4 +1,6 @@
 /** @file WarehousesService: создание с audit и проверка принадлежности/назначения ячейки для inventory. */
+import { preparePageRequest } from '../../../shared/pagination/keyset-page';
+import type { PageQueryDto } from '../../../infrastructure/http/dto/page-query.dto';
 import { Injectable } from '@nestjs/common';
 import { CommandError } from '../../../shared/errors/command-error';
 import type { TransactionContext } from '../../../shared/transactions/transaction.port';
@@ -15,6 +17,39 @@ import type {
 /** Экспортируемый владелец справочника складов; внутренних SQL наружу не выдаёт. */
 @Injectable()
 export class WarehousesService {
+  /** Доверенные readable IDs задаёт identity; cursor дополнительно связан с субъектом и набором текущих grants. */
+  listReadableWarehouses(
+    context: TransactionContext,
+    userId: string,
+    ids: readonly string[],
+    query: PageQueryDto,
+  ) {
+    const sorted = [...ids].sort();
+    return this.repository.listWarehouses(
+      context,
+      sorted,
+      preparePageRequest(
+        'warehouses',
+        { userId, grants: sorted.join(',') },
+        query.limit,
+        query.cursor,
+      ),
+    );
+  }
+  /** Borrowed-context чтение ячеек после актуальной складской policy; собственного commit нет. */
+  listLocations(context: TransactionContext, warehouseId: string, query: PageQueryDto) {
+    return this.repository.listLocations(
+      context,
+      warehouseId,
+      preparePageRequest(
+        'locations',
+        { warehouseId: warehouseId.toLowerCase() },
+        query.limit,
+        query.cursor,
+      ),
+    );
+  }
+
   /** Внедряет собственный repository и AuditService; других repositories не использует. */
   constructor(
     private readonly repository: WarehousesRepository,

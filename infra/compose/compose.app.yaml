@@ -20,8 +20,8 @@
 # 1. Если .env отсутствует, скопировать .env.example; существующую .env не перезаписывать.
 # 2. Добавить CONTAINER_DATABASE_URL: те же локальные credentials/база, но host=postgres и port=5432.
 #    Пароль в URL кодируется. Host DATABASE_URL остаётся 127.0.0.1:15432 для команд вне контейнеров.
-#    Также заполнить AUTH_ORIGIN и оба AUTH_SESSION_*_SECONDS. Здесь NODE_ENV=production: origin HTTPS.
-#    Host pnpm dev может использовать loopback HTTP; для Compose задавайте отдельный HTTPS origin.
+#    Заполнить оба AUTH_SESSION_*_SECONDS. Здесь NODE_ENV=production: origin HTTPS.
+#    Host pnpm dev может использовать loopback HTTP; Compose использует CONTAINER_AUTH_ORIGIN (default https://warehouse.local).
 #    Смена POSTGRES_PASSWORD в .env не меняет пароль уже существующего PostgreSQL volume.
 # 3. pnpm app:up — собрать image, запустить PostgreSQL, применить миграции, запустить API/worker.
 #    Скрипт выполняет:
@@ -58,7 +58,7 @@ x-backend: &backend
     HTTP_HOST: 0.0.0.0
     DEV_ACTOR_ENABLED: 'false'
     OUTBOX_ADMIN_ENABLED: 'false'
-    AUTH_ORIGIN: ${AUTH_ORIGIN:?Set AUTH_ORIGIN; HTTPS for production mode}
+    AUTH_ORIGIN: ${CONTAINER_AUTH_ORIGIN:-https://warehouse.local}
     AUTH_SESSION_ABSOLUTE_SECONDS: ${AUTH_SESSION_ABSOLUTE_SECONDS:?Set explicit absolute session seconds}
     AUTH_SESSION_IDLE_SECONDS: ${AUTH_SESSION_IDLE_SECONDS:?Set explicit idle session seconds}
   # Rootfs неизменяем; единственный временный каталог ограничен tmpfs. Данные хранит PostgreSQL.

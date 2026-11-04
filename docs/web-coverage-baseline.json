@@ -1,0 +1,134 @@
+{
+  "src/api/client.ts": {
+    "lines": 100,
+    "statements": 97.67,
+    "functions": 91.66,
+    "branches": 95.83
+  },
+  "src/api/problems.ts": {
+    "lines": 83.33,
+    "statements": 83.33,
+    "functions": 100,
+    "branches": 87.5
+  },
+  "src/commands/journal.ts": {
+    "lines": 97.61,
+    "statements": 97.82,
+    "functions": 100,
+    "branches": 98
+  },
+  "src/components/collection.tsx": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/components/draft-form.tsx": {
+    "lines": 100,
+    "statements": 86.31,
+    "functions": 76.92,
+    "branches": 90
+  },
+  "src/components/login.tsx": {
+    "lines": 100,
+    "statements": 96.66,
+    "functions": 100,
+    "branches": 75
+  },
+  "src/components/recovery.tsx": {
+    "lines": 65.51,
+    "statements": 71.79,
+    "functions": 83.33,
+    "branches": 44.44
+  },
+  "src/components/reserve-form.tsx": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 0
+  },
+  "src/components/ui.tsx": {
+    "lines": 72.22,
+    "statements": 77.27,
+    "functions": 73.91,
+    "branches": 16.66
+  },
+  "src/data/queries.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 88.88
+  },
+  "src/data/query-client.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/data/workspace.tsx": {
+    "lines": 88.63,
+    "statements": 87.09,
+    "functions": 85.71,
+    "branches": 91.66
+  },
+  "src/main.tsx": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 0
+  },
+  "src/pages/app.tsx": {
+    "lines": 84.28,
+    "statements": 76.92,
+    "functions": 73.61,
+    "branches": 90
+  },
+  "src/pages/history.tsx": {
+    "lines": 2.32,
+    "statements": 1.38,
+    "functions": 0,
+    "branches": 0
+  },
+  "src/pages/orders.tsx": {
+    "lines": 74.25,
+    "statements": 72.53,
+    "functions": 71.13,
+    "branches": 65.51
+  },
+  "src/pages/picking.tsx": {
+    "lines": 1.61,
+    "statements": 0.84,
+    "functions": 0,
+    "branches": 0
+  },
+  "src/pages/putaway.tsx": {
+    "lines": 2.94,
+    "statements": 1.53,
+    "functions": 0,
+    "branches": 0
+  },
+  "src/pages/receiving.tsx": {
+    "lines": 2.5,
+    "statements": 1.53,
+    "functions": 0,
+    "branches": 0
+  },
+  "src/pages/shipping.tsx": {
+    "lines": 2.43,
+    "statements": 1.47,
+    "functions": 0,
+    "branches": 0
+  },
+  "src/pages/stock.tsx": {
+    "lines": 97.22,
+    "statements": 96.66,
+    "functions": 93.18,
+    "branches": 73.07
+  },
+  "src/session/session.tsx": {
+    "lines": 70,
+    "statements": 68.57,
+    "functions": 69.23,
+    "branches": 25
+  }
+}
