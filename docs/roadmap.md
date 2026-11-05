@@ -169,7 +169,7 @@ EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI такж�
 WMS-208 реализована: [Solid SPA](../apps/web/README.md), login и складские экраны,
 generated API-контракты, Query cache и журнал команд. Gate 2 пройден в Chromium
 с настоящими API/worker/PostgreSQL. [Флоу](flows/web.md), [проверки и ограничения](reports/wms-208.md).
-Следующий этап — WMS-301, локальный Kubernetes; внешний web hosting ещё не настроен.
+WMS-301: локальный kind и Helm chart-основа проверены; следующая задача — WMS-302. Kubernetes workloads и внешний web hosting ещё не настроены.
 
 Dev workflow: добавлена `pnpm dev:all` для PostgreSQL/migrations и host API/worker/web,
 с одним compiler и общим shutdown. [Flow и evidence](flows/dev-environment.md).

@@ -186,3 +186,5 @@ EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI такж�
 архитектурные guards и измерение собственного backend. [Отчёт](reports/quality-baseline.md).
 
 Аудит текущего приложения и исправления recovery/storage: [отчёт](reports/application-audit.md).
+
+[WMS-301: локальный kind и Helm](flows/kind-helm.md) — профиль chart, подготовка image, хранение и cleanup; фактические проверки — [отчёт](reports/wms-301.md).

@@ -667,3 +667,15 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | Файл                                                              | Назначение                                                                                    |
 | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | [docs/reports/application-audit.md](reports/application-audit.md) | Область аудита, подтверждённые дефекты recovery/storage, AC, рефакторинг и evidence проверок. |
+
+### WMS-301: kind и Helm
+
+| Файл                                                                                              | Назначение                                            |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| [infra/helm/warehouse/Chart.yaml](../infra/helm/warehouse/Chart.yaml)                             | Метаданные chart приложения, API v2 и версия release. |
+| [infra/helm/warehouse/values.yaml](../infra/helm/warehouse/values.yaml)                           | Безопасный базовый профиль без credentials.           |
+| [infra/helm/warehouse/values-dev.yaml](../infra/helm/warehouse/values-dev.yaml)                   | Отдельный локальный dev profile.                      |
+| [infra/helm/warehouse/templates/configmap.yaml](../infra/helm/warehouse/templates/configmap.yaml) | ConfigMap выбранного профиля; workloads не создаются. |
+| [infra/helm/warehouse/README.md](../infra/helm/warehouse/README.md)                               | Назначение chart, границы и ссылка на flow.           |
+| [docs/flows/kind-helm.md](flows/kind-helm.md)                                                     | Версии, создание кластера, image, storage и удаление. |
+| [docs/reports/wms-301.md](reports/wms-301.md)                                                     | AC, review, результаты команд и ограничения WMS-301.  |

@@ -1,0 +1,2 @@
+# Безопасная основа chart: до WMS-302 не создаёт workloads и не хранит credentials.
+profile: base
