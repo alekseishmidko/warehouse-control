@@ -400,11 +400,13 @@ Gate 2: согласованный путь «10 принято → 10 разм�
 
 ### WMS-301. Локальный кластер и Helm
 
-- [ ] **WMS-301.1** — Проверить ресурсы машины, доступность kind/kubectl/Helm; закрепить совместимые версии.
-- [ ] **WMS-301.2** — Описать создание kind cluster, загрузку локальных images и namespace стенда.
-- [ ] **WMS-301.3** — Создать Helm chart приложения и отдельные dev values; отличать конфигурацию приложения от установки platform dependencies.
-- [ ] **WMS-301.4** — Определить persistence PostgreSQL для dev и безопасный порядок удаления данных.
-- [ ] **WMS-301.5** — Выполнить lint/template/install/uninstall на чистом кластере; описать cleanup и ограничения single-node режима.
+- [x] **WMS-301.1** — Проверить ресурсы машины, доступность kind/kubectl/Helm; закрепить совместимые версии.
+- [x] **WMS-301.2** — Описать создание kind cluster, загрузку локальных images и namespace стенда.
+- [x] **WMS-301.3** — Создать Helm chart приложения и отдельные dev values; отличать конфигурацию приложения от установки platform dependencies.
+- [x] **WMS-301.4** — Определить persistence PostgreSQL для dev и безопасный порядок удаления данных.
+- [x] **WMS-301.5** — Выполнить lint/template/install/uninstall на чистом кластере; описать cleanup и ограничения single-node режима.
+
+WMS-301: проверены чистый kind cluster, загрузка image и Helm install/uninstall: [runbook](flows/kind-helm.md), [evidence](reports/wms-301.md). Chart пока не запускает приложение; ресурсы API/worker входят в WMS-302.
 
 ### WMS-302. Ресурсы приложения и миграции
 
@@ -635,7 +637,7 @@ rollback приложения не выдаётся за rollback данных �
 WMS-101–WMS-112 и **WMS-201** завершены. B1–B4 приняты владельцем продукта 2026-10-29.
 WMS-202 реализована: users/sessions/auth/ACL/CSRF/bootstrap и проверка отсутствия утечек.
 WMS-203 выполнена: размещение, парные movements и атомарное завершение.
-WMS-204–WMS-208 выполнены. Следующая задача — **WMS-301**, локальный kind/Helm. Перед запуском текущего API/operator
+WMS-204–WMS-208 выполнены. Следующая задача — **WMS-302**, Kubernetes resources приложения и миграции. Перед запуском текущего API/operator
 bootstrap явно заполнить AUTH_ORIGIN и оба срока сессии, числовых defaults нет.
 Frontend реализован; production static serving, Kubernetes/NGINX/Kafka ещё не реализованы. Складские applied migrations
 не переписывать; dev actor не возвращать как fallback. Публикация/внешний deploy требуют

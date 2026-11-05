@@ -1,0 +1,2 @@
+# Только локальный профиль; PostgreSQL и другие platform dependencies устанавливаются отдельно.
+profile: dev
