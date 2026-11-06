@@ -1,8 +1,9 @@
 # Локальный kind и Helm — WMS-301
 
-Документ описывает учебный single-node стенд и его границы. Helm chart пока содержит
-только ConfigMap профиля. Он **не запускает WMS, PostgreSQL или миграции**. API,
-worker, Job и Secrets запланированы в WMS-302; Gateway/TLS — в WMS-303.
+Документ описывает учебный single-node стенд и его границы. В WMS-301 проверен
+chart 0.1 с ConfigMap профиля; chart 0.2 WMS-302 содержит API/worker и Job:
+[установка и обязательные values](kubernetes-app.md). PostgreSQL устанавливается отдельно,
+Gateway/TLS относятся к WMS-303.
 Рабочий Compose и его PostgreSQL volume независимы от kind.
 
 ## Ресурсы и версии
@@ -69,15 +70,12 @@ kind create cluster --name warehouse-dev --image 'kindest/node:v1.37.0@sha256:a1
 kubectl --context kind-warehouse-dev create namespace warehouse-dev
 docker build -f apps/backend/Dockerfile -t warehouse-backend:local .
 kind load docker-image warehouse-backend:local --name warehouse-dev
-helm lint infra/helm/warehouse -f infra/helm/warehouse/values-dev.yaml
-helm template warehouse infra/helm/warehouse -n warehouse-dev -f infra/helm/warehouse/values-dev.yaml
-helm install warehouse infra/helm/warehouse -n warehouse-dev -f infra/helm/warehouse/values-dev.yaml --kube-context kind-warehouse-dev --wait
-kubectl --context kind-warehouse-dev -n warehouse-dev get configmap warehouse-warehouse-config
-helm uninstall warehouse -n warehouse-dev --kube-context kind-warehouse-dev
+# Helm lint/template требуют explicit release values, как описано в WMS-302.
+# Для chart 0.2 сначала provision Secrets и explicit image/auth values по WMS-302.
+# Install/upgrade/uninstall: docs/flows/kubernetes-app.md
 ```
 
-Передавать `--kube-context` и `-n` во все Helm операции. Локальный image пока не
-используется release: эти команды проверяют подготовку к WMS-302. У image с tag
+Передавать `--kube-context` и `-n` во все Helm операции. Загруженный image используется chart WMS-302 по RepoDigest. У image с tag
 `:local` будущий Pod должен использовать `imagePullPolicy: Never` или `IfNotPresent`;
 тег не является immutable digest. Несовпадение архитектуры или отсутствие image
 вызывает ошибку запуска будущего Pod, не означает успешную установку приложения.
@@ -87,7 +85,7 @@ helm uninstall warehouse -n warehouse-dev --kube-context kind-warehouse-dev
 PostgreSQL — отдельная platform dependency, не Helm dependency данного chart.
 Для будущего dev стенда предусмотрены одна PostgreSQL 17 и отдельный PVC с
 ReadWriteOnce на kind StorageClass `standard` (local-path), размер задаёт оператор.
-До WMS-302 никаких PostgreSQL ресурсов этим chart не создаётся; готовность БД,
+PostgreSQL ресурсы application chart не создаёт; готовность БД,
 миграции, DB credentials и restore не проверены. Синтетический файл в PVC
 сохранился после замены Pod; проверенный StorageClass имеет reclaim policy Delete.
 
@@ -116,6 +114,6 @@ kubeconfig после проверки, что это именно создан�
 Не выводить Secret manifests и kubeconfig в отчёт.
 
 Один узел и одна БД не дают HA, отказоустойчивости, backup/restore, внешнего TLS
-или production security. API/worker readiness, migration serialization и реальный
-складской flow ещё не проверены этим chart. Install ConfigMap не является доказательством
+или production security. Полноценные API/worker readiness и реальный
+складской gate 3 относятся к WMS-304. Install ConfigMap не является доказательством
 готовности WMS. Текущий результат и проверки: [WMS-301](../reports/wms-301.md).

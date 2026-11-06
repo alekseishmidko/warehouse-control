@@ -160,7 +160,7 @@ Review WMS-206 исправил позднее дополнение draft и о�
 
 WMS-207 реализована: [складские списки и история](flows/warehouse-reads.md),
 явные DTO, filters/keyset pagination, read/audit ACL, migration 0032 и PostgreSQL
-EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI также выполнена; далее WMS-301.
+EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI и WMS-301/302 также выполнены; далее WMS-303.
 
 Инженерные проверки дополнены typed lint, architecture guards/self-tests и coverage
 в локальном check:pr. WMS-208 завершён; это не настройка внешнего CI.
@@ -169,8 +169,8 @@ EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI такж�
 WMS-208 реализована: [Solid SPA](../apps/web/README.md), login и складские экраны,
 generated API-контракты, Query cache и журнал команд. Gate 2 пройден в Chromium
 с настоящими API/worker/PostgreSQL. [Флоу](flows/web.md), [проверки и ограничения](reports/wms-208.md).
-WMS-301: локальный kind и Helm chart-основа проверены; следующая задача — WMS-302. Kubernetes workloads и внешний web hosting ещё не настроены.
+WMS-301/302: локальный kind, API/worker Helm chart и сериализованные migrations проверены; следующая задача — WMS-303. Gateway/TLS и внешний web hosting ещё не настроены.
 
 Dev workflow: добавлена `pnpm dev:all` для PostgreSQL/migrations и host API/worker/web,
 с одним compiler и общим shutdown. [Flow и evidence](flows/dev-environment.md).
-Следующая бизнес-задача остаётся WMS-301; это не Docker deployment frontend.
+Следующая задача — WMS-303; это не Docker deployment frontend.

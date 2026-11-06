@@ -29,3 +29,6 @@ secrets/**
 apps/web/src/api/generated/**
 **/test-results/**
 **/playwright-report/**
+
+# Helm Go templates проверяет helm lint/template, это не обычный YAML.
+infra/helm/**/templates/**

@@ -1,0 +1,52 @@
+{{/* Hook блокирует изменение Deployments до успеха. Revision identity не обещает exactly-once Pod execution. */}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "warehouse.jobPrefix" . }}-migrate-{{ .Release.Revision }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: migration
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: '0'
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 180
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ .Release.Name }}-migration
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 20
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: {{ include "warehouse.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: [node]
+          args: [dist/infrastructure/database/migrate.js]
+          securityContext:
+            {{- include "warehouse.security" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            {{- include "warehouse.environment" . | nindent 12 }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.migrationSecret }}
+                  key: DATABASE_URL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Mi

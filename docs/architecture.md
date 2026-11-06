@@ -57,7 +57,7 @@ context, если изменения обязаны фиксироваться �
 ## Процессы
 
 Ниже целевая схема. Сейчас web использует локальный Vite proxy, API и PostgreSQL worker
-реализованы. NGINX/Kubernetes, Kafka и отдельные Kafka consumers ещё не развернуты.
+реализованы. API/worker Kubernetes chart реализован WMS-302; NGINX Gateway, Kafka и отдельные Kafka consumers ещё не развернуты.
 [Реализованный web flow](flows/web.md).
 
 ```mermaid
@@ -181,7 +181,7 @@ Task/audit/marker/cursors/completion коммитятся атомарно.
 [ADR-0015](adr/0015-postgres-worker.md). Общий transaction runner всё ещё без auto retry;
 повтор доставки происходит отдельно после rollback с backoff/dead budget.
 
-WMS-112 реализует ADR-0005: [один image, отдельные API/worker и migration process](flows/docker-gate.md). Kubernetes/NGINX пока целевые компоненты.
+WMS-112 реализует ADR-0005: [один image, отдельные API/worker и migration process](flows/docker-gate.md). WMS-302 добавляет [Kubernetes application chart](flows/kubernetes-app.md); NGINX Gateway остаётся целевым компонентом WMS-303.
 
 ## Направление identity WMS-202
 

@@ -406,16 +406,18 @@ Gate 2: согласованный путь «10 принято → 10 разм�
 - [x] **WMS-301.4** — Определить persistence PostgreSQL для dev и безопасный порядок удаления данных.
 - [x] **WMS-301.5** — Выполнить lint/template/install/uninstall на чистом кластере; описать cleanup и ограничения single-node режима.
 
-WMS-301: проверены чистый kind cluster, загрузка image и Helm install/uninstall: [runbook](flows/kind-helm.md), [evidence](reports/wms-301.md). Chart пока не запускает приложение; ресурсы API/worker входят в WMS-302.
+WMS-301: проверены чистый kind cluster, загрузка image и Helm install/uninstall: [runbook](flows/kind-helm.md), [evidence](reports/wms-301.md). Chart 0.1 был основой; ресурсы приложения реализованы в WMS-302.
 
 ### WMS-302. Ресурсы приложения и миграции
 
-- [ ] **WMS-302.1** — Описать Deployments API/worker, Services и единый image digest с разными entrypoints.
-- [ ] **WMS-302.2** — Добавить ConfigMap/Secret, service accounts с минимальными правами, requests/limits и securityContext.
-- [ ] **WMS-302.3** — Создать migration Job с release identity и сериализацией; повторный запуск безопасен, параллельные миграции исключены.
-- [ ] **WMS-302.4** — Определить expand/contract rollout: новая schema совместима со старым API/worker до завершения обновления.
-- [ ] **WMS-302.5** — Проверить storage, конфигурационные ошибки и запуск при задержке БД; секреты не выводятся в rendered committed manifests.
-- [ ] **WMS-302.6** — Задокументировать просмотр pods/logs/jobs и устранение неуспешной миграции.
+- [x] **WMS-302.1** — Описать Deployments API/worker, Services и единый image digest с разными entrypoints.
+- [x] **WMS-302.2** — Добавить ConfigMap/Secret, service accounts с минимальными правами, requests/limits и securityContext.
+- [x] **WMS-302.3** — Создать migration Job с release identity и сериализацией; повторный запуск безопасен, параллельные миграции исключены.
+- [x] **WMS-302.4** — Определить expand/contract rollout: новая schema совместима со старым API/worker до завершения обновления.
+- [x] **WMS-302.5** — Проверить storage, конфигурационные ошибки и запуск при задержке БД; секреты не выводятся в rendered committed manifests.
+- [x] **WMS-302.6** — Задокументировать просмотр pods/logs/jobs и устранение неуспешной миграции.
+
+WMS-302: [application flow](flows/kubernetes-app.md), [review и evidence](reports/wms-302.md). Gate проверяет pre-upgrade ordering, SQL lock/repeat, конфигурационные отказы и сохранность PVC; gate 3 остаётся открытым.
 
 ### WMS-303. Внешний HTTP и TLS
 
@@ -637,9 +639,9 @@ rollback приложения не выдаётся за rollback данных �
 WMS-101–WMS-112 и **WMS-201** завершены. B1–B4 приняты владельцем продукта 2026-10-29.
 WMS-202 реализована: users/sessions/auth/ACL/CSRF/bootstrap и проверка отсутствия утечек.
 WMS-203 выполнена: размещение, парные movements и атомарное завершение.
-WMS-204–WMS-208 выполнены. Следующая задача — **WMS-302**, Kubernetes resources приложения и миграции. Перед запуском текущего API/operator
+WMS-204–WMS-208 выполнены. Следующая задача — **WMS-303**, Gateway API и NGINX Gateway Fabric. Перед запуском текущего API/operator
 bootstrap явно заполнить AUTH_ORIGIN и оба срока сессии, числовых defaults нет.
-Frontend реализован; production static serving, Kubernetes/NGINX/Kafka ещё не реализованы. Складские applied migrations
+Frontend реализован; production static serving, NGINX Gateway и Kafka ещё не реализованы; API/worker Helm chart готов WMS-302. Складские applied migrations
 не переписывать; dev actor не возвращать как fallback. Публикация/внешний deploy требуют
 явно заданного окружения и TLS gateway.
 

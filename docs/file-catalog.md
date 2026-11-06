@@ -679,3 +679,22 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | [infra/helm/warehouse/README.md](../infra/helm/warehouse/README.md)                               | Назначение chart, границы и ссылка на flow.           |
 | [docs/flows/kind-helm.md](flows/kind-helm.md)                                                     | Версии, создание кластера, image, storage и удаление. |
 | [docs/reports/wms-301.md](reports/wms-301.md)                                                     | AC, review, результаты команд и ограничения WMS-301.  |
+
+### WMS-302
+
+| Файл                                                                                             | Назначение                                                             |
+| ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| [serialized-migrations.ts](../apps/backend/src/infrastructure/database/serialized-migrations.ts) | Session advisory lock и Drizzle на одном client.                       |
+| [serialized-migrations.spec.ts](../apps/backend/test/integration/serialized-migrations.spec.ts)  | PostgreSQL race с двумя waits, новый SQL, repeat и rollback.           |
+| [kubernetes-gate.cjs](../scripts/kubernetes-gate.cjs)                                            | Изолированный kind/Helm gate, fault scenarios, Secret safety и PVC.    |
+| [postgres-dev.yaml](../infra/kubernetes/postgres-dev.yaml)                                       | Отдельная platform БД Service/StatefulSet/PVC; не application release. |
+| [infra/kubernetes/README.md](../infra/kubernetes/README.md)                                      | Границы local DB platform и lifecycle данных.                          |
+| [values.schema.json](../infra/helm/warehouse/values.schema.json)                                 | Валидация image digest, Secret names и auth values.                    |
+| [_helpers.tpl](../infra/helm/warehouse/templates/_helpers.tpl)                                   | Общие image/env/security шаблоны Helm и имена Job.                     |
+| [accounts.yaml](../infra/helm/warehouse/templates/accounts.yaml)                                 | Runtime и pre-hook migration accounts без tokens/RBAC.                 |
+| [deployments.yaml](../infra/helm/warehouse/templates/deployments.yaml)                           | API/worker, Secret references, bounded sandbox/resources.              |
+| [service.yaml](../infra/helm/warehouse/templates/service.yaml)                                   | Внутренний API Service.                                                |
+| [migration.yaml](../infra/helm/warehouse/templates/migration.yaml)                               | Release revision pre-hook Job.                                         |
+| [kubernetes-app.md](flows/kubernetes-app.md)                                                     | Подробный application flow, rollout policy и recovery.                 |
+| [wms-302.md](reports/wms-302.md)                                                                 | Требования, review, evidence и ограничения.                            |
+| [ADR-0028](adr/0028-kubernetes-release-migrations.md)                                            | Решение о release/migration ordering и DB lock.                        |

@@ -57,7 +57,7 @@
 WMS-208 реализована: [Solid SPA](../apps/web/README.md), login и складские экраны,
 generated API-контракты, Query cache и журнал команд. Gate 2 пройден в Chromium
 с настоящими API/worker/PostgreSQL. [Флоу](flows/web.md), [проверки и ограничения](reports/wms-208.md).
-Следующий этап — WMS-301, локальный Kubernetes; внешний web hosting ещё не настроен.
+WMS-301/302: kind и API/worker Helm chart проверены; следующая задача — WMS-303, Gateway/TLS. Внешний web hosting ещё не настроен.
 
 ## Подход к коду
 
@@ -105,7 +105,8 @@ generated API-контракты, Query cache и журнал команд. Gate
 - Сборка и отгрузка реализованы WMS-205/206; чтение и история — WMS-207.
 - WMS-208: Solid SPA, read справочники, команда/recovery, browser gate 2 и отдельное web coverage.
 - Dev окружение запускается одной `pnpm dev:all`: PostgreSQL/migrate и host API/worker/web с общим shutdown.
-- Не реализованы production web serving, Kubernetes, Kafka и внешний CI/CD.
+- WMS-302: API/worker в Kubernetes, pre-release migrations, Secret refs и local persistence проверены; [flow](flows/kubernetes-app.md).
+- Не реализованы production web serving, Gateway/TLS, Kafka и внешний CI/CD.
 - Пример контракта `ReceivingPosted` — проектный образец, не опубликованный API.
 - Локальные schema/fixtures/generation проверки выполняются в unit suite;
   OpenAPI generation/diff готов локально; CI workflow и breaking-change comparison пока не настроены.
@@ -180,7 +181,7 @@ ShippingChanged требует shipmentId для действий над док�
 
 WMS-207 реализована: [складские списки и история](flows/warehouse-reads.md),
 явные DTO, filters/keyset pagination, read/audit ACL, migration 0032 и PostgreSQL
-EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI также выполнена; далее WMS-301.
+EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI и WMS-301/302 также выполнены; далее WMS-303.
 
 [Качество, критерии приёмки и coverage](quality.md): обязательные AC ID, typed lint,
 архитектурные guards и измерение собственного backend. [Отчёт](reports/quality-baseline.md).
@@ -188,3 +189,5 @@ EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI такж�
 Аудит текущего приложения и исправления recovery/storage: [отчёт](reports/application-audit.md).
 
 [WMS-301: локальный kind и Helm](flows/kind-helm.md) — профиль chart, подготовка image, хранение и cleanup; фактические проверки — [отчёт](reports/wms-301.md).
+
+[WMS-302: application chart и migrations](flows/kubernetes-app.md), [критерии и evidence](reports/wms-302.md).

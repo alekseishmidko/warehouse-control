@@ -1,0 +1,66 @@
+# Отдельная local platform dependency. Namespace и Secret warehouse-postgres (POSTGRES_PASSWORD)
+# создаёт оператор. PVC переживает helm uninstall приложения; удаление namespace/cluster уничтожает данные.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector:
+    app: warehouse-postgres
+  ports:
+    - port: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: warehouse-postgres
+  template:
+    metadata:
+      labels:
+        app: warehouse-postgres
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: postgres
+          image: postgres:17.9-bookworm@sha256:47f917f7409eacd22fc5dfb1dee634e1b55cf0c01d1a7eb701be2227a03e0641
+          env:
+            - name: POSTGRES_USER
+              value: warehouse
+            - name: POSTGRES_DB
+              value: warehouse
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: warehouse-postgres
+                  key: POSTGRES_PASSWORD
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: '1'
+              memory: 512Mi
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, warehouse, -d, warehouse]
+            periodSeconds: 2
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 1Gi

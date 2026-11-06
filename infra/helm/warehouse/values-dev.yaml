@@ -1,2 +1,8 @@
-# Только локальный профиль; PostgreSQL и другие platform dependencies устанавливаются отдельно.
-profile: dev
+# Несекретный local profile. Сроки сессий и digest оператор задаёт явно отдельным values-файлом.
+database:
+  runtimeSecret: warehouse-runtime
+  migrationSecret: warehouse-migration
+auth:
+  origin: https://warehouse.local
+image:
+  pullPolicy: Never

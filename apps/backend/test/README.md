@@ -315,3 +315,7 @@ JSON/HTML — coverage/backend. Новые baseline changes требуют ре�
 Сквозной AC-QUALITY-01 в shipping.spec.ts сверяет ledger после каждой стадии; worker
 lease fencing проверяется test-only expiry под уже взятыми locks, без 200ms гонки.
 [Политика](../../../docs/quality.md).
+
+WMS-302: serialized-migrations.spec.ts проверяет два DB lock waits перед journal,
+новый синтетический SQL ровно один раз, repeat и rollback DDL с освобождением lock.
+Kubernetes faults выполняет отдельная `pnpm kubernetes:gate`; [flow](../../../docs/flows/kubernetes-app.md).
