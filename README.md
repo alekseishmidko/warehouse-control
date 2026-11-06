@@ -22,7 +22,7 @@ Solid/TypeScript/Vite SPA — в [apps/web](apps/web/README.md).
 транзакции/audit, минимальные catalog/warehouses/inventory, event contracts, outbox writer, HTTP/idempotency и приёмка draft/posted.
 Worker/putaway handler готовы WMS-109/110; Docker image/Compose готовы WMS-112.
 WMS-201–208: серверные сессии/права, размещение, заказ/резерв/сборка/отгрузка,
-чтение/история и Solid UI. Браузерный gate 2 пройден; Kubernetes запланирован.
+чтение/история и Solid UI. Браузерный gate 2 пройден; API/worker Helm chart реализован WMS-302, Gateway/TLS — следующий этап.
 
 ## Запуск
 
@@ -265,3 +265,7 @@ reload той же вкладки возвращает результат без
 Результаты аудита и рефакторинга recovery/storage: [отчёт](docs/reports/application-audit.md).
 Version-specific pnpm.overrides в package.json фиксируют security patches четырёх
 транзитивных production-зависимостей; версии, причины и команды проверки приведены в отчёте.
+
+Локальный Kubernetes backend: [application flow](docs/flows/kubernetes-app.md),
+[AC, review и evidence WMS-302](docs/reports/wms-302.md). `pnpm kubernetes:gate`
+проверяет Helm lifecycle и failures на disposable kind cluster.

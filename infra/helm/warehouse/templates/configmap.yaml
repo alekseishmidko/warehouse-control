@@ -1,10 +1,14 @@
+{{/* Только несекретные env. Checksum в Pod template запускает rollout при изменении policy. */}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Release.Name }}-warehouse-config
-  labels:
-    app.kubernetes.io/name: warehouse
-    app.kubernetes.io/instance: {{ .Release.Name | quote }}
-    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+  name: {{ .Release.Name }}-config
 data:
-  profile: {{ .Values.profile | required "profile is required" | quote }}
+  NODE_ENV: production
+  HTTP_HOST: 0.0.0.0
+  PORT: '3000'
+  DEV_ACTOR_ENABLED: 'false'
+  OUTBOX_ADMIN_ENABLED: 'false'
+  AUTH_ORIGIN: {{ .Values.auth.origin | quote }}
+  AUTH_SESSION_ABSOLUTE_SECONDS: {{ .Values.auth.absoluteSeconds | quote }}
+  AUTH_SESSION_IDLE_SECONDS: {{ .Values.auth.idleSeconds | quote }}

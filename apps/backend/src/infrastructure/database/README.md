@@ -17,6 +17,7 @@
 | connection.ts                  | Создаёт Pool и typed Drizzle; владелец обязан вызвать pool.end()                                 |
 | database.module.ts             | DatabaseModule экспортирует DatabaseService, подключает БД при Nest init и закрывает при destroy |
 | postgres-transaction-runner.ts | Реализация shared port, context binding и nested/scope guards                                    |
+| serialized-migrations.ts       | Session lock и SQL migrations на одном client, без pool/lock leak                                |
 | migrate.ts                     | CLI применяет generated SQL, использует finally для закрытия pool, exit 1 при ошибке             |
 | check.ts                       | Read-only CLI читает server_version и baseline table, закрывает pool                             |
 
@@ -45,8 +46,11 @@ pnpm db:check    # read-only проверка; выполнить после bui
 Drizzle Kit config: `apps/backend/drizzle.config.ts`; отдельная от Nest build
 tooling-конфигурация. Generated migrations — `apps/backend/drizzle/`.
 Журнал применённых миграций — `drizzle.__drizzle_migrations` в PostgreSQL.
-Запускать migrator одним процессом; сериализация нескольких deployment jobs пока
-не реализована. Повтор уже применённой миграции пропускается по journal.
+CLI сериализован session advisory lock до чтения journal; SQL и lock используют
+один client. Повтор уже применённой миграции пропускается по journal.
+При ошибке client уничтожается, снимая lock. Lock wait ограничен 120s, auto retry нет.
+[Release flow, SQL и ошибки](../../../../../docs/flows/kubernetes-app.md),
+[реальные race/rollback tests](../../../test/integration/serialized-migrations.spec.ts).
 Runtime CLI ищет migration assets рядом с backend; будущий Docker image обязан
 включать `drizzle/`, одного `dist/` недостаточно.
 

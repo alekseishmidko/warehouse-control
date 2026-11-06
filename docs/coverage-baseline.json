@@ -77,6 +77,12 @@
     "functions": 0,
     "branches": 100
   },
+  "src/infrastructure/database/serialized-migrations.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
   "src/infrastructure/http/api-read-page.decorator.ts": {
     "lines": 100,
     "statements": 100,

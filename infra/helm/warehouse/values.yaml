@@ -1,2 +1,20 @@
-# Безопасная основа chart: до WMS-302 не создаёт workloads и не хранит credentials.
-profile: base
+# Образ обязателен по digest; tags и credentials здесь запрещены.
+image:
+  repository: warehouse-backend
+  digest: ''
+  pullPolicy: IfNotPresent
+# Secrets создаёт оператор ДО helm install; ключ DATABASE_URL, разные DB privileges.
+database:
+  runtimeSecret: ''
+  migrationSecret: ''
+auth:
+  origin: ''
+  absoluteSeconds: ''
+  idleSeconds: ''
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: '1'
+    memory: 512Mi

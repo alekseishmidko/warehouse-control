@@ -1,0 +1,80 @@
+{{/* API/worker — разные процессы одного image. Worker не имеет фиктивного HTTP probe/Service. */}}
+{{- range $role := list "api" "worker" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Release.Name }}-{{ $role }}
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      app.kubernetes.io/component: {{ $role }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: {{ $role }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") $ | sha256sum }}
+    spec:
+      serviceAccountName: {{ $.Release.Name }}-runtime
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: {{ $role }}
+          image: {{ include "warehouse.image" $ | quote }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          command: [node]
+          args: [{{ if eq $role "api" }}dist/main.js{{ else }}dist/worker.js{{ end }}]
+          securityContext:
+            {{- include "warehouse.security" $ | nindent 12 }}
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ $.Release.Name }}-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.database.runtimeSecret }}
+                  key: DATABASE_URL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          {{- if eq $role "api" }}
+          ports:
+            - name: http
+              containerPort: 3000
+          # Существующий /health доказывает только liveness; отдельные probes — WMS-304.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Mi
+{{- end }}

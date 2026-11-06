@@ -28,4 +28,4 @@ SIGTERM, rollout и восстановление worker. Этапы 1, 3, 5.
 Источники: [Gateway Fabric](https://docs.nginx.com/nginx-gateway-fabric),
 [retirement ingress-nginx](https://kubernetes.io/blog/2026/01/29/ingress-nginx-statement/).
 
-WMS-112: Docker/Compose часть реализована, см. [flow](../flows/docker-gate.md) и [evidence](../reports/wms-112.md). WMS-301 добавляет основу Helm chart без workloads; результаты и незавершённые проверки — [отчёт](../reports/wms-301.md). API/worker в Kubernetes и NGINX ещё не реализованы.
+WMS-112: Docker/Compose часть реализована, см. [flow](../flows/docker-gate.md) и [evidence](../reports/wms-112.md). WMS-301 добавляет основу Helm chart без workloads; результаты и незавершённые проверки — [отчёт](../reports/wms-301.md). WMS-302 реализует API/worker в Kubernetes и serialized migration Job, см. [ADR-0028](0028-kubernetes-release-migrations.md). NGINX Gateway ещё не реализован.

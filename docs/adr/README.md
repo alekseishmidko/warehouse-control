@@ -46,3 +46,5 @@ WMS-206 по B1–B4, заменяет временный отказ отмен�
 
 [0027. Границы web](0027-web-boundaries.md) — read-only справочники с ACL,
 same-origin transport и явное восстановление сохранённой команды с прежним ключом.
+
+[0028. Kubernetes releases](0028-kubernetes-release-migrations.md) — WMS-302: chart/Secrets, pre-upgrade Job и session-serialized migrations.

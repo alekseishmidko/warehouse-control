@@ -55,7 +55,8 @@
     "web:api:check": "pnpm --filter @warehouse/web api:check",
     "test:web": "pnpm --filter @warehouse/web test",
     "test:web:gate": "pnpm --filter @warehouse/backend test:web:gate",
-    "dev:backend": "pnpm --filter @warehouse/backend dev"
+    "dev:backend": "pnpm --filter @warehouse/backend dev",
+    "kubernetes:gate": "node scripts/kubernetes-gate.cjs"
   },
   "private": true,
   "devDependencies": {
