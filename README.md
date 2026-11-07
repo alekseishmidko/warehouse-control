@@ -22,7 +22,7 @@ Solid/TypeScript/Vite SPA — в [apps/web](apps/web/README.md).
 транзакции/audit, минимальные catalog/warehouses/inventory, event contracts, outbox writer, HTTP/idempotency и приёмка draft/posted.
 Worker/putaway handler готовы WMS-109/110; Docker image/Compose готовы WMS-112.
 WMS-201–208: серверные сессии/права, размещение, заказ/резерв/сборка/отгрузка,
-чтение/история и Solid UI. Браузерный gate 2 пройден; API/worker Helm chart реализован WMS-302, Gateway/TLS — следующий этап.
+чтение/история и Solid UI. Браузерный gate 2 пройден; API/worker Helm chart реализован WMS-302; static web image и Gateway/TLS проверены WMS-303. Следующий этап — WMS-304.
 
 ## Запуск
 
@@ -55,7 +55,7 @@ pnpm dev
 
 `corepack enable` добавляет команду `pnpm`, которая нужна в том числе для корневых скриптов.
 
-С текущим dev `.env` (`PORT=4400`) API доступен на `http://127.0.0.1:4400`:
+Например, при `PORT=4400` API доступен на `http://127.0.0.1:4400`:
 
 - `GET /` — приветствие API.
 - `GET /health` — `{ "status": "ok" }`.
@@ -203,6 +203,8 @@ pnpm app:down # данные сохраняются
 business routes требуют session/warehouse role. Внутри Docker остаётся порт 3000.
 Учебный сценарий приёмки: `pnpm docker:gate` (отдельные БД/project/volume с loopback
 auth). Проверка чистой сборки и исключения secret canary: `pnpm docker:image-check`.
+`pnpm test:postgres:readiness` отдельно проверяет первый startup на новом volume
+с initdb barrier; regression включён в docker:gate и check:pr.
 Все новые файлы/команды и Mermaid flow — [Docker gate](docs/flows/docker-gate.md),
 конфигурация — [Compose](infra/compose/README.md), evidence — [WMS-112](docs/reports/wms-112.md).
 Скрипты scripts/docker-gate.cjs и scripts/docker-image-check.cjs — host-only проверки,
@@ -259,7 +261,7 @@ Login, доступные склады/товары/ячейки, приёмка
 
 При потере ответа сохраняется исходный запрос с idempotency key. Явный повтор после
 reload той же вкладки возвращает результат без нового эффекта. Закрытие вкладки
-теряет клиентский журнал; production static serving/TLS ещё не настроены.
+теряет клиентский журнал. Static web image и TLS через NGF проверены на local kind; внешний production deployment не выполнялся. [Gateway/TLS](docs/flows/gateway-tls.md).
 [Подробный flow](docs/flows/web.md), [gate 2, ревью и тесты](docs/reports/wms-208.md).
 
 Результаты аудита и рефакторинга recovery/storage: [отчёт](docs/reports/application-audit.md).
@@ -269,3 +271,18 @@ Version-specific pnpm.overrides в package.json фиксируют security patc
 Локальный Kubernetes backend: [application flow](docs/flows/kubernetes-app.md),
 [AC, review и evidence WMS-302](docs/reports/wms-302.md). `pnpm kubernetes:gate`
 проверяет Helm lifecycle и failures на disposable kind cluster.
+
+## Workspace и генерируемый YAML lockfile
+
+[pnpm-workspace.yaml](pnpm-workspace.yaml) выбирает приложения `apps/*`, общие
+пакеты `packages/*` и разрешённые dependency build scripts. Он не задаёт порядок
+старта API/worker/БД. Команды и их последовательность определяет `package.json`.
+
+`pnpm-lock.yaml` генерирует pnpm 10.18.3. `lockfileVersion` задаёт формат;
+`settings` и `overrides` фиксируют правила разрешения; `importers` описывают прямые
+зависимости каждого workspace; `packages` хранят точные версии, integrity и peer
+ограничения; `snapshots` связывают транзитивные зависимости с конкретными peer sets.
+Lockfile не содержит шагов запуска приложения. Не редактировать его зависимости
+или пояснения вручную: менять manifest и выполнять `pnpm install`, затем проверять
+`pnpm install --frozen-lockfile` и Docker clean build. Для generated YAML описание
+хранится здесь, чтобы следующая генерация не теряла комментарии.

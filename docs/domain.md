@@ -1,173 +1,139 @@
 # Домен и инварианты
 
-## Модель первого релиза
+## Текущее состояние
 
-WMS-104: количество — SQL integer и JavaScript number в целых штуках,
-остаток 0..2147483647, приход 1..2147483647. Диапазон зафиксирован в shared, SQL
-и draft event schema; опубликованного stock API пока нет.
-WMS-105: первый документ приёмки ограничен 1..1000 строками, каждое фактическое
-количество — 1..2147483647. Событие вместе с envelope/расширениями — до 256 КиБ
-JSON UTF-8. Большую приёмку разделяют на документы до проведения; автоматического
-дробления событий нет. Runtime contract и документ/HTTP DTO реализованы WMS-105/108.
-SKU уникален в организации. Ячейка принадлежит ровно одному складу.
-Системные зоны: приёмка, хранение, отгрузка. Только разрешённые для резервирования
-остатки хранения участвуют в автоматическом выборе под заказ.
+Реализованы приёмка, размещение, явный резерв, сборка, отгрузка и компенсационная
+отмена по B1–B4. Документ описывает работающую модель WMS-104–208; история отдельных
+этапов находится в reports. Неизменяемые бизнес-правила принадлежат
+[правилам fulfillment](fulfillment-rules.md), подробности исполнения — владельцам flows.
+Одна организация использует несколько складов и адресные ячейки. Партии, серии,
+сроки годности и межскладской перенос не реализованы.
 
-| Сущность                               | Назначение                                           |
-| -------------------------------------- | ---------------------------------------------------- |
-| Product                                | SKU и свойства товара                                |
-| Warehouse / Location                   | Склад, ячейка и её назначение                        |
-| Receipt / ReceiptLine                  | Ожидаемое и фактически принятое                      |
-| StockBalance                           | Количество по `(warehouseId, locationId, productId)` |
-| StockMovement                          | Неизменяемые записи движения с бизнес-основанием     |
-| Reservation                            | Резерв строки заказа на конкретном остатке           |
-| OutboundOrder / PickingTask / Shipment | Заказ, сборка, отгрузка                              |
-| AuditEntry                             | Субъект, действие, объект, время и корреляция        |
+| Сущность                       | Назначение и владелец                                                   |
+| ------------------------------ | ----------------------------------------------------------------------- |
+| Product                        | Общий каталог организации, уникальный SKU; catalog                      |
+| Warehouse / Location           | Склад и принадлежащая ему ячейка receiving/storage/shipping; warehouses |
+| Receipt / ReceiptLine          | Фактическая приёмка с immutable составом; receiving                     |
+| StockBalance / StockMovement   | Остаток и неизменяемое основание физического изменения; inventory       |
+| StockAllocation                | Количества резерва и история его использования; inventory               |
+| PutawayTask                    | Задание receiving→storage из posted receipt; inventory                  |
+| Order / PickingTask / Shipment | Заказ, план/факт сборки и документ отгрузки; fulfillment                |
+| AuditEntry                     | Субъект, действие, объект, основание и безопасные changes; audit        |
 
-## Остатки
+## Количества, остатки и резерв
 
-`available = onHand - reserved`, всегда `0 <= reserved <= onHand`.
-В целевой модели сумму reserved составляют все активные allocations на соответствующий balance;
-сами reservations/allocations ещё не реализованы.
-Ограничения проверяются в БД и приложении; отсутствующая строка остатка
-не защищается `SELECT FOR UPDATE`, поэтому создание требует unique constraint
-и корректного upsert/повторного чтения.
+Количество хранится как PostgreSQL int4 и JavaScript number в целых штуках.
+Остаток — 0..2147483647, положительная операция — 1..2147483647.
+Остаток уникален по `(warehouseId, locationId, productId)`; composite FK защищает
+принадлежность ячейки складу. Отсутствующую строку нельзя защитить SELECT FOR UPDATE:
+создание использует unique constraint и согласованный порядок INSERT/locks.
 
-- Приёмка: приход в ячейку приёмки, проведение документа и событие — одна транзакция.
-- Размещение: уменьшение источника и увеличение назначения — одна транзакция.
-- Резерв: доступность проверяется вместе с записью резерва в одной транзакции.
-- Сборка: товар и его резерв перемещаются в зону отгрузки; общий onHand склада не меняется.
-- Отгрузка: onHand и reserved уменьшаются одновременно на фактическое количество.
-- Отмена резерва: reserved уменьшается, onHand не меняется.
-- Корректировка: отдельное движение с причиной и полномочиями; прямое редактирование запрещено.
+Для каждого balance:
 
-Несколько строк блокируются в детерминированном порядке. Ошибки deadlock
-и serialization допускают ограниченный повтор всей транзакции.
-Событие и audit нельзя записывать вне этой транзакции.
+- `available = onHand - reserved`, `0 <= reserved <= onHand`.
+- `reserved = SUM(active allocations)` без legacy исключений.
+- Новые резервы выбираются только из storage.
 
-## Статусы
+Для allocation: `allocated = active + released + transferred + consumed`.
+Начальное allocated и основание неизменяемы; закрытые количества не переписываются.
+Повторный резерв после release создаёт новое основание. Reserve/release меняют
+reserved, но не создают физический movement и не меняют onHand.
 
-Приёмка первого сценария: `draft → posted`. После проведения строки неизменяемы;
-исправление — отдельная компенсирующая операция. Один документ проводится один раз.
-Частичная приёмка оформляется отдельными документами фактической приёмки
-против ожидаемой поставки; модель поставки появится отдельной задачей.
+Для строки заказа:
+`ordered = open + reservedStorage + reservedShipping + shipped + cancelled`.
+Сумма active+consumed не превышает ordered. Сборка переносит onHand и active
+allocation вместе в shipping. Shipment уменьшает onHand/reserved и увеличивает
+consumed. Проверки приложения и SQL guards работают совместно.
+[Резервирование](flows/reservations.md), [сборка](flows/picking.md),
+[отгрузка и ledger](flows/shipping.md).
 
-Резерв: `active → consumed | released`. Частичное потребление ведётся
-количествами allocation; политики WMS-201.2/201.3 утверждены 2026-10-29,
-см. [правила и проект переходов](fulfillment-rules.md). Состояние closed_mixed для смешанного
-закрытия предлагается там отдельно и не считается принятым правилом.
-Не выводить статус заказа только из факта получения одного события.
+## Приёмка и размещение
 
-## Аудит
+Receipt создаётся в draft для одной receiving location одного склада: 1..1000 строк,
+разные productId, каждое quantity>0 в int4. Posting блокирует header, повторно проверяет
+состояние/refs и начисляет stock через InventoryService в порядке productId.
+Receipt posted, stock/movements, audit, ReceivingPosted и saved HTTP result получают
+один commit. Новый key для posted receipt даёт409, прежний key возвращает saved result.
+Редактирование/удаление строк и исправление posted документа этим API не предоставлены.
+Частичная фактическая приёмка оформляется отдельными документами; модель ожидаемой
+поставки не реализована. [Приёмка](receiving.md).
 
-Бизнес-аудит пишется при успешной операции в общей транзакции:
-actorId/type, action, entityType/id, timestamp, correlationId, reason и безопасные
-изменённые поля. Токены, пароли и полные HTTP payload не сохраняются.
-Неуспешные попытки доступа логируются отдельно от бизнес-аудита.
-Движения и audit append-only для роли приложения; исправления добавляют запись.
-Это не защита от администратора БД и не криптографический журнал.
+Worker создаёт pending PutawayTask на каждую строку реального posted receipt, без
+повторного начисления stock. Task/audit/processed marker/cursors/delivery completion
+фиксируются атомарно. Completed delivery означает создание задания, а не его
+физическое выполнение. [Создание task](flows/putaway.md).
 
-## Обязательные проверки
+Оператор выполняет pending task целиком receiving→storage того же склада. Источник
+и quantity берутся из task; target выбирает оператор. Свободный stock должен покрыть
+quantity. Два movements, audit, completed task, PutawayCompleted и HTTP result
+коммитятся вместе; общий stock склада не меняется. Произвольный перенос, partial
+putaway и отмена task не реализованы. [Исполнение](flows/putaway-execution.md).
 
-Конкурентный резерв последней штуки; повтор проведения приёмки;
-rollback без движения и события; перемещение без изменения общего количества;
-сборка с переносом allocation; отгрузка без отрицательных остатков;
-неавторизованная корректировка; повтор доставки без повторного эффекта.
+## Заказ, сборка, отгрузка и отмена
 
-## Реализация аудита WMS-103
+Order имеет состояния draft/active/cancel_pending/completed/cancelled/closed_mixed.
+Confirm переводит draft в active без stock эффекта. Явный reserve может покрыть часть
+заказа; нехватка любой строки откатывает весь запрошенный вектор. Release возвращает
+количество в open и не означает отмену заказа. Автоматического expiry/TTL/job нет.
 
-Write interface и append-only таблица реализованы; user/system actorId и entityId — UUID,
-основание — reasonCode, время — transaction timestamp PostgreSQL. Допустимые changes
-и политика redaction/ролей: [transactions](transactions.md). Произвольные комментарии
-вместо кода основания не сохраняются. Приёмка с аудитом реализована WMS-108; прочие складские сценарии предстоят.
+PickingTask хранит immutable план storage allocations. Состояния:
+ready/in_progress/shortage/completed/cancelled. Сотрудник принимает задание сам;
+возобновить shortage может прежний исполнитель. Факт — приращение количества.
+Нехватка не списывает stock автоматически и сохраняет недособранный резерв.
+Частичная сборка и последующее продолжение разрешены по B1/B2.
 
-## Реализованный складской baseline WMS-104
+Shipment draft хранит выбранную staged партию. Posting повторно проверяет active
+shipping allocations и списывает все строки документа атомарно. Статусы shipment:
+draft/posted/cancelled. Отгруженный факт не отменяется. Полностью shipped заказ — completed.
 
-Catalog/Warehouses владеют внутренними справочниками; InventoryService.receive
-атомарно увеличивает balance, пишет audit и immutable movement. Отсутствующий
-balance создаётся guarded upsert с unique stock key. Location ownership защищён
-composite FK. Повтор operationId отклоняется с rollback, не считается успехом.
-Размещение, резервирование и отгрузка в правилах выше остаются целевыми сценариями.
-Детали/DTO/ограничения: [stock-baseline](stock-baseline.md).
+Если staged товара нет, cancel освобождает storage резерв и закрывает неотгруженный
+остаток. При staged товаре заказ становится cancel_pending; запас и резерв сохраняются
+до полного подтверждённого физического возврата в storage. Возврат освобождает резерв
+и закрывает только неотгруженный остаток: cancelled либо closed_mixed при прежних
+отгрузках. История picked/shipped сохраняется. [B1–B4](fulfillment-rules.md),
+[состояния и физический возврат](flows/shipping.md).
 
-## Реализованный outbox writer WMS-106
+## Транзакции, повторы и события
 
-OutboxService принимает факт с общим context после бизнес-изменения, сам выделяет
-UUID/непрерывную event version в транзакции и пишет immutable envelope, pending delivery
-и stream. Атомарность с stock/movement/audit доказана integration-тестом, документ
-приёмки/проведение реализованы WMS-108. Повтор append создаёт новый факт: запрет
-повторного posting обеспечивает receiving parent lock/state, HTTP replay — idempotency storage.
-[Физическая модель и ограничения](../apps/backend/src/infrastructure/outbox/README.md).
+Все бизнес-изменения, движения, allocations, audit, outbox и saved HTTP result
+используют один awaited TransactionContext. Владелец сценария открывает runner;
+вызываемые services не открывают nested transaction и не выполняют внешнее I/O.
+Locks выбираются до мутаций в стабильном порядке; состояние перечитывается после ожидания.
 
-## Приёмка WMS-108
+Runner выполняет callback один раз. Deadlock/serialization/DB failure выходят наружу
+без автоматического retry. При неизвестном результате HTTP клиент сохраняет исходный
+request/key; явный повтор использует тот же key и заново проверяет session/warehouse ACL
+до replay. Новый ключ не заменяет восстановление неизвестного исхода.
+[Транзакции](transactions.md), [HTTP idempotency](../apps/backend/src/infrastructure/idempotency/README.md).
 
-Draft и строки создаются атомарно; HTTP редактирования/удаления нет. Один документ —
-одна receiving location склада, 1..1000 строк с разными productId, quantity int4 > 0.
-Posting сначала блокирует header, повторно проверяет refs/состояние и вызывает inventory
-по productId. UUID строки = operationId движения. Receipt audit, stock/audit/movements,
-ReceivingPosted, delivery/stream и результат HTTP атомарны. postedAt = occurredAt события;
-aggregateId = payload.receiptId. Новый ключ на posted — 409, прежний — saved replay.
-Документ не моделирует ожидаемую поставку/частичную приёмку/коррекцию.
-[Полный контракт](../apps/backend/src/modules/receiving/README.md).
+События — durable факты с envelope и проверкой schema до outbox INSERT и до consumer
+эффекта. Общий лимит сообщения262144 UTF-8 bytes включает envelope/extensions;
+ReceivingPosted v1 содержит1..1000 строк. Delivery at least once; effect/marker/cursors/
+ack — один commit. Нет обещания exactly-once, общего порядка всех агрегатов или атомарности
+PostgreSQL+Kafka. Kafka пока не подключена. [Контракты](contracts/README.md), [outbox](outbox.md).
 
-## Ожидание размещения WMS-110
+## Авторизация, аудит и история
 
-PutawayTask pending создаётся worker на каждую строку posted receipt и не начисляет
-stock. Unique source line/event и composite FK сохраняют исходные receipt/product/quantity/
-location/event. Worker effect, task audit, processed marker, consumer/transport cursors и
-completion фиксируются вместе. Delivery completed не означает task completed: выполнение требует отдельной команды WMS-203. Source task immutable, корректировка/отмена не появились.
-[Подробный flow](flows/putaway.md), [ADR-0016](adr/0016-durable-putaway-handler.md).
+Actor/roles задаёт проверенная серверная session, не body/headers. System admin без
+warehouse role не получает складской доступ. Session/CSRF/Origin и актуальный warehouse
+ACL проверяются до каждой команды/replay. Dev actor bypass отсутствует.
+[Identity](identity.md), [HTTP flow](flows/identity.md).
 
-## WMS-201: принятые правила будущего fulfillment
+Бизнес-аудит пишет AuditService с безопасными changes/reasonCode в той же транзакции;
+ошибка аудита откатывает сценарий. Пароли, токены и полные HTTP bodies не сохраняются.
+История/movements immutable для runtime role; исправления требуют новых фактов и
+отдельно реализованного сценария. Общий API корректировки stock не предоставлен.
+DB admin может обходить runtime guards: это не криптографический журнал.
 
-[Проект правил](fulfillment-rules.md) содержит таблицы разрешённых/запрещённых переходов
-заказа, задания сборки, резерва и shipment. Владелец продукта принял B1–B4 2026-10-29:
-частичные сборка/отгрузка с открытым остатком, подтверждение найденного с сохранением
-недособранного резерва, отмена собранного через физический возврат, без автоматического
-expiration. Недостача не списывается автоматически, shipped не отменяется. Дополнительные
-меры блокировки позиции и точные schema/статусы остаются проектом, а не готовой реализацией.
+Складские списки требуют read/audit ACL. Cursor связан с фильтрами, сохраняет
+microseconds; страницы не обещают общий snapshot. Audit scope определяется retained
+объектом, а не JSON changes/correlationId. [Чтение и история](flows/warehouse-reads.md).
 
-По рекомендованной модели строка заказа объясняется количествами:
-ordered=open+reservedStorage+reservedShipping+shipped+cancelled. Сборка переносит stock
-и active allocation вместе, shipment потребляет их вместе. Release возвращает количество
-в open и **не равен отмене** заказа; только явная отмена увеличивает cancelled.
-Исторически released может быть позже зарезервировано заново новым основанием, но в
-текущий reserved входят лишь active части. consumed и released закрытого резерва не
-переписываются ради нового исполнения. Статусы и closed_mixed остаются проектными.
+## Проверки и ограничения
 
-Существующие quantity int4, ReceivingPosted 1..1000 строк/256 КиБ и HTTP body limit
-подтверждены по исходным схемам/коду. Для новых order/shipment предложены отдельные
-лимиты, они не объявлены частью работающего контракта. [Draft контрактов](contracts/fulfillment.md),
-[числовые AC и Mermaid](flows/fulfillment.md). Для будущих операций нужны новые
-миграции/контракты; существующие SQL/ReceivingPosted v1 здесь не меняются.
-
-## Размещение WMS-203
-
-PutawayTask выполняется целиком receiving → storage того же склада. Количество/источник
-определяет task, оператор выбирает target. Balance available=onHand-reserved должен покрывать
-quantity; reserved сохраняется в исходной ячейке. Межскладской/произвольный перенос,
-partial/cancel и перенос активного allocation не реализованы. Два movements, audit, task completed,
-PutawayCompleted и HTTP result фиксируются атомарно; общий stock не меняется.
-Pending → completed однократно, основание/creation audit immutable. Новый key на completed
-отклоняется; исходный replay не переносит товар повторно. [Исполнение](flows/putaway-execution.md).
-
-## WMS-204: работающий резерв
-
-Fulfillment хранит immutable состав draft заказа, confirm делает active без stock эффекта.
-Inventory хранит allocations и меняет reserved; physical onHand/movements при reserve/release
-не меняются. Явный частичный reserve разрешён, нехватка вектора откатывает всю команду.
-Release возвращает количество в open, cancel до сборки освобождает всё и закрывает заказ.
-Allocated=active+released, line active<=ordered, managed balance reserved=SUM(active).
-No TTL по B4. Сборка реализована WMS-205: [flow](flows/picking.md).
-Shipping и consumed реализованы WMS-206: [исполнение](flows/shipping.md).
-[Резервирование](flows/reservations.md).
-
-## Отгрузка и компенсация WMS-206
-
-Проведение shipment списывает только active shipping своего заказа. Consumed сохраняет
-историю отгруженного: allocated=active+released+transferred+consumed. На строке заказа
-active+consumed не превышает ordered. Reserved каждого balance равен сумме active.
-Cancel pending сохраняет резерв и запрещает исполнение. Полный подтверждённый физический
-возврат staged в storage освобождает резерв, сохраняет picked/shipped и закрывает только
-неотгруженный остаток. Completed означает fully shipped; closed_mixed — shipped плюс
-отменённый остаток. [Подробные состояния и SQL](flows/shipping.md).
+Настоящие PostgreSQL tests проверяют duplicate/replay, locks, rollback, constraints,
+allocation reconciliation, движения, audit/outbox и worker effects. Chromium gate
+проверяет полный складской flow. Связь требований с evidence находится у владельцев
+flows и в [отчётах ревью](reports/project-review-2026-11-07.md).
+Успешные tests не доказывают все конкурентные расписания; открытые findings отмечены
+в отчёте отдельно. Текущий статус и следующие этапы — [карта](README.md) и [план](development-plan.md).

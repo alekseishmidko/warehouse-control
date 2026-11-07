@@ -17,3 +17,14 @@
 !apps/backend/src/**
 !apps/backend/drizzle/
 !apps/backend/drizzle/**
+# WMS-303: source web build и один runtime server; tests и host artifacts не передаются.
+!apps/web/
+!apps/web/package.json
+!apps/web/Dockerfile
+!apps/web/tsconfig.json
+!apps/web/vite.config.ts
+!apps/web/index.html
+!apps/web/src/
+!apps/web/src/**
+!apps/web/server/
+!apps/web/server/static-server.cjs

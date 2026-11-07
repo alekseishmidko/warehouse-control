@@ -1,6 +1,15 @@
+# Workspace читает pnpm перед install/build: сначала выбираются пакеты, затем применяется lockfile.
+# Этот файл не запускает приложения и не задаёт порядок миграций; команды связывает root package.json.
+# Добавление workspace требует pnpm install и проверки frozen install в Docker.
+# pnpm-lock.yaml генерирует pnpm: importers описывают прямые зависимости, packages/snapshots — точные
+# версии, integrity и peer resolutions. Ручные комментарии в generated lockfile не поддерживаются;
+# назначение и правила обновления описаны в root README, сам lockfile здесь не редактируется.
 packages:
+  # Отдельные API/backend и SPA участвуют в pnpm -r; wildcard не означает общий runtime.
   - 'apps/*'
+  # Каталог зарезервирован для реальных общих потребителей; пустой каталог не создаёт пакет.
   - 'packages/*'
 
+# Разрешаем dependency lifecycle build только известному пакету, а не всем транзитивным зависимостям.
 onlyBuiltDependencies:
   - '@nestjs/core'

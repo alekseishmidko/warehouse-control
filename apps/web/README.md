@@ -151,10 +151,13 @@ Unit coverage V8 не включает Chromium; browser gate не повыша�
 
 Проверены labels, visible focus, skip link, Enter/Tab и основные формы в Chromium.
 Полный аудит WCAG, screen reader, Safari/Firefox и мобильные устройства не выполнены.
-Статическая сборка `dist` готова, но её Docker/NGINX/Kubernetes serving относится к
-следующим этапам. Vite proxy используется только локально. Внешний deployment не выполнен.
+Статическая сборка `dist`, отдельный Docker image и Kubernetes serving через NGINX
+Gateway/TLS проверены в WMS-303. Vite proxy используется только локально. Внешний deployment не выполнен.
 Нет SSR, редактирования справочников, управления пользователями в UI и фонового poll:
 для обновления внешних изменений есть кнопка «Обновить». Физические действия сотрудник
 подтверждает сам; приложение их не измеряет.
 
 Аудит recovery и отказов browser storage: [отчёт](../../docs/reports/application-audit.md).
+
+Static web origin/image WMS-303: [контракт сервера](server/README.md),
+[Gateway/TLS flow](../../docs/flows/gateway-tls.md).

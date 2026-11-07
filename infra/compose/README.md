@@ -23,7 +23,9 @@ pnpm db:check
 pnpm dev
 ```
 
-Нужны запущенный Docker daemon и Compose v2. `pnpm db:up` ждёт healthcheck.
+Нужны запущенный Docker daemon и Compose v2. `pnpm db:up` ждёт TCP healthcheck
+`pg_isready -h 127.0.0.1`; временный socket-only initdb server не допускает
+преждевременный запуск миграций. Probe не проверяет schema/пароль/grants.
 Файл `.env` не коммитится; `.env.example` содержит публичные dev-значения,
 которые нельзя использовать для внешнего стенда. При смене POSTGRES_* обновить
 DATABASE_URL; пароль внутри URL кодируется по правилам URL.
@@ -182,3 +184,8 @@ docker buildx prune --filter 'description~="warehouse/backend"' --filter 'until=
 Повторная `pnpm docker:build` на проверенном окружении завершилась с exit 0:
 обе frozen install стадии, Nest build и export image прошли. В ходе скачивания
 встречались ECONNRESET/timeout с успешными retry; они не повторили ENOSPC.
+
+Regression первого старта: `pnpm test:postgres:readiness` создаёт новый UUID
+project/volume, удерживает initdb barrier и наблюдает настоящий health probe.
+До открытия TCP команда Compose --wait остаётся pending; после release завершается.
+Тест входит в `pnpm docker:gate` и `pnpm check:pr`, рабочая .env/volumes не используются.

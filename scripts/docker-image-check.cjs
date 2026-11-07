@@ -17,11 +17,15 @@ const { resolve, join, dirname } = require('node:path');
 const { randomUUID } = require('node:crypto');
 const assert = require('node:assert/strict');
 const root = resolve(__dirname, '..');
+const web = process.argv.includes('--web');
+const app = web ? 'web' : 'backend';
+const image = `warehouse-${app}:local`;
 
 /** Копирует только собственные build inputs во временный каталог; реальные credentials не читает.
  * @returns После сборки, проверки layers/config и удаления context/archive.
  * @throws Ошибка Docker, таймаут или assertion; внешний catch выдаёт безопасную ошибку и exit=1.
- * Локальный tag warehouse-backend:local обновляется; Docker cache/image после проверки остаются. */
+ * Локальный tag warehouse-backend:local (или warehouse-web:local с --web) обновляется;
+ * Docker cache/image после проверки остаются. */
 async function main() {
   const temp = mkdtempSync(join(tmpdir(), 'wms112-image-'));
   const context = join(temp, 'context');
@@ -34,13 +38,17 @@ async function main() {
       'pnpm-lock.yaml',
       'pnpm-workspace.yaml',
       'tsconfig.base.json',
-      'apps/backend/package.json',
-      'apps/backend/Dockerfile',
-      'apps/backend/nest-cli.json',
-      'apps/backend/tsconfig.json',
-      'apps/backend/tsconfig.build.json',
-      'apps/backend/src',
-      'apps/backend/drizzle',
+      `apps/${app}/package.json`,
+      `apps/${app}/Dockerfile`,
+      `apps/${app}/tsconfig.json`,
+      `apps/${app}/src`,
+      ...(web
+        ? ['apps/web/vite.config.ts', 'apps/web/index.html', 'apps/web/server/static-server.cjs']
+        : [
+            'apps/backend/nest-cli.json',
+            'apps/backend/tsconfig.build.json',
+            'apps/backend/drizzle',
+          ]),
     ];
     for (const path of inputs) {
       mkdirSync(dirname(join(context, path)), { recursive: true });
@@ -54,6 +62,8 @@ async function main() {
       'node_modules/canary',
       'apps/backend/dist/canary',
       'apps/backend/test/canary',
+      'apps/web/dist/canary',
+      'apps/web/test/canary',
       '.env.private-key',
     ]) {
       mkdirSync(dirname(join(context, path)), { recursive: true });
@@ -62,20 +72,12 @@ async function main() {
     console.log('Building from clean inputs with --no-cache (no host install/dist required)');
     execFileSync(
       'docker',
-      [
-        'build',
-        '--no-cache',
-        '-f',
-        'apps/backend/Dockerfile',
-        '-t',
-        'warehouse-backend:local',
-        '.',
-      ],
+      ['build', '--no-cache', '-f', `apps/${app}/Dockerfile`, '-t', image, '.'],
       { cwd: context, timeout: 240000, stdio: 'inherit' },
     );
     // docker save включает все layers итогового image: удаление секрета в следующем слое
     // не скрыло бы его из этой проверки. Промежуточные build stages отдельно не сканируются.
-    execFileSync('docker', ['image', 'save', '-o', archive, 'warehouse-backend:local'], {
+    execFileSync('docker', ['image', 'save', '-o', archive, image], {
       timeout: 60000,
       stdio: 'pipe',
     });
@@ -88,20 +90,57 @@ async function main() {
       tail = data.subarray(Math.max(0, data.length - needle.length));
     }
     const info = JSON.parse(
-      execFileSync(
-        'docker',
-        ['image', 'inspect', 'warehouse-backend:local', '--format', '{{json .Config}}'],
-        { encoding: 'utf8', stdio: 'pipe' },
-      ),
+      execFileSync('docker', ['image', 'inspect', image, '--format', '{{json .Config}}'], {
+        encoding: 'utf8',
+        stdio: 'pipe',
+      }),
     );
     assert.equal(info.User, 'node');
-    assert.deepEqual(info.Entrypoint, ['node']);
-    assert.deepEqual(info.Cmd, ['dist/main.js']);
+    assert.deepEqual(info.Entrypoint, web ? ['node', 'server/static-server.cjs'] : ['node']);
+    if (!web) assert.deepEqual(info.Cmd, ['dist/main.js']);
     assert.ok(
       !info.Env.some((value) =>
         /^(DATABASE_URL|POSTGRES_PASSWORD|CONTAINER_DATABASE_URL)=/.test(value),
       ),
     );
+    if (web) {
+      // Проверяем настоящий ENTRYPOINT и SIGTERM, а не только декларацию User/Entrypoint.
+      const container = execFileSync(
+        'docker',
+        ['run', '-d', '--read-only', '--network=none', image],
+        {
+          encoding: 'utf8',
+        },
+      ).trim();
+      try {
+        execFileSync(
+          'docker',
+          [
+            'exec',
+            container,
+            'node',
+            '-e',
+            "const a=require('node:assert/strict'),f=require('node:fs');a.notEqual(process.getuid(),0);for(const p of ['src','test','node_modules','.env'])a.ok(!f.existsSync(p));fetch('http://127.0.0.1:8080/').then(async r=>{a.equal(r.status,200);a.match(await r.text(),/<html/)}).catch(()=>process.exitCode=1)",
+          ],
+          { timeout: 15000, stdio: 'pipe' },
+        );
+        execFileSync('docker', ['stop', '--time', '10', container], {
+          timeout: 20000,
+          stdio: 'pipe',
+        });
+        assert.equal(
+          execFileSync('docker', ['inspect', '--format', '{{.State.ExitCode}}', container], {
+            encoding: 'utf8',
+          }).trim(),
+          '0',
+        );
+      } finally {
+        execFileSync('docker', ['rm', '-f', container], { stdio: 'pipe' });
+      }
+      console.log(
+        'PASS web read-only non-root runtime GET / and SIGTERM exit=0; no source/test/node_modules/env',
+      );
+    }
     console.log(
       'PASS clean no-cache build; all final layers exclude fake secret; no DB credentials in image config; non-root exec entrypoint',
     );

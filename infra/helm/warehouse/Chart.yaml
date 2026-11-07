@@ -1,6 +1,14 @@
+# Helm сначала читает metadata chart, объединяет values и проверяет values.schema.json.
+# Затем он рендерит templates и выполняет hooks. Порядок файлов templates не задаёт порядок старта Pod.
+# PostgreSQL/CRDs/NGF устанавливаются оператором отдельно; dependencies намеренно отсутствуют.
+# Владелец application flow: docs/flows/kubernetes-app.md; внешний HTTP: docs/flows/gateway-tls.md.
+# Chart APIv2 используется Helm3; это не apiVersion Kubernetes resource.
 apiVersion: v2
 name: warehouse
+# Версия пакета chart. Immutable backend/web release определяется values image digest.
 version: 0.2.0
+# Информационная версия приложения; Helm не подставляет её вместо image digest.
 appVersion: '0.1.0'
 description: Локальная основа конфигурации Warehouse Controller
+# Application chart создаёт resources; это не library chart и не installer platform dependencies.
 type: application

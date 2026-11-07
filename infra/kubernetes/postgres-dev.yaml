@@ -1,20 +1,29 @@
+# Ход установки: оператор создаёт namespace+Secret → применяет Service/StatefulSet → provisioner создаёт PVC
+# → initdb готовит пустой volume → основной PostgreSQL открывает TCP → readiness допускает подключения.
+# Затем оператор создаёт runtime role и запускает Helm migration hook; этот manifest не делает ни того ни другого.
+# Применять с явным local context и -n warehouse-dev. Не входит в application Helm release.
+# Безопасный cleanup и ограничения single-node: docs/flows/kind-helm.md, docs/flows/kubernetes-app.md.
 # Отдельная local platform dependency. Namespace и Secret warehouse-postgres (POSTGRES_PASSWORD)
 # создаёт оператор. PVC переживает helm uninstall приложения; удаление namespace/cluster уничтожает данные.
 apiVersion: v1
+# Стабильное имя postgres разрешается внутри namespace и не публикует БД на host.
 kind: Service
 metadata:
   name: postgres
 spec:
+  # Selector связывает Service только с PostgreSQL Pod; приложение использует другой набор labels.
   selector:
     app: warehouse-postgres
   ports:
     - port: 5432
 ---
 apiVersion: apps/v1
+# StatefulSet сохраняет identity postgres-0 и привязку к data-postgres-0 при замене Pod.
 kind: StatefulSet
 metadata:
   name: postgres
 spec:
+  # Governing Service задаёт сетевую identity; replicas1 — dev baseline, не репликация или HA.
   serviceName: postgres
   replicas: 1
   selector:
@@ -25,22 +34,27 @@ spec:
       labels:
         app: warehouse-postgres
     spec:
+      # PostgreSQL не обращается к Kubernetes API; автоматический bearer token не нужен.
       automountServiceAccountToken: false
       containers:
         - name: postgres
+          # Закреплены версия и digest. Gate для offline kind import сверяет manifest/config identity.
           image: postgres:17.9-bookworm@sha256:47f917f7409eacd22fc5dfb1dee634e1b55cf0c01d1a7eb701be2227a03e0641
           env:
             - name: POSTGRES_USER
               value: warehouse
             - name: POSTGRES_DB
               value: warehouse
+            # Подкаталог pgdata оставляет корень mounted volume свободным для служебных файлов provisioner.
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
+            # Только Secret reference. Новый Secret не меняет пароль уже инициализированной БД.
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: warehouse-postgres
                   key: POSTGRES_PASSWORD
+          # Requests резервируют CPU/RAM для scheduling; limits ограничивают процесс, но не размер данных.
           resources:
             requests:
               cpu: 100m
@@ -48,19 +62,26 @@ spec:
             limits:
               cpu: '1'
               memory: 512Mi
+          # Probe проверяет TCP приём соединений, а не пароль, schema или наличие runtime grants.
           readinessProbe:
             exec:
-              command: [pg_isready, -U, warehouse, -d, warehouse]
+              # Initdb запускает временный socket-only server. TCP проверяет именно основной server.
+              command: [pg_isready, -h, '127.0.0.1', -U, warehouse, -d, warehouse]
             periodSeconds: 2
+          # Имя data совпадает с claim template; данные переживают restart/recreate Pod.
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+  # Отдельный PVC не удаляется helm uninstall приложения. Удаление cluster/namespace/PVC опасно для данных.
   volumeClaimTemplates:
     - metadata:
         name: data
       spec:
+        # RWO/local-path рассчитаны на один узел. Потеря kind node не является проверенным recovery.
         accessModes: [ReadWriteOnce]
+        # standard предоставляет kind local-path provisioner. Это не внешний production storage.
         storageClassName: standard
         resources:
           requests:
+            # 1Gi — запрос dev capacity, не backup и не гарантия свободного места Docker VM.
             storage: 1Gi

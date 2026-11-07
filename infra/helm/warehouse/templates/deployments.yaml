@@ -1,3 +1,7 @@
+{{/* Назначение: два независимо управляемых процесса модульного backend из одного image digest.
+Ход release: успешный migration hook → Deployment controller создаёт новые Pod → процесс читает ConfigMap/Secret.
+Job failure останавливает Helm до обновления этих ресурсов. Новая schema обязана поддерживать старые Pod.
+API слушает HTTP; worker опрашивает durable outbox и не имеет HTTP listener. Lifecycle WMS-304 ещё отдельная задача. */}}
 {{/* API/worker — разные процессы одного image. Worker не имеет фиктивного HTTP probe/Service. */}}
 {{- range $role := list "api" "worker" }}
 ---
@@ -6,12 +10,15 @@ kind: Deployment
 metadata:
   name: {{ $.Release.Name }}-{{ $role }}
 spec:
+  {{/* Одна replica — local baseline. Surge требует места на том же узле и не доказывает HA. */}}
   replicas: 1
+  {{/* RollingUpdate сохраняет старый Pod до готовности нового; без readiness по БД это не гарантия безошибочного rollout. */}}
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 1
+  {{/* Instance+component изолируют release и процесс. Selector обязан совпадать с labels Pod и Service. */}}
   selector:
     matchLabels:
       app.kubernetes.io/instance: {{ $.Release.Name }}
@@ -22,11 +29,15 @@ spec:
         app.kubernetes.io/instance: {{ $.Release.Name }}
         app.kubernetes.io/component: {{ $role }}
       annotations:
+        {{/* Изменение несекретной policy инициирует rollout. Изменение contents внешнего Secret само checksum не меняет. */}}
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") $ | sha256sum }}
     spec:
+      {{/* Runtime SA не получает API token/RBAC; DB Secret доступен процессу через env и не печатается chart. */}}
       serviceAccountName: {{ $.Release.Name }}-runtime
       automountServiceAccountToken: false
+      {{/* 30s — окно Kubernetes до SIGKILL; штатный worker drain по умолчанию 15s должен завершиться раньше. */}}
       terminationGracePeriodSeconds: 30
+      {{/* UID/GID1000 соответствует node в image; seccomp RuntimeDefault ограничивает системные вызовы. */}}
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -37,12 +48,16 @@ spec:
         - name: {{ $role }}
           image: {{ include "warehouse.image" $ | quote }}
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          {{/* Node запускается напрямую PID1, без shell. Выбор args разделяет API и worker, не artifacts. */}}
           command: [node]
           args: [{{ if eq $role "api" }}dist/main.js{{ else }}dist/worker.js{{ end }}]
+          {{/* Helper запрещает privilege escalation/capabilities и делает root filesystem read-only. */}}
           securityContext:
             {{- include "warehouse.security" $ | nindent 12 }}
+          {{/* Общие requests/limits используются также в migration/web; нехватка ресурсов оставляет Pod Pending либо вызывает OOMKill. */}}
           resources:
             {{- toYaml $.Values.resources | nindent 12 }}
+          {{/* ConfigMap содержит только policy. DATABASE_URL подключён отдельно, чтобы runtime не получил migration owner. */}}
           envFrom:
             - configMapRef:
                 name: {{ $.Release.Name }}-config
@@ -52,6 +67,7 @@ spec:
                 secretKeyRef:
                   name: {{ $.Values.database.runtimeSecret }}
                   key: DATABASE_URL
+          {{/* Единственная writable scratch area в tmpfs; бизнес-данные и session state хранятся в PostgreSQL. */}}
           volumeMounts:
             - name: tmp
               mountPath: /tmp
@@ -60,18 +76,21 @@ spec:
             - name: http
               containerPort: 3000
           # Существующий /health доказывает только liveness; отдельные probes — WMS-304.
+          {{/* Пока startup probe не прошёл, liveness не перезапускает медленный старт. /health проверяет процесс, не БД. */}}
           startupProbe:
             httpGet:
               path: /health
               port: http
             failureThreshold: 30
             periodSeconds: 2
+          {{/* Этот probe не доказывает readiness или доступность БД. Worker probe намеренно не имитируется API endpoint. */}}
           livenessProbe:
             httpGet:
               path: /health
               port: http
             periodSeconds: 10
           {{- end }}
+      {{/* Memory emptyDir исчезает вместе с Pod; 16Mi ограничивают scratch, а не постоянные складские данные. */}}
       volumes:
         - name: tmp
           emptyDir:

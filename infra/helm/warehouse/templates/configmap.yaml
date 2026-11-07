@@ -1,14 +1,17 @@
-{{/* Только несекретные env. Checksum в Pod template запускает rollout при изменении policy. */}}
+{{/* Назначение: несекретная runtime policy, общая для API и worker.
+Ход rollout: Helm рендерит map → checksum меняет Pod template → новые Pod читают envFrom при создании.
+Изменение ConfigMap не меняет env уже запущенного процесса. Migration hook получает те же поля через helper,
+поскольку pre-install запускается раньше обычного ConfigMap. Содержимое Secret здесь не рендерится. */}}{{/* Только несекретные env. Checksum в Pod template запускает rollout при изменении policy. */}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-config
 data:
-  NODE_ENV: production
-  HTTP_HOST: 0.0.0.0
+{{/* Production API отклоняет HTTP auth origin; общая runtime validation запрещает включение dev actor. */}}  NODE_ENV: production
+{{/* Listener внутри Pod открыт на интерфейс контейнера; внешний доступ контролирует Service/Gateway. */}}  HTTP_HOST: 0.0.0.0
   PORT: '3000'
-  DEV_ACTOR_ENABLED: 'false'
-  OUTBOX_ADMIN_ENABLED: 'false'
-  AUTH_ORIGIN: {{ .Values.auth.origin | quote }}
-  AUTH_SESSION_ABSOLUTE_SECONDS: {{ .Values.auth.absoluteSeconds | quote }}
+{{/* Исторический bypass явно выключен. Actor определяется только server-side session. */}}  DEV_ACTOR_ENABLED: 'false'
+{{/* Recovery CLI не включается автоматически в API/worker; нужен отдельный local opt-in и DB admin. */}}  OUTBOX_ADMIN_ENABLED: 'false'
+{{/* API проверяет exact browser origin до HTTP мутаций; TLS завершается Gateway, не Node process. */}}  AUTH_ORIGIN: {{ .Values.auth.origin | quote }}
+{{/* Сроки — env строки в секундах. Обязательные значения и соотношение проверяет identity validator API. */}}  AUTH_SESSION_ABSOLUTE_SECONDS: {{ .Values.auth.absoluteSeconds | quote }}
   AUTH_SESSION_IDLE_SECONDS: {{ .Values.auth.idleSeconds | quote }}

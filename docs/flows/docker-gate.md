@@ -146,7 +146,9 @@ deadline для активных HTTP-запросов нет; Docker огран
 ## Автоматическая демонстрация (test-only)
 
 ```sh
+pnpm test:postgres:readiness # первый startup: initdb barrier → основной TCP server
 pnpm docker:image-check
+pnpm docker:image-check --web
 pnpm docker:gate
 ```
 
@@ -327,3 +329,8 @@ flowchart LR
 API healthy, worker running, GET /health — 200 на 127.0.0.1:4400.
 Browser login через реальный HTTPS gateway
 не проверялся; gateway не входит в локальный Compose.
+
+Regression R-02: [postgres-readiness.test.cjs](../../scripts/postgres-readiness.test.cjs)
+проверяет base Compose health на новом volume до основного Docker gate. Initdb barrier
+доказывает отказ преждевременного healthy, затем проверяется успешный --wait при TCP.
+`pnpm docker:gate` и `pnpm check:pr` включают этот test. [Evidence](../reports/project-review-2026-11-07.md#исправление-r-02r-03-требования-до-изменения).
