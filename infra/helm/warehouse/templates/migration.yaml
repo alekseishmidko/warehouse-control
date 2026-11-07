@@ -1,7 +1,13 @@
+{{/* Назначение: отдельный migrator до изменения application resources.
+Порядок Helm: hook SA weight-10 → Job weight0 → ожидание exit0 → Deployments/ConfigMap/Services.
+Идентичность Job включает release revision; повтор процесса безопасен через journal и PostgreSQL advisory lock.
+Hook не обеспечивает exactly-once Pod execution. Сериализация находится в serialized-migrations.ts на том же DB client.
+После ошибки читать Job/logs, исправить причину и явно повторить release; schema rollback не выполняется автоматически. */}}
 {{/* Hook блокирует изменение Deployments до успеха. Revision identity не обещает exactly-once Pod execution. */}}
 apiVersion: batch/v1
 kind: Job
 metadata:
+  {{/* Helper ограничивает длину имени Job и сохраняет различимость длинных release names. */}}
   name: {{ include "warehouse.jobPrefix" . }}-migrate-{{ .Release.Revision }}
   labels:
     app.kubernetes.io/instance: {{ .Release.Name }}
@@ -9,15 +15,21 @@ metadata:
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: '0'
+    {{/* Перед созданием hook с тем же именем Helm удаляет прежний. У разных revisions разные Job names; история остаётся для диагностики. */}}
     helm.sh/hook-delete-policy: before-hook-creation
 spec:
+  {{/* Ноль запрещает автоматический Kubernetes retry неуспешной миграции; повтор запуска выбирает оператор. */}}
   backoffLimit: 0
+  {{/* 180s ограничивает ожидание/выполнение Job, включая ожидание DB lock; превышение означает failure release. */}}
   activeDeadlineSeconds: 180
   template:
     spec:
+      {{/* Ошибка процесса сохраняется как неуспешный Pod, а не скрывается restart loop внутри Pod. */}}
       restartPolicy: Never
+      {{/* Migration SA не даёт Kubernetes RBAC; повышенные права относятся только к отдельному DB login в Secret. */}}
       serviceAccountName: {{ .Release.Name }}-migration
       automountServiceAccountToken: false
+      {{/* При удалении Kubernetes сначала даёт процессу SIGTERM; uncommitted SQL должен откатиться при закрытии соединения. */}}
       terminationGracePeriodSeconds: 20
       securityContext:
         runAsNonRoot: true
@@ -29,14 +41,17 @@ spec:
         - name: migrate
           image: {{ include "warehouse.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{/* Та же immutable backend сборка, отдельный entrypoint migrator; runtime-процессы сами migrations не запускают. */}}
           command: [node]
           args: [dist/infrastructure/database/migrate.js]
           securityContext:
             {{- include "warehouse.security" . | nindent 12 }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          {{/* Helper даёт policy без зависимости от обычного ConfigMap, которого ещё нет при pre-install. */}}
           env:
             {{- include "warehouse.environment" . | nindent 12 }}
+            {{/* Только migrator получает DDL owner. RuntimeSecret и migrationSecret обязаны иметь разные имена. */}}
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
@@ -45,6 +60,7 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+      {{/* Scratch tmpfs ограничен и не заменяет PostgreSQL journal; удаление Pod не удаляет применённые migrations. */}}
       volumes:
         - name: tmp
           emptyDir:

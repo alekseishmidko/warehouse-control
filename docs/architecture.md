@@ -10,20 +10,20 @@
 
 ## Стек и статус
 
-| Слой             | Решение                                                      | Статус                                                          |
-| ---------------- | ------------------------------------------------------------ | --------------------------------------------------------------- |
-| Workspace        | pnpm + TypeScript                                            | Реализован                                                      |
-| Backend          | NestJS                                                       | WMS-108: приёмка draft/posted и HTTP-команды                    |
-| Данные           | PostgreSQL + Drizzle + SQL                                   | WMS-101–110: stock/audit/outbox/idempotency/receiving           |
-| Надёжные события | PostgreSQL transactional outbox                              | WMS-110 writer/worker/putaway handler готовы                    |
-| Event transport  | Kafka, затем Schema Registry                                 | Последующий этап                                                |
-| UI               | Solid, TypeScript, Vite, Solid Router, Solid Query, Tailwind | Реализовано WMS-208; static hosting ещё не настроен             |
-| Контейнеры       | Docker, Compose                                              | PostgreSQL + non-root API/worker image и Compose готовы WMS-112 |
-| Оркестрация      | kind, Kubernetes, Helm                                       | Обязательно                                                     |
-| Внешний HTTP     | NGINX Gateway Fabric + Gateway API                           | Принято                                                         |
-| Телеметрия       | Pino, OpenTelemetry, Prometheus, Grafana, Loki, Tempo        | По этапам                                                       |
-| Проверки         | Jest, Supertest, Testcontainers, k6                          | WMS-102: первые три готовы, k6 запланирован                     |
-| Поставка         | GitHub Actions, GHCR, Argo CD                                | После проверки репозитория и окружения                          |
+| Слой             | Решение                                                      | Статус                                                                  |
+| ---------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| Workspace        | pnpm + TypeScript                                            | Реализован                                                              |
+| Backend          | NestJS                                                       | WMS-202–207: auth/ACL, складские команды и read API                     |
+| Данные           | PostgreSQL + Drizzle + SQL                                   | Stock/allocations/receiving/fulfillment/audit/outbox; migrations до0032 |
+| Надёжные события | PostgreSQL transactional outbox                              | WMS-110 writer/worker/putaway handler готовы                            |
+| Event transport  | Kafka, затем Schema Registry                                 | Последующий этап                                                        |
+| UI               | Solid, TypeScript, Vite, Solid Router, Solid Query, Tailwind | SPA WMS-208; static web image и TLS hosting WMS-303                     |
+| Контейнеры       | Docker, Compose                                              | PostgreSQL + non-root API/worker image и Compose готовы WMS-112         |
+| Оркестрация      | kind, Kubernetes, Helm                                       | Реализовано WMS-301/302                                                 |
+| Внешний HTTP     | NGINX Gateway Fabric + Gateway API                           | Проверено на local kind WMS-303                                         |
+| Телеметрия       | Pino, OpenTelemetry, Prometheus, Grafana, Loki, Tempo        | По этапам                                                               |
+| Проверки         | Jest, Supertest, Testcontainers, k6                          | WMS-102: первые три готовы, k6 запланирован                             |
+| Поставка         | GitHub Actions, GHCR, Argo CD                                | После проверки репозитория и окружения                                  |
 
 Frontend выбран по [ADR-0026](adr/0026-solid-frontend.md): Solid SPA в apps/web,
 Solid Router и `@tanstack/solid-query`. Реализован WMS-208: [web](../apps/web/README.md),
@@ -56,8 +56,9 @@ context, если изменения обязаны фиксироваться �
 
 ## Процессы
 
-Ниже целевая схема. Сейчас web использует локальный Vite proxy, API и PostgreSQL worker
-реализованы. API/worker Kubernetes chart реализован WMS-302; NGINX Gateway, Kafka и отдельные Kafka consumers ещё не развернуты.
+Ниже целевая схема с будущим Kafka transport. В host dev web использует Vite proxy;
+на local kind работают Helm API/worker/web, PostgreSQL outbox и NGF/TLS.
+Kafka и отдельные Kafka consumers ещё не развёрнуты. Lifecycle/active rollout — WMS-304.
 [Реализованный web flow](flows/web.md).
 
 ```mermaid
@@ -181,14 +182,14 @@ Task/audit/marker/cursors/completion коммитятся атомарно.
 [ADR-0015](adr/0015-postgres-worker.md). Общий transaction runner всё ещё без auto retry;
 повтор доставки происходит отдельно после rollback с backoff/dead budget.
 
-WMS-112 реализует ADR-0005: [один image, отдельные API/worker и migration process](flows/docker-gate.md). WMS-302 добавляет [Kubernetes application chart](flows/kubernetes-app.md); NGINX Gateway остаётся целевым компонентом WMS-303.
+WMS-112 реализует ADR-0005: [один image, отдельные API/worker и migration process](flows/docker-gate.md). WMS-302 добавляет [Kubernetes application chart](flows/kubernetes-app.md); WMS-303 реализует [NGINX Gateway/TLS и отдельный static web origin](flows/gateway-tls.md).
 
 ## Направление identity WMS-202
 
 2026-10-29 приняты логин/пароль с server-side session state в PostgreSQL и модель угроз
 [ADR-0018](adr/0018-server-sessions.md). JWT access/refresh/OIDC/Redis не добавляются.
 Матрица warehouse-scoped ролей принята [ADR-0019](adr/0019-warehouse-role-matrix.md).
-[Identity](identity.md) отделяет принятые решения от ещё не утверждённых сроков;
+[Identity](identity.md) описывает принятые решения и обязательные operator session settings без числовых defaults;
 ссылается на реализованный HTTP flow. Session auth/CSRF/ACL реализованы, dev actor удалён без fallback;
 оператор задаёт origin/сроки явно, без неутверждённых defaults. Actor формируется сервером, permissions проверяются
 перед бизнес-командой и перед idempotency replay; общий transaction context сохраняется.

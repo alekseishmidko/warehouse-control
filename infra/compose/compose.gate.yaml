@@ -1,3 +1,7 @@
+# Ход выполнения: docker-gate создаёт отдельные project/env/volume → объединяет base+app+этот override
+# → поднимает API в development только на container loopback → выполняет bootstrap/login и HTTP через exec.
+# Файл сам не создаёт namespace/project isolation, не выдаёт роли и не запускает fixtures.
+# Нельзя использовать его для внешнего доступа или добавлять к обычному app:up ради обхода проверки.
 # WMS-202: test-only дополнение к base+app для loopback HTTP с настоящей auth.
 # Запуск из корня: pnpm docker:gate. Скрипт создаёт свой project/volume/env с test-only TTL,
 # вызывает одноразовый bootstrap, login и назначение warehouse role; cookie/CSRF передаются stdin.
@@ -7,7 +11,11 @@
 # Обычный запуск: base+app (pnpm app:up), полный флоу: docs/flows/docker-gate.md.
 services:
   api:
+    # Override меняет только эти поля env; DATABASE_URL и явные session seconds наследуются из app overlay.
     environment:
+      # Development разрешает loopback HTTP для изолированного теста; session/CSRF/ACL остаются обязательными.
       NODE_ENV: development
+      # API слушает loopback внутри контейнера; опубликованный порт Docker не становится внешним auth bypass.
       HTTP_HOST: 127.0.0.1
+      # Точное значение Origin для запросов gate. Нельзя подменять его произвольным forwarded header.
       AUTH_ORIGIN: http://127.0.0.1:3000

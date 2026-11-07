@@ -1,21 +1,35 @@
+# Порядок: Compose подставляет env → создаёт project network/volume → запускает PostgreSQL → ждёт health.
+# Это postgres-only профиль. Приложение добавляет compose.app.yaml; test override — compose.gate.yaml.
+# Команды из корня: pnpm db:up / pnpm db:down. down сохраняет volume; down --volumes уничтожает данные.
+# Подробности credentials, диагностики и существующего volume: infra/compose/README.md.
 # PostgreSQL baseline WMS-101; host backend или дополнительный compose.app.yaml WMS-112.
+# Имя определяет префикс сети/volume. Gate переопределяет его уникальным --project-name.
 name: warehouse-controller
 services:
   postgres:
+    # Версия и registry digest закрепляют образ. Смена образа не является миграцией существующей БД.
     image: postgres:17.9-bookworm@sha256:47f917f7409eacd22fc5dfb1dee634e1b55cf0c01d1a7eb701be2227a03e0641
+    # Entry point official image применяет эти значения только при первом init пустого data directory.
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-warehouse}
+      # Пустой пароль останавливает interpolation до запуска. Значение берётся из env, не из Git.
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
       POSTGRES_DB: ${POSTGRES_DB:-warehouse}
+    # Только host loopback. Host backend использует 15432; внутри Compose сеть обращается к postgres:5432.
     ports:
       - '127.0.0.1:${POSTGRES_PORT:-15432}:5432'
+    # Именованный volume хранит БД между recreate/restart. Контейнерный путь соответствует PostgreSQL17.
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    # Health проверяет TCP основного server. Временный initdb server слушает только Unix socket
+    # и не должен разрешать запуск migrator/API. Это не проверка migrations, пароля или DB grants.
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      # Опрос раз в 2s, отдельный probe до 3s; 20 отказов после стартового окна переводят health в unhealthy.
       interval: 2s
       timeout: 3s
       retries: 20
       start_period: 5s
+# Volume принадлежит выбранному Compose project. Не удалять рабочие данные ради проверки.
 volumes:
   postgres-data:

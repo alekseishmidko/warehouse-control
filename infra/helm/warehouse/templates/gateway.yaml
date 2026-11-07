@@ -1,0 +1,94 @@
+{{/* Назначение: application Gateway и routes для заранее установленного NGINX Gateway Fabric.
+Порядок: platform CRDs/controller → namespace TLS Secret → application render → controller программирует data plane.
+Programmed не означает готовность Pod: отдельно дождаться rollout NGINX. DNS/CA доверие настраивает оператор.
+Вход Host/Origin/forwarded headers недоверенный. Session/CSRF/ACL проверяет backend; TLS key остаётся в Secret.
+Порядок объектов ниже помогает чтению, но reconcile Gateway/Route выполняется контроллерами асинхронно. */}}
+{{/* TLS завершается Gateway; private key существует только в заранее созданном Secret namespace. */}}
+{{- if .Values.gateway.enabled }}
+{{/* До создания ресурсов запрещаем Gateway без встроенного web или явного existing upstream Service. */}}
+{{- if and (not .Values.web.enabled) (not .Values.gateway.webService) }}
+{{- fail "enable web or supply an existing gateway.webService" }}
+{{- end }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ .Release.Name }}-gateway
+spec:
+  {{/* Класс nginx должен принадлежать NGF; community ingress-nginx не используется и не устанавливается chart. */}}
+  gatewayClassName: nginx
+  listeners:
+    {{/* HTTPS listener завершает TLS на443 и принимает только hostname из values, совпадающий с SAN сертификата. */}}
+    {{/* HTTP80 нужен для redirect, а не для передачи credentials в API. Origin приложения всегда HTTPS. */}}
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: {{ .Values.gateway.hostname | quote }}
+      tls:
+        mode: Terminate
+        {{/* Secret kubernetes.io/tls должен существовать в namespace Gateway; contents не передаются в values/manifests. */}}
+        certificateRefs:
+          - kind: Secret
+            name: {{ .Values.gateway.tlsSecret }}
+      {{/* Same запрещает присоединение HTTPRoute из чужого namespace; cross-namespace delegation здесь не добавлена. */}}
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: http
+      protocol: HTTP
+      port: 80
+      hostname: {{ .Values.gateway.hostname | quote }}
+      allowedRoutes:
+        namespaces:
+          from: Same
+---
+{{/* Редирект использует фиксированный hostname listener, а не произвольный forwarded host клиента. */}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Release.Name }}-https-redirect
+spec:
+  {{/* Route привязан к конкретному listener http этого release, поэтому redirect не зацикливает HTTPS. */}}
+  parentRefs:
+    - name: {{ .Release.Name }}-gateway
+      sectionName: http
+  hostnames: [{{ .Values.gateway.hostname | quote }}]
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            {{/* Это внешний browser HTTPS port: при port-forward8443 надо задать redirectPort8443 и auth.origin с тем же port. */}}
+            port: {{ .Values.gateway.redirectPort }}
+            {{/* 301 сохраняет путь/query и предлагает клиенту повторить запрос по HTTPS; это не успешный результат бизнес-команды. */}}
+            statusCode: 301
+---
+{{/* Более длинный prefix /api выбирает API. URLRewrite намеренно отсутствует: backend уже владеет /api/v1. */}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  {{/* Отдельный HTTPS route содержит оба upstream; более длинный path prefix выбирает API. */}}
+  name: {{ .Release.Name }}-routes
+spec:
+  parentRefs:
+    - name: {{ .Release.Name }}-gateway
+      sectionName: https
+  hostnames: [{{ .Values.gateway.hostname | quote }}]
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            {{/* Prefix сохраняется: Nest уже публикует /api/v1. Unknown API должен вернуть404, а не SPA fallback. */}}
+            value: /api
+      backendRefs:
+        - name: {{ .Release.Name }}-api
+          port: 3000
+    - matches:
+        - path:
+            type: PathPrefix
+            {{/* Остальные URL идут в static SPA: UI routes получают index, отсутствующие assets возвращают404. */}}
+            value: /
+      backendRefs:
+        {{/* Пустой webService разрешается в имя текущего release, не фиксированное warehouse-web. */}}
+        - name: {{ .Values.gateway.webService | default (printf "%s-web" .Release.Name) }}
+          port: {{ .Values.gateway.webPort }}
+{{- end }}

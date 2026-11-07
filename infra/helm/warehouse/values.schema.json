@@ -89,6 +89,83 @@
           }
         }
       }
+    },
+    "gateway": {
+      "type": "object",
+      "required": ["enabled", "hostname", "tlsSecret", "webService", "webPort"],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "hostname": {
+          "type": "string",
+          "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+          "maxLength": 253
+        },
+        "tlsSecret": {
+          "type": "string",
+          "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+          "maxLength": 253
+        },
+        "webService": {
+          "type": "string",
+          "pattern": "^$|^[a-z]([a-z0-9-]*[a-z0-9])?$",
+          "maxLength": 63
+        },
+        "webPort": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "redirectPort": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        }
+      }
+    },
+    "web": {
+      "type": "object",
+      "required": ["enabled", "image"],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "image": {
+          "type": "object",
+          "required": ["repository", "digest", "pullPolicy"],
+          "properties": {
+            "repository": {
+              "type": "string",
+              "minLength": 1
+            },
+            "digest": {
+              "type": "string"
+            },
+            "pullPolicy": {
+              "enum": ["IfNotPresent", "Never"]
+            }
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "enabled": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "image": {
+            "properties": {
+              "digest": {
+                "pattern": "^sha256:[a-f0-9]{64}$"
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

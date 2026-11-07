@@ -1,8 +1,15 @@
+# Dev overlay читается ПОСЛЕ values.yaml и ДО отдельного release values с digest/session settings.
+# Пример: helm upgrade --install ... -f values-dev.yaml -f /path/release-values.yaml.
+# Файл содержит ссылки на заранее созданные Secrets, а не DATABASE_URL или их contents.
+# Не включает PostgreSQL, Gateway и web автоматически; для них нужны отдельные platform/app шаги.
 # Несекретный local profile. Сроки сессий и digest оператор задаёт явно отдельным values-файлом.
+# Оператор provision runtime/migration credentials раздельно. Runtime login не должен иметь DDL.
 database:
   runtimeSecret: warehouse-runtime
   migrationSecret: warehouse-migration
+# Browser origin должен совпасть с TLS hostname/внешним port. Для :8443 задать полный origin в overlay.
 auth:
   origin: https://warehouse.local
+# Never требует предварительный kind load и canonical digest alias; скачивания из registry при старте не будет.
 image:
   pullPolicy: Never

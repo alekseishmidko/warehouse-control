@@ -2,13 +2,13 @@
 
 ## Источники истины
 
-| Контракт         | Источник                                                       | Потребитель                  |
-| ---------------- | -------------------------------------------------------------- | ---------------------------- |
-| HTTP API         | NestJS DTO + runtime validation + OpenAPI decorators           | Web и интеграции             |
-| Документ OpenAPI | Генерируется из приложения, локальный diff check; CI предстоит | Будущий генератор api-client |
-| События          | Версионированные JSON Schema в этой директории                 | Workers и Kafka consumers    |
-| Типы событий     | Генерируются из JSON Schema                                    | Backend и consumers          |
-| Данные БД        | SQL/Drizzle migrations                                         | Только backend               |
+| Контракт         | Источник                                                       | Потребитель                          |
+| ---------------- | -------------------------------------------------------------- | ------------------------------------ |
+| HTTP API         | NestJS DTO + runtime validation + OpenAPI decorators           | Web и интеграции                     |
+| Документ OpenAPI | Генерируется из приложения, локальный diff check; CI предстоит | Генератор типов и transport apps/web |
+| События          | Версионированные JSON Schema в этой директории                 | Workers и Kafka consumers            |
+| Типы событий     | Генерируются из JSON Schema                                    | Backend и consumers                  |
+| Данные БД        | SQL/Drizzle migrations                                         | Только backend                       |
 
 TypeScript-типы сами по себе не валидируют вход. События проверяются по JSON
 Schema перед записью outbox и на границе consumer. WMS-105 реализует общий
@@ -28,16 +28,15 @@ JSON использует camelCase, идентификаторы — UUID, вр
 Стабильный `code` предназначен для клиента; stack trace наружу не выдаётся.
 Коды: 400 — некорректный ввод; 401/403 — доступ; 404 — отсутствие;
 409 — конфликт состояния, версии или ключа идемпотентности;
-422 — нарушение бизнес-правила, например недостаточный остаток.
+422 — недопустимые refs/количества/зоны или overflow; недостаточный свободный остаток даёт409 INSUFFICIENT_STOCK.
 
 Для команд с побочными эффектами обязателен `Idempotency-Key`.
 Уникальность: `(actorType, actorId, operation, key)`; сохраняем hash нормализованного запроса
 и результат успешной операции в её транзакции. Тот же ключ и другой запрос → 409.
 Параллельный повтор сериализуется уникальным ограничением; успешный повтор
-возвращает прежний результат. Политика хранения определяется перед реализацией;
-первоначально записи не удаляем. Идемпотентность HTTP и consumer — разные механизмы.
+возвращает прежний результат. Записи сохраняются без TTL; удаление требует отдельной retention policy. Идемпотентность HTTP и consumer — разные механизмы.
 
-Целевая production запись защищается проверкой ролей и доступа к складу на backend.
+Запись защищена проверкой server session, ролей и доступа к фактическому складу на backend.
 С WMS-202 business routes требуют server session, CSRF для unsafe и warehouse permission.
 `actorId` берётся из доверенного auth context, а не из пользовательского body.
 Входящие correlation IDs проверяем по формату и длине либо создаём новые.
@@ -50,17 +49,17 @@ JSON использует camelCase, идентификаторы — UUID, вр
 
 Обязательный конверт:
 
-| Поле                        | Правило                                                            |
-| --------------------------- | ------------------------------------------------------------------ |
-| eventId                     | UUID, неизменен при всех повторах и переходе на Kafka              |
-| type / schemaVersion        | Тип факта и целая major-версия схемы                               |
-| aggregateType / aggregateId | Агрегат, определяющий порядок                                      |
-| aggregateVersion            | Последовательность опубликованных событий этого агрегата, от 1     |
-| occurredAt                  | Время бизнес-факта UTC                                             |
-| correlationId               | Идентификатор сквозного сценария                                   |
-| causationId                 | UUID породившего события; отсутствует для корневой HTTP-команды    |
-| traceparent                 | Необязательный W3C trace context, проверяется инструментарием OTel |
-| payload                     | Данные по схеме типа и версии                                      |
+| Поле                        | Правило                                                                                       |
+| --------------------------- | --------------------------------------------------------------------------------------------- |
+| eventId                     | UUID, неизменен при всех повторах и переходе на Kafka                                         |
+| type / schemaVersion        | Тип факта и целая major-версия схемы                                                          |
+| aggregateType / aggregateId | Агрегат, определяющий порядок                                                                 |
+| aggregateVersion            | Последовательность опубликованных событий этого агрегата, от 1                                |
+| occurredAt                  | Время бизнес-факта UTC                                                                        |
+| correlationId               | Идентификатор сквозного сценария                                                              |
+| causationId                 | UUID породившего события; отсутствует для корневой HTTP-команды                               |
+| traceparent                 | Необязательная строка до512 символов; сейчас проверяются тип/длина, W3C/OTel — отдельный этап |
+| payload                     | Данные по схеме типа и версии                                                                 |
 
 `aggregateVersion` выделяется атомарно с блокировкой/версией агрегата и не имеет
 пропусков среди его событий. Одна версия — одно событие. Если позже понадобятся
@@ -121,7 +120,7 @@ check/tests. Команды не требуют Docker/БД. При двух р�
 [shared events README](../../apps/backend/src/shared/events/README.md),
 [ADR-0011](../adr/0011-event-contract-validation.md).
 
-## Будущие CI gates
+## Локальные gates и будущая внешняя CI
 
 1. Схемы и примеры валидны по JSON Schema 2020-12 с проверкой formats.
 2. Генерация типов и OpenAPI воспроизводима, нет незакоммиченного diff.
@@ -137,8 +136,8 @@ check/tests. Команды не требуют Docker/БД. При двух р�
 Неопубликованная receiving.receipt-posted v1 schema теперь задаёт quantity
 как integer 1..2147483647, согласованно с SQL int4 и service/audit validation.
 Старый MAX_SAFE_INTEGER снят только с quantity, не aggregateVersion.
-События/consumer contracts ещё не публиковались; после публикации аналогичное
-сужение станет breaking change и потребует новой major-версии.
+Это ограничение принято до первой v1 реализации и используется production writer/worker.
+Будущее несовместимое сужение опубликованной схемы потребует новой major-версии.
 Unit stock-quantity.spec.ts сверяет общий int4 contract, а event-contracts.spec.ts
 теперь проверяет этот диапазон полноценным runtime validator WMS-105 на обеих границах.
 
@@ -159,15 +158,16 @@ Scope уточнён до actorType/actorId/operation/key; operation и actor з
 одним run. Нет TTL до отдельной retention policy. Client timeout не доказывает rollback:
 повторять тот же ключ. Авторизация выполняется до replay на каждом запросе.
 
-DEV_ACTOR_ENABLED по умолчанию false. Включение требует explicit NODE_ENV dev/test,
-loopback HTTP_HOST и server-side DEV_ACTOR_ID UUID; guard проверяет peer/proxy headers.
-Session auth/ACL реализованы WMS-202, anonymous business routes закрыты. Технические GET public.
+Dev actor удалён. DEV_ACTOR_ENABLED=true отклоняет startup также в dev/test; body/headers не задают actor.
+Server session/CSRF/warehouse ACL обязательны до replay каждой бизнес-команды. Только технические GET public.
 
 [openapi.json](openapi.json) — generated из production controllers, не править вручную.
 Команды `pnpm openapi:generate` / `pnpm openapi:check` выполняют build, затем offline CLI
-без .env/DB init/listener; test:prepare включает diff check после build. В paths только
-реальные технические routes и три receiving операции; примеры — [receiving](../receiving.md).
-Swagger UI и frontend api-client пока не добавлены. Подробности/ограничения:
+без .env/DB init/listener; test:prepare включает diff check после build. Paths содержат действующие auth/admin, receiving/putaway/order/picking/shipping и warehouse read routes.
+Примеры приёмки — [receiving](../receiving.md). Swagger UI не добавлен.
+Типы SPA генерирует openapi-typescript в apps/web/src/api/generated/schema.ts;
+ApiClient в apps/web/src/api/client.ts выполняет same-origin запросы. Команды
+`pnpm web:api:generate` / `pnpm web:api:check`, [web README](../../apps/web/README.md). Подробности/ограничения:
 [HTTP](../../apps/backend/src/infrastructure/http/README.md),
 [idempotency](../../apps/backend/src/infrastructure/idempotency/README.md),
 [ADR-0013](../adr/0013-http-idempotency.md).
@@ -190,27 +190,26 @@ nullable postedAt/postedEventId, lines с id/position/productId/quantity.
 через публичный inventory API. Task/audit/marker/cursors/completion атомарны, stock/movement
 повторно не создаются. Контракт ReceivingPosted v1 не менялся; source ids/quantity/limits
 используются из существующей schema. Создание task выполняет worker; GET/execute task HTTP routes и output schema подключены WMS-203.
-Registry знает ReceivingPosted, PutawayCompleted и OrderChanged. Receipt stream получает
+Registry знает ReceivingPosted, PutawayCompleted, OrderChanged, PickingProgressed и ShippingChanged. Receipt stream получает
 inventory.putaway, агрегаты putaway-task/order пока без подписчиков. No-op unit использует
 реально валидированный PutawayCompleted, а не surrogate неизвестного контракта. Unknown type/version
 по-прежнему permanent dead до handler. [Схемы и диагностика](../flows/putaway.md).
 
-## WMS-201: границы будущих контрактов fulfillment
+## Fulfillment: исходные требования и реализованные контракты
 
-[Проект команд и лимитов](fulfillment.md) отделяет действующие receiving contracts
-от будущих order/reservation/picking/shipment. Бизнес-выбор B1–B4 утверждён 2026-10-29;
-новые routes, события и схемы не зарегистрированы и не включаются в generated OpenAPI.
-Количество int4, предел ReceivingPosted 262144 bytes и receiving 1..1000 строк сохранены.
-Предложение тех же лимитов новым документам не означает их утверждения или реализации.
-Breaking change требует новой версии/миграции; текущие source schemas/generated artifacts
-этой задачей не изменяются. Числовые примеры — [будущие AC](../flows/fulfillment.md), не fixtures готового API.
+[Исходный проект WMS-201](fulfillment.md) и [исходные AC](../flows/fulfillment.md)
+сохранены как требования до реализации. Order/reservation/picking/shipment реализованы
+WMS-204–206 и включены в generated OpenAPI; source DTO/controllers и соответствующие
+flows ниже описывают действующие пути/статусы/лимиты. B1–B4 приняты2026-10-29.
+Int4 quantities, ReceivingPosted262144 UTF-8 bytes и1..1000 строк сохранены.
+Breaking change опубликованной схемы требует новой версии и migration/replay плана.
 
 ## Направление auth WMS-202
 
 Приняты логин/пароль и серверная сессия, а также threat assumptions, см.
 [ADR-0018](../adr/0018-server-sessions.md) и [identity](../identity.md). Auth endpoints, DTO, cookie/CSRF policy и permissions реализованы WMS-202
-и отражены в generated OpenAPI. Матрица ролей/складов принята ADR-0019; только сроки сессий
-ожидают отдельного ответа владельца продукта.
+и отражены в generated OpenAPI. Матрица ролей/складов принята ADR-0019.
+Сроки сессии оператор задаёт явно: каждый30..86400 секунд, idle<=absolute; числовых defaults нет.
 Actor берётся только из проверенной сессии, доступ проверяется и до
 replay сохранённого HTTP result. Отзыв сессии не отменяет уже committed складской факт.
 

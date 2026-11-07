@@ -37,14 +37,14 @@
     "app:up": "docker compose --env-file .env -f infra/compose/compose.yaml -f infra/compose/compose.app.yaml up -d --build --wait api worker",
     "app:down": "docker compose --env-file .env -f infra/compose/compose.yaml -f infra/compose/compose.app.yaml down",
     "app:migrate": "docker compose --env-file .env -f infra/compose/compose.yaml -f infra/compose/compose.app.yaml run --rm migrate",
-    "docker:gate": "node scripts/docker-gate.cjs",
+    "docker:gate": "pnpm test:postgres:readiness && node scripts/docker-gate.cjs",
     "docker:image-check": "node scripts/docker-image-check.cjs",
     "identity:bootstrap": "pnpm --filter @warehouse/backend identity:bootstrap",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:identity:coverage": "pnpm --filter @warehouse/backend test:identity:coverage",
     "test:functional": "pnpm --filter @warehouse/backend test:functional",
-    "check:pr": "pnpm format:check && pnpm lint && pnpm check:architecture && pnpm test:quality && pnpm test:dev && pnpm web:api:check && pnpm typecheck && pnpm --filter @warehouse/web build && pnpm test:web && pnpm --filter @warehouse/backend test:pr",
+    "check:pr": "pnpm format:check && pnpm lint && pnpm check:architecture && pnpm test:quality && pnpm test:dev && pnpm web:api:check && pnpm typecheck && pnpm --filter @warehouse/web build && pnpm test:web && pnpm test:web:server && pnpm test:postgres:readiness && pnpm --filter @warehouse/backend test:pr",
     "lint": "eslint apps/backend/src apps/backend/test apps/web/src apps/web/test apps/web/vite.config.ts --max-warnings 0",
     "check:architecture": "node scripts/quality/architecture.cjs",
     "test:quality": "node --test scripts/quality/*.test.cjs",
@@ -56,7 +56,10 @@
     "test:web": "pnpm --filter @warehouse/web test",
     "test:web:gate": "pnpm --filter @warehouse/backend test:web:gate",
     "dev:backend": "pnpm --filter @warehouse/backend dev",
-    "kubernetes:gate": "node scripts/kubernetes-gate.cjs"
+    "kubernetes:gate": "node scripts/kubernetes-gate.cjs",
+    "test:web:server": "node --test apps/web/server/static-server.test.cjs",
+    "gateway:gate": "WMS_GATEWAY=1 node scripts/kubernetes-gate.cjs",
+    "test:postgres:readiness": "node --test scripts/postgres-readiness.test.cjs"
   },
   "private": true,
   "devDependencies": {

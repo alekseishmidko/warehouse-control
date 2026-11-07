@@ -61,13 +61,14 @@ WMS-203 реализована: полное размещение из receiving
 Готово, когда rollback не оставляет следов, повтор HTTP не проводит документ второй раз,
 два workers не дублируют эффект и сбой после claim восстанавливается.
 Тесты доказывают порядок внутри агрегата и параллелизм разных агрегатов.
-До готовности identity бизнес-endpoints доступны только в изолированном dev/test.
+С WMS-202 бизнес-endpoints требуют настоящую session/warehouse ACL во всех режимах; dev actor удалён.
 
 ## 2. Складской сценарий и интерфейс
 
 [Правила WMS-201](fulfillment-rules.md) фиксируют принятые B1–B4 и проект переходов.
-[Flow/AC](flows/fulfillment.md) и [контракты](contracts/fulfillment.md) — основа будущей
-реализации; дополнительные технические детали не утверждаются этим статусом.
+[Исходные Flow/AC](flows/fulfillment.md) и [проект контрактов](contracts/fulfillment.md)
+сохраняют требования WMS-201. Действующая реализация и актуальные контракты описаны
+в flows/reservations.md, flows/picking.md и flows/shipping.md.
 Заказ, резерв и release/cancel реализованы WMS-204; сборка — WMS-205, shipping реализована WMS-206.
 
 Identity и роли, размещение, конкурентные резервы, сборка, отгрузка,
@@ -118,15 +119,15 @@ AccessService, с сохранением общего context, HTTP контра
 
 WMS-202: добавлены controller/auth/HTTP boundary tests и integration cases для адресного
 отзыва, удаления роли, logout SQL fault и всей warehouse action matrix. Coverage gate
-IdentityController — 100%, команда `pnpm test:identity:coverage`; следующий этап после WMS-203 — WMS-204.
+IdentityController — 100%, команда `pnpm test:identity:coverage`; текущая следующая задача указана в development-plan.md.
 
 WMS-203 завершена: [flow](flows/putaway-execution.md), [отчёт](reports/wms-203.md),
 [ADR-0021](adr/0021-putaway-execution.md). Source/target balances блокируются и создаются
 в стабильном порядке, pair/task/audit/event/result атомарны. Произвольное движение allocation,
-межскладской transfer, partial/cancel ещё не реализованы. Далее WMS-204.
+межскладской transfer, partial/cancel putaway ещё не реализованы. WMS-204–206 реализуют отдельные reservation/picking/shipping сценарии.
 
 WMS-204 реализована: orders/lines, explicit reserve, partial release/cancel, ledger reconciliation и API.
-[Подробный flow](flows/reservations.md), [отчёт](reports/wms-204.md); далее WMS-205.
+[Подробный flow](flows/reservations.md), [отчёт](reports/wms-204.md); сборка WMS-205 и отгрузка WMS-206 также реализованы.
 
 Готово WMS-204: [orders/reservations flow](flows/reservations.md), [проверки](reports/wms-204.md).
 Заказ draft→active, явный атомарный reserve, release и отмена до сборки; expiry исключён B4.
@@ -139,12 +140,12 @@ P2 WMS-204 reconciliation исправлен новой migration 0025: INSERT/U
 [code-review](code-review.md). Следующая бизнес-задача остаётся WMS-205.
 
 Identity: собственные admin-операции получают user UPDATE до session lock. Это исправление
-гонки с аутентификацией; HTTP-контракты, матрица ролей и следующий этап WMS-205 не изменены.
+гонки с аутентификацией; HTTP-контракты и матрица ролей сохранены; WMS-205/206 уже реализованы.
 [Порядок блокировок и evidence](flows/identity.md#собственные-административные-операции).
 
 WMS-205 завершена: [PickingTask и сборка](flows/picking.md), частичное подтверждение,
 shortage и перенос allocations. Самоназначение исполнителя утверждено 2026-11-01.
-[Проверки](reports/wms-205.md). Далее WMS-206: отгрузка и физический возврат.
+[Проверки](reports/wms-205.md). Отгрузка и физический возврат реализованы WMS-206.
 
 WMS-205 review: guard обеспечения плана расширен на изменения allocations миграцией 0028;
 добавлены runtime-role проверки rollback и согласованной отмены. Следующий этап — WMS-206.
@@ -160,7 +161,7 @@ Review WMS-206 исправил позднее дополнение draft и о�
 
 WMS-207 реализована: [складские списки и история](flows/warehouse-reads.md),
 явные DTO, filters/keyset pagination, read/audit ACL, migration 0032 и PostgreSQL
-EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI и WMS-301/302 также выполнены; далее WMS-303.
+EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI и WMS-301–303 также выполнены; далее WMS-304.
 
 Инженерные проверки дополнены typed lint, architecture guards/self-tests и coverage
 в локальном check:pr. WMS-208 завершён; это не настройка внешнего CI.
@@ -169,8 +170,10 @@ EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI и WMS-30
 WMS-208 реализована: [Solid SPA](../apps/web/README.md), login и складские экраны,
 generated API-контракты, Query cache и журнал команд. Gate 2 пройден в Chromium
 с настоящими API/worker/PostgreSQL. [Флоу](flows/web.md), [проверки и ограничения](reports/wms-208.md).
-WMS-301/302: локальный kind, API/worker Helm chart и сериализованные migrations проверены; следующая задача — WMS-303. Gateway/TLS и внешний web hosting ещё не настроены.
+WMS-301–303: локальный kind, API/worker/web Helm chart, migrations и NGF/TLS проверены.
+[Gateway flow и ограничения](flows/gateway-tls.md), [evidence](reports/wms-303.md).
+Следующая задача — WMS-304, lifecycle и rollout.
 
 Dev workflow: добавлена `pnpm dev:all` для PostgreSQL/migrations и host API/worker/web,
 с одним compiler и общим shutdown. [Flow и evidence](flows/dev-environment.md).
-Следующая задача — WMS-303; это не Docker deployment frontend.
+Следующая задача — WMS-304. Static frontend image проверен отдельно от host dev workflow.

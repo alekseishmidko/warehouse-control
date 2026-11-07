@@ -22,9 +22,9 @@
 | [Identity flow и проверки](flows/identity.md)                         | Session/CSRF/warehouse policies, locks/revoke, bootstrap и реальные тесты                |
 | [Отчёт WMS-202](reports/wms-202.md)                                   | Проверенные auth, migration, Docker и форматирование                                     |
 | [Identity WMS-202](identity.md)                                       | Реализованные sessions/ACL/CSRF/bootstrap; числовые сроки задаются явно, без defaults    |
-| [Правила WMS-201](fulfillment-rules.md)                               | B1–B4 приняты; переходы и техническая модель для будущей реализации                      |
-| [Будущий fulfillment flow](flows/fulfillment.md)                      | Mermaid, числовые AC и гонки; не реализовано                                             |
-| [Проект контрактов fulfillment](contracts/fulfillment.md)             | Границы будущих команд и лимиты; не опубликовано                                         |
+| [Правила WMS-201](fulfillment-rules.md)                               | B1–B4 приняты; действующие правила fulfillment WMS-204–206                               |
+| [Исходные AC fulfillment](flows/fulfillment.md)                       | Исторический проект WMS-201; текущие flows — reservations/picking/shipping               |
+| [Проект контрактов fulfillment](contracts/fulfillment.md)             | Исходный проект WMS-201; текущие DTO/контракты — у владельцев flows                      |
 | [Домен](domain.md)                                                    | Сущности, операции и инварианты склада                                                   |
 | [Контракты](contracts/README.md)                                      | API, события, совместимость и ответственность                                            |
 | [Транзакции и аудит](transactions.md)                                 | Реализованные ports, scope, маскирование, роли и retry policy                            |
@@ -57,7 +57,12 @@
 WMS-208 реализована: [Solid SPA](../apps/web/README.md), login и складские экраны,
 generated API-контракты, Query cache и журнал команд. Gate 2 пройден в Chromium
 с настоящими API/worker/PostgreSQL. [Флоу](flows/web.md), [проверки и ограничения](reports/wms-208.md).
-WMS-301/302: kind и API/worker Helm chart проверены; следующая задача — WMS-303, Gateway/TLS. Внешний web hosting ещё не настроен.
+WMS-301–303 выполнены: kind, Helm API/worker/web, NGINX Gateway Fabric и TLS проверены
+реальным складским UI-сценарием. [Gateway flow](flows/gateway-tls.md),
+[evidence и ограничения доверия](reports/wms-303.md). Следующая задача — WMS-304, lifecycle и rollout.
+
+Ревью всего checkout и YAML-комментарии: [отчёт 2026-11-07](reports/project-review-2026-11-07.md).
+Открытые findings и ограничения перечислены в отчёте; зелёные gates не заменяют их исправление.
 
 ## Подход к коду
 
@@ -83,9 +88,9 @@ WMS-301/302: kind и API/worker Helm chart проверены; следующа�
   entrypoints, TS/schema generation и diff gate, контрактные fixtures и limits.
 - Готово WMS-106: PostgreSQL outbox writer, транзакционные aggregate counters, pending
   deliveries/streams, immutable envelope и retention guards. Worker protocol добавлен WMS-109.
-- Готово WMS-107: prefix/validation/problem responses/correlationId, isolated dev actor,
+- Готово WMS-107: prefix/validation/problem responses/correlationId; dev actor заменён session auth WMS-202,
   command idempotency storage и OpenAPI generation/diff.
-- Готово WMS-108: receiving draft/posted, три business routes под isolated dev actor,
+- Готово WMS-108: receiving draft/posted, три business routes с session/warehouse ACL WMS-202,
   атомарные stock/movement/audit/outbox/HTTP result и concurrency/fault tests.
 - Готово WMS-109: отдельный worker, SKIP LOCKED/token/lease, markers/cursors,
   retry/dead и bounded SIGTERM. Production handler подключён WMS-110.
@@ -96,18 +101,19 @@ WMS-301/302: kind и API/worker Helm chart проверены; следующа�
 - Готово WMS-112: multi-stage non-root image API/worker/migrate, Compose startup gates,
   clean build/layers regression и реальная демонстрация gate 1 с SIGTERM/volume restart.
 - Готово WMS-201 как согласование правил: B1–B4 приняты 2026-10-29, таблицы переходов,
-  числовые AC и проект контрактов подготовлены. Заказы/резервы готовы WMS-204; сборка/отгрузка — следующие этапы.
+  числовые AC и проект контрактов подготовлены. Заказы/резервы готовы WMS-204; сборка/отгрузка реализованы WMS-205/206.
 - Готово WMS-202: users/sessions, login/logout/me, session/warehouse policies, admin API,
   one-time bootstrap и real PostgreSQL tests. Числовых defaults TTL нет; настройки обязательны явно.
   IdentityModule разделён на Auth/Sessions/Users/Access services с общим transaction context.
-  Dev actor удалён; внешний TLS gateway ещё не реализован. SPA работает локально.
+  Dev actor удалён; локальный TLS gateway проверен в WMS-303.
 - Готово WMS-203: task execution receiving → storage, pair movements, audit/outbox, idempotent API и locks.
 - Сборка и отгрузка реализованы WMS-205/206; чтение и история — WMS-207.
 - WMS-208: Solid SPA, read справочники, команда/recovery, browser gate 2 и отдельное web coverage.
 - Dev окружение запускается одной `pnpm dev:all`: PostgreSQL/migrate и host API/worker/web с общим shutdown.
 - WMS-302: API/worker в Kubernetes, pre-release migrations, Secret refs и local persistence проверены; [flow](flows/kubernetes-app.md).
-- Не реализованы production web serving, Gateway/TLS, Kafka и внешний CI/CD.
-- Пример контракта `ReceivingPosted` — проектный образец, не опубликованный API.
+- WMS-303: static web image, NGF/Gateway/TLS и полный HTTPS UI gate проверены; [flow](flows/gateway-tls.md).
+- Не реализованы Kafka и внешний CI/CD; production deployment не выполнялся.
+- `ReceivingPosted v1` зарегистрирован и используется outbox/worker; внешний Kafka transport ещё не подключён.
 - Локальные schema/fixtures/generation проверки выполняются в unit suite;
   OpenAPI generation/diff готов локально; CI workflow и breaking-change comparison пока не настроены.
 
@@ -125,11 +131,11 @@ WMS-203: [подробный flow размещения](flows/putaway-execution.
 ## Открытые вопросы
 
 - Технические детали fulfillment: [правила WMS-201](fulfillment-rules.md); B1–B4 приняты,
-  дополнительные меры при нехватке, schema/DTO и лимиты новых документов уточняются перед реализацией.
+  дополнительные сценарии вне реализованных WMS-204–206 согласуются отдельно; текущие schema/DTO/лимиты описаны у владельцев flows.
 - Сроки сессий: [identity](identity.md); способ auth, threat assumptions и матрица
   ролей/складов приняты и реализованы WMS-202.
 - Точная версия и режим Schema Registry: перед Kafka, после compatibility spike.
-- Ресурсы локального кластера и место внешнего стенда: перед Kubernetes.
+- Ресурсы local kind проверены WMS-301; место и параметры внешнего стенда ещё не выбраны.
 - Резервное копирование и численные SLO: до эксплуатации внешнего стенда.
 
 ## Чтение реализации WMS-111 и WMS-112
@@ -145,7 +151,7 @@ Identity HTTP transport дополнительно проверяется unit t
 [подробности](../apps/backend/test/README.md#проверка-покрытия-identity).
 
 WMS-204 реализована: orders/lines, explicit reserve, partial release/cancel, ledger reconciliation и API.
-[Подробный flow](flows/reservations.md), [отчёт](reports/wms-204.md); далее WMS-205.
+[Подробный flow](flows/reservations.md), [отчёт](reports/wms-204.md); сборка WMS-205 и отгрузка WMS-206 также реализованы.
 
 Готово WMS-204: [orders/reservations flow](flows/reservations.md), [проверки](reports/wms-204.md).
 Заказ draft→active, явный атомарный reserve, release и отмена до сборки; expiry исключён B4.
@@ -181,7 +187,7 @@ ShippingChanged требует shipmentId для действий над док�
 
 WMS-207 реализована: [складские списки и история](flows/warehouse-reads.md),
 явные DTO, filters/keyset pagination, read/audit ACL, migration 0032 и PostgreSQL
-EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI и WMS-301/302 также выполнены; далее WMS-303.
+EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI и WMS-301–303 также выполнены; далее WMS-304.
 
 [Качество, критерии приёмки и coverage](quality.md): обязательные AC ID, typed lint,
 архитектурные guards и измерение собственного backend. [Отчёт](reports/quality-baseline.md).

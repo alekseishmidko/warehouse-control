@@ -289,7 +289,7 @@ Lockfile генерируется pnpm; исходные схемы и прим�
 | [infra/compose/compose.app.yaml](../infra/compose/compose.app.yaml)   | Локальный app overlay: общий image/config/security, PostgreSQL health и migration completion dependencies; API liveness.                      |
 | [infra/compose/compose.gate.yaml](../infra/compose/compose.gate.yaml) | Test-only loopback dev actor overlay; использовать только с isolated docker gate, не внешним стендом.                                         |
 | [scripts/docker-gate.cjs](../scripts/docker-gate.cjs)                 | Host driver isolated Compose gate 1: HTTP/idempotency/SQL, named volume restart, non-root PID 1 и SIGTERM; cleanup своего disposable проекта. |
-| [scripts/docker-image-check.cjs](../scripts/docker-image-check.cjs)   | Host-only clean no-cache build и fake secret regression scan всех final image layers; временные context/archive очищаются.                    |
+| [scripts/docker-image-check.cjs](../scripts/docker-image-check.cjs)   | Clean no-cache backend/web build, fake secret scan final layers; --web проверяет runtime/SIGTERM; context/archive очищаются.                  |
 | [docs/flows/docker-gate.md](../docs/flows/docker-gate.md)             | Владелец WMS-112 build/startup/data/shutdown flow, Mermaid, доверия DTO/context, команд, ошибок и ограничений.                                |
 | [docs/reports/wms-112.md](../docs/reports/wms-112.md)                 | Фактические WMS-112 clean build/layer/gate1/SIGTERM/volume/test evidence и ограничения.                                                       |
 
@@ -698,3 +698,30 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | [kubernetes-app.md](flows/kubernetes-app.md)                                                     | Подробный application flow, rollout policy и recovery.                 |
 | [wms-302.md](reports/wms-302.md)                                                                 | Требования, review, evidence и ограничения.                            |
 | [ADR-0028](adr/0028-kubernetes-release-migrations.md)                                            | Решение о release/migration ordering и DB lock.                        |
+
+### WMS-303: Gateway и TLS
+
+| Файл                                                           | Назначение                                                   |
+| -------------------------------------------------------------- | ------------------------------------------------------------ |
+| [gateway.yaml](../infra/helm/warehouse/templates/gateway.yaml) | Опциональные TLS Gateway и HTTPRoute без rewrite API prefix. |
+| [gateway-tls.md](flows/gateway-tls.md)                         | Доверие, DNS/TLS, маршрутизация, команды и ограничения.      |
+| [wms-303.md](reports/wms-303.md)                               | AC, ревью, результаты и границы evidence WMS-303.            |
+
+### WMS-303: static web и gateway gate
+
+| Файл                                                                | Назначение                                                              |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [apps/web/Dockerfile](../apps/web/Dockerfile)                       | Отдельная сборка SPA и non-root static web image.                       |
+| [static-server.cjs](../apps/web/server/static-server.cjs)           | GET/HEAD HTTP origin, SPA fallback, MIME/cache и безопасный path root.  |
+| [static-server.test.cjs](../apps/web/server/static-server.test.cjs) | Настоящий HTTP regression static origin и отказов URL/API/method.       |
+| [server/README.md](../apps/web/server/README.md)                    | Контракт static origin, trust и ошибки.                                 |
+| [web.yaml](../infra/helm/warehouse/templates/web.yaml)              | Static Deployment/Service без API proxy/credentials.                    |
+| [kind-image.cjs](../scripts/kind-image.cjs)                         | Общая canonicalization local image digest после kind import.            |
+| [gateway-check.cjs](../scripts/gateway-check.cjs)                   | NGF/CA/TLS, auth/cookie/CSRF checks и реальный Chromium warehouse flow. |
+
+### Обзор проекта 2026-11-07
+
+| Файл                                                                          | Назначение                                                                                                                                         |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [project-review-2026-11-07.md](reports/project-review-2026-11-07.md)          | Ревью всего проекта: область, воспроизведённые findings, YAML comments, проверки и ограничения.                                                    |
+| [scripts/postgres-readiness.test.cjs](../scripts/postgres-readiness.test.cjs) | Regression R-02: настоящий Compose/new volume/initdb barrier, отказ socket-only healthy и готовность TCP после release; только disposable cleanup. |

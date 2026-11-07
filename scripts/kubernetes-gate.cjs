@@ -168,42 +168,13 @@ async function main() {
     run(kind, ['load', 'image-archive', postgresArchive, '--name', cluster]);
     // Docker save/import может нормализовать manifest: сравниваем config identity и используем CRI digest.
     const node = cluster + '-control-plane';
-    const imported = JSON.parse(
-      run('docker', [
-        'exec',
-        node,
-        'crictl',
-        'inspecti',
-        'docker.io/library/warehouse-backend:wms302',
-      ]),
-    ).status;
-    const backendArchive = join(temp, 'backend.tar');
-    run('docker', [
-      'image',
-      'save',
-      '--platform',
-      'linux/' + arch,
-      '-o',
-      backendArchive,
+    digest = require('./kind-image.cjs').canonicalImage(
+      run,
+      cluster,
       'warehouse-backend:wms302',
-    ]);
-    const sourceManifest = JSON.parse(run('tar', ['-xOf', backendArchive, 'manifest.json']))[0];
-    const configHash = sourceManifest.Config.split('/')
-      .at(-1)
-      .replace(/\.json$/, '');
-    assert.equal(imported.id, 'sha256:' + configHash);
-    digest = imported.repoDigests[0].split('@')[1];
-    assert.match(digest, /^sha256:[a-f0-9]{64}$/);
-    run('docker', [
-      'exec',
-      node,
-      'ctr',
-      '--namespace=k8s.io',
-      'images',
-      'tag',
-      'docker.io/library/warehouse-backend:wms302',
-      'docker.io/library/warehouse-backend@' + digest,
-    ]);
+      temp,
+      'backend',
+    );
     config.image.digest = digest;
     writeFileSync(values, JSON.stringify(config));
     const importedPostgres = JSON.parse(
@@ -356,6 +327,24 @@ async function main() {
     k(['delete', 'pod', 'postgres-0', '--wait=true']);
     k(['rollout', 'status', 'statefulset/postgres', '--timeout=120s']);
     assert.equal(sql('select count(*) from drizzle.__drizzle_migrations'), journal);
+    if (process.env.WMS_GATEWAY === '1')
+      await require('./gateway-check.cjs').checkGateway({
+        run,
+        k,
+        h,
+        apply,
+        until,
+        temp,
+        cluster,
+        context,
+        env,
+        namespace,
+        config,
+        values,
+        helm,
+        kubectl,
+        kind,
+      });
     h(['uninstall', 'warehouse']);
     assert.equal(JSON.parse(k(['get', 'pvc', '-o', 'json'])).items.length, 1);
     console.log('PASS PostgreSQL restart and Helm uninstall preserve platform PVC/journal');

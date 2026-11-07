@@ -32,6 +32,10 @@ Promise await/return/catch обязательны; void сам по себе н�
 
 ## Автоматические проверки
 
+`pnpm test:postgres:readiness` входит в check:pr и docker:gate: настоящий Compose
+с новым volume/initdb barrier не должен считать Unix socket готовностью TCP.
+Без Docker проверка падает; skip/fallback не предусмотрены.
+
 | Команда                 | Что реально проверяется                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | pnpm lint               | Typed ESLint backend/web/tests, Solid rules, запрет backend/React imports в web, any/Promises/TS suppressions                       |

@@ -421,11 +421,13 @@ WMS-302: [application flow](flows/kubernetes-app.md), [review и evidence](repor
 
 ### WMS-303. Внешний HTTP и TLS
 
-- [ ] **WMS-303.1** — Установить Gateway API CRDs и совместимый NGINX Gateway Fabric по закреплённым версиям.
-- [ ] **WMS-303.2** — Настроить Gateway/HTTPRoute и Services: /api в backend, / в web; явно решить сохранение/перезапись префикса.
-- [ ] **WMS-303.3** — Настроить dev DNS/hosts и TLS с понятным способом доверия локальному сертификату.
-- [ ] **WMS-303.4** — Проверить forwarded headers/trust proxy, cookie flags, CSRF policy, redirects и размер запроса.
-- [ ] **WMS-303.5** — Пройти UI-сценарий через gateway; проверить неизвестный route, недоступный upstream и отсутствие обхода auth.
+- [x] **WMS-303.1** — Установить Gateway API CRDs и совместимый NGINX Gateway Fabric по закреплённым версиям.
+- [x] **WMS-303.2** — Настроить Gateway/HTTPRoute и Services: /api в backend, / в web; явно решить сохранение/перезапись префикса.
+- [x] **WMS-303.3** — Настроить dev DNS/hosts и TLS с понятным способом доверия локальному сертификату.
+- [x] **WMS-303.4** — Проверить forwarded headers/trust proxy, cookie flags, CSRF policy, redirects и размер запроса.
+- [x] **WMS-303.5** — Пройти UI-сценарий через gateway; проверить неизвестный route, недоступный upstream и отсутствие обхода auth.
+
+WMS-303 выполнена: NGF/TLS, static web и реальный складской Chromium gate прошли на чистом kind. Границы browser trust и single-node проверки: [flow](flows/gateway-tls.md), [evidence](reports/wms-303.md).
 
 ### WMS-304. Завершение процессов и обновления
 
@@ -639,9 +641,9 @@ rollback приложения не выдаётся за rollback данных �
 WMS-101–WMS-112 и **WMS-201** завершены. B1–B4 приняты владельцем продукта 2026-10-29.
 WMS-202 реализована: users/sessions/auth/ACL/CSRF/bootstrap и проверка отсутствия утечек.
 WMS-203 выполнена: размещение, парные movements и атомарное завершение.
-WMS-204–WMS-208 выполнены. Следующая задача — **WMS-303**, Gateway API и NGINX Gateway Fabric. Перед запуском текущего API/operator
+WMS-204–WMS-208 выполнены. Следующая задача — **WMS-304**, lifecycle и rollout. Перед запуском текущего API/operator
 bootstrap явно заполнить AUTH_ORIGIN и оба срока сессии, числовых defaults нет.
-Frontend реализован; production static serving, NGINX Gateway и Kafka ещё не реализованы; API/worker Helm chart готов WMS-302. Складские applied migrations
+Frontend, static web image и NGINX Gateway/TLS проверены в WMS-303; Kafka ещё не реализована. Складские applied migrations
 не переписывать; dev actor не возвращать как fallback. Публикация/внешний deploy требуют
 явно заданного окружения и TLS gateway.
 
@@ -667,6 +669,18 @@ in_progress, shortage, совместный release/cancel и существую
 Review WMS-206: закрыт поздний INSERT в immutable shipment draft новой migration 0031.
 Conditional ShippingChanged требует shipmentId для shipment action. Добавлены runtime
 PostgreSQL и producer/handler regression cases; бизнес-права и этап WMS-207 не менялись.
+
+## Ревью всего проекта 2026-11-07
+
+Проверка охватывает backend, frontend, инфраструктуру, scripts, контракты и тесты,
+а не только WMS-303 diff. Все собственные YAML дополнены русскими комментариями
+о назначении и порядке выполнения. Generated pnpm-lock.yaml описан в root README.
+[Findings, воспроизведения и результаты](reports/project-review-2026-11-07.md).
+R-02 (Compose TCP health) и R-03 (устаревшая центральная документация) исправлены
+по отдельному поручению; regression подтверждает отказ до изменения и успех после.
+Полный check:pr, Docker gates и исходный npm run app:up прошли.
+R-01 worker lease и R-04 dev dependencies остаются открытыми.
+[Критерии и проверки исправления](reports/project-review-2026-11-07.md#исправление-r-02r-03-требования-до-изменения).
 
 ## Обязательная проверка каждого PR
 

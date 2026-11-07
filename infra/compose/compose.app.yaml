@@ -1,3 +1,6 @@
+# Карта чтения: общий backend anchor → одноразовый migrator → API → независимый worker.
+# Это декларация зависимостей, а не последовательное выполнение YAML сверху вниз.
+# Compose ждёт только перечисленные startup conditions; при последующем отказе БД API автоматически не останавливается.
 # Что это за файл
 # compose.app.yaml — дополнение (overlay) к compose.yaml для локального запуска всего backend в Docker.
 # Само имя app не имеет специального значения для Docker: файл подключается явно через -f.
@@ -37,7 +40,7 @@
 # API публикуется только на localhost host-машины, внутри контейнера слушает 0.0.0.0:3000.
 # Без session business API возвращает 401, без warehouse role/CSRF — 403; dev actor удалён.
 # NODE_ENV=production здесь проверяет поведение приложения, но не превращает локальный стенд в production:
-# DB login пока локальный owner, постоянной DB readiness и production identity ещё нет.
+# DB login пока локальный owner, постоянной DB readiness ещё нет; настоящая session identity реализована.
 # Для выполнения учебной приёмки используйте pnpm docker:gate — назначение соседнего compose.gate.yaml.
 #
 # Общие настройки ниже
@@ -45,8 +48,10 @@
 # <<: *backend переиспользует image/build/env/security для migrate/api/worker без копирования настроек.
 # Объединение environment у worker явно сохраняет общую среду и добавляет только WORKER_*.
 # Полный сценарий, Mermaid и ограничения: docs/flows/docker-gate.md; evidence: docs/reports/wms-112.md.
-x-backend: &backend
+x-backend:
+  &backend # Все три процесса получают один backend image; BACKEND_IMAGE меняет локальный tag, не команду процесса.
   image: ${BACKEND_IMAGE:-warehouse-backend:local}
+  # Build context от корня репозитория; .dockerignore допускает только исходные build inputs, без .env.
   build:
     context: ../..
     dockerfile: apps/backend/Dockerfile
@@ -58,7 +63,9 @@ x-backend: &backend
     HTTP_HOST: 0.0.0.0
     DEV_ACTOR_ENABLED: 'false'
     OUTBOX_ADMIN_ENABLED: 'false'
+    # Контейнерный HTTPS browser origin отделён от host AUTH_ORIGIN; default сохраняет запуск со старой .env.
     AUTH_ORIGIN: ${CONTAINER_AUTH_ORIGIN:-https://warehouse.local}
+    # Абсолютный и idle сроки в секундах обязательны. Runtime дополнительно проверяет диапазоны/соотношение.
     AUTH_SESSION_ABSOLUTE_SECONDS: ${AUTH_SESSION_ABSOLUTE_SECONDS:?Set explicit absolute session seconds}
     AUTH_SESSION_IDLE_SECONDS: ${AUTH_SESSION_IDLE_SECONDS:?Set explicit idle session seconds}
   # Rootfs неизменяем; единственный временный каталог ограничен tmpfs. Данные хранит PostgreSQL.
@@ -77,6 +84,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+  # API запускает Nest после migrator exit0; ports публикует только HTTP и не завершает TLS.
   api:
     <<: *backend
     command: ['dist/main.js']
@@ -85,6 +93,7 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+    # --wait ждёт API health. Отдельного readiness по БД и healthcheck worker в этом профиле ещё нет.
     healthcheck:
       # Только liveness процесса. Health PostgreSQL и migration exit=0 проверяются при запуске,
       # а не непрерывно: этот endpoint не обещает готовность БД после её последующего отказа.
@@ -105,12 +114,15 @@ services:
     command: ['dist/worker.js']
     environment:
       <<: *backend-environment
+      # Batch — число claim за poll; lease — право обработки с token fencing, не гарантия exactly-once.
       WORKER_BATCH_SIZE: ${WORKER_BATCH_SIZE:-4}
       WORKER_POLL_INTERVAL_MS: ${WORKER_POLL_INTERVAL_MS:-1000}
       WORKER_LEASE_MS: ${WORKER_LEASE_MS:-30000}
+      # Retry относится к durable delivery после rollback; это не скрытый повтор бизнес-транзакции.
       WORKER_RETRY_BASE_MS: ${WORKER_RETRY_BASE_MS:-1000}
       WORKER_RETRY_MAX_MS: ${WORKER_RETRY_MAX_MS:-60000}
       WORKER_MAX_ATTEMPTS: ${WORKER_MAX_ATTEMPTS:-10}
+      # Таймаут транзакции должен укладываться в lease; shutdown должен укладываться в stop_grace_period.
       WORKER_TRANSACTION_TIMEOUT_MS: ${WORKER_TRANSACTION_TIMEOUT_MS:-10000}
       WORKER_SHUTDOWN_TIMEOUT_MS: ${WORKER_SHUTDOWN_TIMEOUT_MS:-15000}
     depends_on:

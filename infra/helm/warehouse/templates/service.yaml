@@ -1,14 +1,21 @@
+{{/* Назначение: стабильный внутренний API endpoint для Gateway и других Pod того же cluster.
+Ход запроса: DNS <release>-api → Service port3000 → Pod с instance/component labels → именованный port http.
+Service не запускает API и не ждёт migration сам: release ordering задаёт Job/Helm.
+Gateway/TLS описан в gateway.yaml и docs/flows/gateway-tls.md. */}}
 {{/* Только cluster-internal HTTP. Gateway/TLS добавляются отдельным WMS-303. */}}
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Release.Name }}-api
 spec:
+  {{/* ClusterIP не создаёт внешний load balancer или host port. Публикация HTTP выполняется через Gateway. */}}
   type: ClusterIP
+  {{/* Выбирается только API данного release; worker/web не должны получать эти запросы. */}}
   selector:
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: api
   ports:
     - name: http
       port: 3000
+      {{/* Именованный port связан с containerPort API; это не web port8080 и не порт PostgreSQL. */}}
       targetPort: http

@@ -1,16 +1,24 @@
+{{/* Назначение: отдельные Kubernetes identities для runtime и migration hook.
+Ход Helm install/upgrade: migration SA hook weight -10 → migration Job weight0 → обычные runtime resources.
+Порядок задают annotations, а не положение документа в YAML. ServiceAccount не является DB login.
+Ни одно account не получает RBAC grants; DB permissions задаёт provisioning PostgreSQL. */}}
 {{/* Ни один service account не получает RoleBinding или автоматический API token. */}}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  {{/* Обычный SA живёт в application release и удаляется при helm uninstall. */}}
   name: {{ .Release.Name }}-runtime
+{{/* Запрещает автоматический Kubernetes API token; Secret env читает kubelet, а не приложение через API. */}}
 automountServiceAccountToken: false
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  {{/* Hook SA создаётся до Job, чтобы pre-install не зависел от ещё не созданных обычных resources. */}}
   name: {{ .Release.Name }}-migration
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
+    {{/* Отрицательный weight обеспечивает SA до Job. before-hook-creation заменяет предыдущий hook SA. */}}
     helm.sh/hook-weight: '-10'
     helm.sh/hook-delete-policy: before-hook-creation
 automountServiceAccountToken: false

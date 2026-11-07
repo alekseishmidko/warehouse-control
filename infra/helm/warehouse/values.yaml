@@ -1,16 +1,30 @@
+# Общий несекретный контракт chart. Это шаблон значений, а не готовый dev/production release.
+# Порядок: values.yaml → values-dev.yaml → operator release overlay → schema validation → render/hooks.
+# Пустые обязательные значения намеренно запрещают install: Helm не должен придумывать image или auth policy.
+# Secret contents не передаются через --set/values; создаются отдельно и подключаются по имени.
+# Requests/limits ниже применяются к API, worker, migrator и optional web; единицы CPU/memory — Kubernetes.
 # Образ обязателен по digest; tags и credentials здесь запрещены.
 image:
+  # API/worker/migrator используют один immutable artifact, но разные entrypoints.
   repository: warehouse-backend
+  # Формат sha256:<64 hex>. Изменяемые tags недостаточны для release identity.
   digest: ''
+  # IfNotPresent допускает registry pull; local dev overlay выбирает Never после kind load.
   pullPolicy: IfNotPresent
 # Secrets создаёт оператор ДО helm install; ключ DATABASE_URL, разные DB privileges.
 database:
+  # Ключ DATABASE_URL: runtime login с ограниченными grants, без права выполнять migrations.
   runtimeSecret: ''
+  # Отдельный Secret с DDL owner доступен только migration Job; имя обязано отличаться от runtimeSecret.
   migrationSecret: ''
+# Auth policy проверяет API. Worker/Job получают общую среду, но их graph не создаёт HTTP identity boundary.
 auth:
+  # Точный browser HTTPS origin, включая нестандартный port. Backend не доверяет forwarded Origin.
   origin: ''
+  # Runtime принимает env строки 30..86400 секунд. Defaults отсутствуют, idle не должен превышать absolute.
   absoluteSeconds: ''
   idleSeconds: ''
+# Requests влияют на размещение Pod; limits задают предел, memory limit может привести к OOMKill.
 resources:
   requests:
     cpu: 100m
@@ -18,3 +32,26 @@ resources:
   limits:
     cpu: '1'
     memory: 512Mi
+# Gateway опционален до установки отдельного controller/CRDs и static web Service.
+# Включение требует platform CRDs/NGF и существующий TLS Secret. Controller не ставится этим chart.
+gateway:
+  enabled: false
+  # Host совпадает с DNS/hosts и SAN сертификата; сертификат оператор создаёт вне Git.
+  hostname: warehouse.local
+  # Secret типа kubernetes.io/tls в namespace release. Private key не появляется в rendered chart.
+  tlsSecret: warehouse-tls
+  # Пусто: использовать <release>-web при web.enabled. Непусто: existing Service того же namespace.
+  webService: ''
+  # Port Service, не nodePort. Для встроенного web Service порт фиксирован 8080.
+  webPort: 8080
+  # Внешний HTTPS port в Location HTTP redirect; для port-forward должен совпасть с browser port.
+  redirectPort: 443
+# Static SPA включается отдельно; один digest образа web не содержит backend.
+# Web image отдельный: в нём только static build/server, без backend DB/session credentials.
+web:
+  # Включение добавляет Deployment/ClusterIP Service; без включения новый digest не обязателен.
+  enabled: false
+  image:
+    repository: warehouse-web
+    digest: ''
+    pullPolicy: IfNotPresent
