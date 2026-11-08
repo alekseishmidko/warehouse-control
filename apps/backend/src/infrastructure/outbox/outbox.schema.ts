@@ -50,10 +50,12 @@ export const outboxAggregateSequences = pgTable(
     // Составной PK одновременно задаёт область счётчика и уникальный B-tree для guarded upsert.
     // Обычный SQL sequence/nextval расходовал бы значения даже при rollback бизнес-операции.
     primaryKey({ columns: [t.aggregateType, t.aggregateId] }),
+    // Версия положительна и точно представима JS number; переполнение безопасного диапазона запрещено.
     check(
       'outbox_sequence_range',
       sql`${t.lastVersion} between 1 and ${sql.raw(String(MAX_AGGREGATE_VERSION))}`,
     ),
+    // Счётчик привязан к допустимой форме типа агрегата; UUID отдельно задаёт его идентичность.
     check(
       'outbox_sequence_aggregate',
       sql`${t.aggregateType} in ('receipt','putaway-task','order','picking-task')`,
@@ -109,6 +111,7 @@ export const outboxEvents = pgTable(
       t.aggregateId,
       t.aggregateVersion,
     ),
+    // Событие ссылается на существующий счётчик именно своего агрегата, а не на независимые type/id.
     foreignKey({
       name: 'outbox_event_sequence_fk',
       columns: [t.aggregateType, t.aggregateId],
@@ -117,6 +120,7 @@ export const outboxEvents = pgTable(
         outboxAggregateSequences.aggregateId,
       ],
     }),
+    // Версия факта положительна и не выходит за безопасный целочисленный диапазон JS.
     check(
       'outbox_event_version_range',
       sql`${t.aggregateVersion} between 1 and ${sql.raw(String(MAX_AGGREGATE_VERSION))}`,
@@ -180,7 +184,9 @@ export const deliveryStreams = pgTable(
     leaseToken: uuid('lease_token'),
   },
   (t) => [
+    // Один cursor/lease на destination и агрегат сериализует доставку версий этого потока.
     primaryKey({ columns: [t.destination, t.aggregateType, t.aggregateId] }),
+    // Поток доставки принадлежит существующему агрегату; cursor разных агрегатов не смешивается.
     foreignKey({
       name: 'delivery_stream_sequence_fk',
       columns: [t.aggregateType, t.aggregateId],
@@ -189,10 +195,12 @@ export const deliveryStreams = pgTable(
         outboxAggregateSequences.aggregateId,
       ],
     }),
+    // Cursor начинается с нуля и ограничен безопасным диапазоном JS; отсутствие прогресса не кодируется NULL.
     check(
       'delivery_stream_cursor_range',
       sql`${t.lastCompletedVersion} between 0 and ${sql.raw(String(MAX_AGGREGATE_VERSION))}`,
     ),
+    // Разрешён только подключённый destination; новый consumer требует отдельного плана запуска и миграции.
     check(
       'delivery_stream_destination',
       sql`${t.destination} = ${sql.raw(`'${PUTAWAY_DESTINATION}'`)}`,
@@ -200,6 +208,7 @@ export const deliveryStreams = pgTable(
     // Пара NULL/NULL означает свободный поток; заполненная пара — lease.
     // Сам CHECK не проверяет свежесть токена или владельца: это работа протокола под блокировкой.
     check('delivery_stream_lease_pair', sql`(${t.leaseUntil} is null) = (${t.leaseToken} is null)`),
+    // Индекс поддерживает поиск потоков по сроку lease; сам по себе не обеспечивает fencing или порядок доставки.
     index('delivery_streams_lease_idx').on(t.leaseUntil),
   ],
 );
@@ -278,25 +287,33 @@ export const outboxDeliveries = pgTable(
     completedAt: timestamp('completed_at', { withTimezone: true }),
   },
   (t) => [
+    // Одно событие имеет одну delivery на destination; повторная запись не создаёт независимую попытку.
     primaryKey({ columns: [t.eventId, t.destination] }),
+    // Доставка адресована подключённому consumer; произвольное имя не должно создавать необрабатываемый маршрут.
     check(
       'outbox_delivery_destination',
       sql`${t.destination} = ${sql.raw(`'${PUTAWAY_DESTINATION}'`)}`,
     ),
+    // Разрешены только состояния протокола доставки; допустимость конкретного перехода проверяется отдельно.
     check(
       'outbox_delivery_status',
       sql`${t.status} in ('pending', 'processing', 'retry', 'completed', 'dead')`,
     ),
+    // Число попыток не может быть отрицательным; исчерпание бюджета определяется worker policy.
     check('outbox_delivery_attempts', sql`${t.attempts} >= 0`),
+    // База нового retry-бюджета лежит между нулём и общим attempts; история попыток не обнуляется.
     check(
       'outbox_retry_attempt_base',
       sql`${t.retryAttemptBase} >= 0 and ${t.retryAttemptBase} <= ${t.attempts}`,
     ),
+    // Token и deadline образуют пару; CHECK не доказывает, что lease ещё действителен.
     check('outbox_delivery_lease_pair', sql`(${t.leaseUntil} is null) = (${t.leaseToken} is null)`),
+    // Только completed имеет completedAt; незавершённая доставка не должна выглядеть подтверждённой.
     check(
       'outbox_delivery_completion',
       sql`(${t.status} = 'completed') = (${t.completedAt} is not null)`,
     ),
+    // Диагностика ограничена 512 символами; NULL означает отсутствие ошибки, безопасность текста обеспечивает приложение.
     check('outbox_delivery_error_length', sql`length(${t.lastError}) <= 512`),
     // Частичный B-tree хранит только активные статусы, уменьшая индекс при накоплении completed/dead.
     // Планировщик обязан учитывать тот же предикат; индекс не заменяет SKIP LOCKED и cursor+1.
@@ -376,18 +393,22 @@ export const outboxRecoveryActions = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
+    // Запись recovery относится к существующей delivery события и consumer; несвязанный retry не допускается.
     foreignKey({
       columns: [t.eventId, t.consumer],
       foreignColumns: [outboxDeliveries.eventId, outboxDeliveries.destination],
     }),
+    // Административное основание хранится ограниченным машинным кодом, а не произвольным сообщением оператора.
     check(
       'recovery_reason_code',
       sql`${t.reasonCode} ~ '^[a-z][a-z0-9]*([._-][a-z0-9]+)*$' and length(${t.reasonCode}) <= 96`,
     ),
+    // Историческая retry-база не может превышать сохранённое число попыток; снимок должен объяснять прежний бюджет.
     check(
       'recovery_attempts',
       sql`${t.previousRetryAttemptBase} >= 0 and ${t.previousRetryAttemptBase} <= ${t.previousAttempts}`,
     ),
+    // Историческая ошибка ограничена 512 символами; CHECK не выполняет маскирование секретов.
     check('recovery_error_length', sql`length(${t.previousError}) <= 512`),
   ],
 );

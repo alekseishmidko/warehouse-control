@@ -77,25 +77,32 @@ export const auditEntries = pgTable(
     hasRedactedChanges: boolean('has_redacted_changes').default(false).notNull(),
   },
   (table) => [
+    // Аудит различает пользователя и системный процесс; CHECK не является доказательством аутентификации.
     check('audit_actor_type', sql`${table.actorType} in ('user', 'system')`),
+    // Действие задаётся ограниченным машинным кодом для поиска и анализа, а не свободным текстом.
     check(
       'audit_action_code',
       sql`${table.action} ~ '^[a-z][a-z0-9]*([._-][a-z0-9]+)*$' and length(${table.action}) <= 96`,
     ),
+    // Тип объекта имеет ограниченный машинный формат; принадлежность объекту/складу определяется отдельно.
     check(
       'audit_entity_type_code',
       sql`${table.entityType} ~ '^[a-z][a-z0-9]*([._-][a-z0-9]+)*$' and length(${table.entityType}) <= 96`,
     ),
+    // Основание задаётся ограниченным кодом; CHECK формата не заменяет фильтрацию секретов в приложении.
     check(
       'audit_reason_code',
       sql`${table.reasonCode} ~ '^[a-z][a-z0-9]*([._-][a-z0-9]+)*$' and length(${table.reasonCode}) <= 96`,
     ),
+    // Changes всегда JSON-объект; массивы и скаляры нарушили бы контракт структурированных изменений.
     check('audit_changes_object', sql`jsonb_typeof(${table.changes}) = 'object'`),
     // Составной B-tree обслуживает историю конкретного entityType/entityId по времени.
     // Его левый префикс важен: выборка только по entityId не эквивалентна выборке по всему ключу.
     // Обратный scan даёт новые записи первыми; entity FK scope проверяется отдельно.
     index('audit_time_page_idx').on(table.occurredAt, table.id),
+    // Временной ключ с UUID поддерживает стабильную keyset-страницу истории конкретного объекта.
     index('audit_entity_page_idx').on(table.entityType, table.entityId, table.occurredAt, table.id),
+    // Индекс поддерживает временные выборки конкретного объекта; сам по себе не проверяет warehouse ACL.
     index('audit_entity_time_idx').on(table.entityType, table.entityId, table.occurredAt),
     // Отдельный B-tree для связи записей одного сценария, без обхода JSONB changes.
     index('audit_correlation_idx').on(table.correlationId),

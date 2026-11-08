@@ -29,8 +29,11 @@ export const sessions = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
+    // В БД допускается только SHA-256 digest в lowercase hex; исходный browser token здесь не хранится.
     check('identity_token_hash', sql`${t.tokenHash} ~ '^[a-f0-9]{64}$'`),
+    // Sliding idle deadline не может продлить сессию за абсолютный срок; фактическая свежесть проверяется по часам БД.
     check('identity_deadline_order', sql`${t.idleExpiresAt} <= ${t.absoluteExpiresAt}`),
+    // Индекс ускоряет поиск и отзыв всех сессий пользователя без сканирования всей таблицы.
     index('identity_sessions_user_idx').on(t.userId),
   ],
 );

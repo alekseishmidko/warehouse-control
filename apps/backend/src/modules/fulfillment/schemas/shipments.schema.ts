@@ -27,10 +27,12 @@ export const shipments = pgTable(
   (t) => [
     // Склад приходит из заказа; поддерживает orderId filter и чтение связанных документов.
     index('shipment_order_page_idx').on(t.orderId, t.createdAt, t.id),
+    // Дата проведения обязательна только для posted; draft/cancelled не могут выглядеть проведёнными.
     check(
       'shipment_state',
       sql`(${t.status} in ('draft','cancelled') and ${t.postedAt} is null) or (${t.status}='posted' and ${t.postedAt} is not null)`,
     ),
+    // Основание — ограниченный машинный код, а не произвольный текст; персональные данные здесь не предполагаются.
     check('shipment_reason', sql`${t.reasonCode} ~ '^[a-z][a-z0-9.-]{2,63}$'`),
   ],
 );
@@ -53,7 +55,9 @@ export const shipmentLines = pgTable(
       integer('quantity').notNull(),
   },
   (t) => [
+    // Одна партия allocation встречается в документе один раз, чтобы строки не дублировали запрошенное списание.
     unique('shipment_allocation_once').on(t.shipmentId, t.allocationId),
+    // Нулевая или отрицательная строка не является отгрузкой; верхнюю границу задаёт тип int4.
     check('shipment_line_quantity', sql`${t.quantity}>0`),
   ],
 );

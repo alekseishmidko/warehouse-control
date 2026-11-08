@@ -22,7 +22,9 @@ export const users = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
+    // Единый lowercase ASCII login исключает неоднозначность поиска; приведение регистра выполняется до записи.
     check('identity_login', sql`${t.login} ~ '^[a-z0-9][a-z0-9._-]{2,63}$'`),
+    // Разрешён только согласованный формат scrypt с фиксированными параметрами, salt и hash; plaintext не проходит CHECK.
     check(
       'identity_password_hash',
       sql`${t.passwordHash} ~ '^scrypt[$]131072[$]8[$]1[$][a-f0-9]{32}[$][a-f0-9]{128}$'`,

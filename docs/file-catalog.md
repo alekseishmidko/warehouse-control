@@ -719,9 +719,10 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | [kind-image.cjs](../scripts/kind-image.cjs)                         | Общая canonicalization local image digest после kind import.            |
 | [gateway-check.cjs](../scripts/gateway-check.cjs)                   | NGF/CA/TLS, auth/cookie/CSRF checks и реальный Chromium warehouse flow. |
 
-### Обзор проекта 2026-11-07
+### Обзоры проекта
 
 | Файл                                                                          | Назначение                                                                                                                                         |
 | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [project-review-2026-11-07.md](reports/project-review-2026-11-07.md)          | Ревью всего проекта: область, воспроизведённые findings, YAML comments, проверки и ограничения.                                                    |
+| [project-review-2026-11-08.md](reports/project-review-2026-11-08.md)          | Ревью кода, бизнес-флоу и архитектуры: deadlock возврата/reserve, worker lease, доказательства и границы проверки.                                 |
 | [scripts/postgres-readiness.test.cjs](../scripts/postgres-readiness.test.cjs) | Regression R-02: настоящий Compose/new volume/initdb barrier, отказ socket-only healthy и готовность TCP после release; только disposable cleanup. |

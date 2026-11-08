@@ -15,5 +15,8 @@ export const loginWindows = pgTable(
     /** Обязательный timestamptz без default: конец 15-minute окна по clock_timestamp БД. pg Date/UTC ISO, не часы браузера; истечение само по себе не удаляет строку. */
     resetAt: timestamp('reset_at', { withTimezone: true }).notNull(),
   },
-  (t) => [check('identity_login_window_attempts', sql`${t.attempts} between 0 and 1000`)],
+  (t) => [
+    // Счётчик окна неотрицателен и ограничен 1000; repository использует насыщение при дальнейших попытках.
+    check('identity_login_window_attempts', sql`${t.attempts} between 0 and 1000`),
+  ],
 );

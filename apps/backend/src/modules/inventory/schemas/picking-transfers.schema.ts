@@ -37,5 +37,8 @@ export const pickingTransfers = pgTable(
       .notNull()
       .references(() => auditEntries.id),
   },
-  (t) => [check('picking_transfer_quantity', sql`${t.quantity}>0`)],
+  (t) => [
+    // Перенос фиксирует положительное число штук; нулевая shortage-команда не создаёт физического факта.
+    check('picking_transfer_quantity', sql`${t.quantity}>0`),
+  ],
 );

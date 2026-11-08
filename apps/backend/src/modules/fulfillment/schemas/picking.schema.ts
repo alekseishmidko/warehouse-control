@@ -38,14 +38,17 @@ export const pickingTasks = pgTable(
   (t) => [
     // Склад определяется order FK; индекс ускоряет join списка заданий с заказами.
     index('picking_order_page_idx').on(t.orderId, t.createdAt, t.id),
+    // Закрытый набор состояний не допускает неизвестную стадию сборки; допустимость переходов проверяется отдельно.
     check(
       'picking_status',
       sql`${t.status} in ('ready','in_progress','shortage','completed','cancelled')`,
     ),
+    // Начатая сборка, shortage и завершённое задание требуют исполнителя; ready/cancelled допускают отсутствие назначения.
     check(
       'picking_assignee',
       sql`${t.status} in ('ready','cancelled') or ${t.assigneeId} is not null`,
     ),
+    // Частичный UNIQUE запрещает два открытых плана одного заказа даже при конкурентном создании; история закрытых планов сохраняется.
     uniqueIndex('one_open_picking_task')
       .on(t.orderId)
       .where(sql`${t.status} in ('ready','in_progress','shortage')`),
@@ -73,10 +76,13 @@ export const pickingLines = pgTable(
       integer('cancelled_unpicked').notNull().default(0),
   },
   (t) => [
+    // Сборка и отменённый остаток неотрицательны и вместе не превышают план: remaining не может стать отрицательным.
+    // Сложение в bigint исключает переполнение int4 до сравнения, даже для отклоняемой строки.
     check(
       'picking_line_quantity',
       sql`${t.planned}>0 and ${t.pickedTotal}>=0 and ${t.cancelledUnpicked}>=0 and ${t.pickedTotal}::bigint+${t.cancelledUnpicked}<=${t.planned}`,
     ),
+    // Один исходный allocation включается в конкретное задание один раз; в другом задании ключ проверяется отдельно.
     uniqueIndex('picking_source_once').on(t.taskId, t.allocationId),
   ],
 );
