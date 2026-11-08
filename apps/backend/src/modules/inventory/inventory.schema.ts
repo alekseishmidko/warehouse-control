@@ -65,17 +65,22 @@ export const stockBalances = pgTable(
     // UNIQUE защищает конкурентное создание, CHECK — допустимый результат арифметики.
     // B-tree: склад + UUID поддерживает bounded список без сортировки всех balances.
     index('stock_warehouse_page_idx').on(t.warehouseId, t.id),
+    // Равенство склада и SKU с продолжением по UUID обслуживает отфильтрованный список остатков.
     index('stock_product_page_idx').on(t.warehouseId, t.productId, t.id),
+    // Тройка склад/ячейка/товар имеет единственный balance, в том числе при конкурентном создании.
     unique('stock_balance_key_unique').on(t.warehouseId, t.locationId, t.productId),
+    // Balance не может связать склад с ячейкой другого склада, даже если оба UUID существуют.
     foreignKey({
       name: 'balance_location_warehouse_fk',
       columns: [t.warehouseId, t.locationId],
       foreignColumns: [locations.warehouseId, locations.id],
     }),
+    // Физический остаток неотрицателен и ограничен int4; недостача не допускает ухода в минус.
     check(
       'stock_on_hand_range',
       sql`${t.onHand} between 0 and ${sql.raw(String(MAX_STOCK_QUANTITY))}`,
     ),
+    // Резерв неотрицателен и не превышает физический остаток; равенство сумме allocations проверяется отдельными guards.
     check('stock_reserved_range', sql`${t.reserved} >= 0 and ${t.reserved} <= ${t.onHand}`),
   ],
 );
@@ -141,6 +146,7 @@ export const stockMovements = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
+    // Движение ссылается на существующую позицию того же склада, ячейки и товара.
     foreignKey({
       name: 'movement_balance_key_fk',
       columns: [t.warehouseId, t.locationId, t.productId],
@@ -150,14 +156,17 @@ export const stockMovements = pgTable(
         stockBalances.productId,
       ],
     }),
+    // Movement хранит положительное количество штук; направление задаёт kind, а не знак числа.
     check(
       'movement_quantity_range',
       sql`${t.quantity} between 1 and ${sql.raw(String(MAX_STOCK_QUANTITY))}`,
     ),
+    // Закрытый список направлений охватывает приёмку, перенос и отгрузку; неизвестный тип факта отклоняется.
     check(
       'movement_receipt_kind',
       sql`${t.kind} in ('receipt','transfer-out','transfer-in','shipment')`,
     ),
+    // Приёмка не имеет transfer-основания, shipment требует shipping effect; перенос ссылается ровно на один вид основания.
     check(
       'movement_transfer_reference',
       sql`(${t.kind}='receipt' and ${t.transferId} is null and ${t.pickingTransferId} is null and ${t.shippingEffectId} is null)
@@ -168,7 +177,9 @@ export const stockMovements = pgTable(
     // PostgreSQL допускает несколько NULL в UNIQUE: receipt по-прежнему dedup через operationId.
     // Время + UUID устраняет неоднозначность одинаковых timestamps в истории склада.
     index('movement_warehouse_page_idx').on(t.warehouseId, t.createdAt, t.id),
+    // Индекс истории SKU внутри склада сохраняет стабильный временной ключ с UUID для пагинации.
     index('movement_product_page_idx').on(t.warehouseId, t.productId, t.createdAt, t.id),
+    // Для одного putaway допускается не более одной записи каждого направления; NULL других оснований не конфликтуют.
     unique('movement_transfer_leg_unique').on(t.transferId, t.kind),
   ],
 );

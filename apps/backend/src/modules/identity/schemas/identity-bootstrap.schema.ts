@@ -13,5 +13,8 @@ export const identityBootstrap = pgTable(
     /** Обязательный timestamptz, defaultNow — начало транзакции, не commit. pg Date/UTC ISO; дата регистрации bootstrap не является секретом или readiness API. */
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [check('identity_bootstrap_key', sql`${t.key} = 'initial'`)],
+  (t) => [
+    // Единственное допустимое значение ключа вместе с PK образует singleton первого bootstrap.
+    check('identity_bootstrap_key', sql`${t.key} = 'initial'`),
+  ],
 );

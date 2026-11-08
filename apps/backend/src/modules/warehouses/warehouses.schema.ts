@@ -26,7 +26,9 @@ export const warehouses = pgTable(
     name: text('name').notNull(),
   },
   (t) => [
+    // Код склада имеет единый ASCII-формат; CHECK не выполняет нормализацию регистра.
     check('warehouse_code', sql`${t.code} ~ '^[A-Z0-9][A-Z0-9._-]{0,63}$'`),
+    // Пустое или состоящее из пробелов имя не идентифицирует склад; длина ограничена 160 символами после trim.
     check('warehouse_name', sql`length(trim(${t.name})) between 1 and 160`),
   ],
 );
@@ -59,11 +61,15 @@ export const locations = pgTable(
     kind: text('kind').$type<LocationKind>().notNull(),
   },
   (t) => [
+    // Один код обозначает одну ячейку внутри склада; другой склад может использовать такой же код.
     unique('location_warehouse_code_unique').on(t.warehouseId, t.code),
     // id уже глобально уникален, но PostgreSQL требует подходящий UNIQUE для составного FK
     // (warehouseId,locationId); дублирование ключа осознанно защищает согласованность принадлежности.
+    // Составной ключ служит целью FK: ссылка на ячейку должна одновременно подтверждать её склад.
     unique('location_warehouse_id_unique').on(t.warehouseId, t.id),
+    // Код ячейки имеет единый ASCII-формат; уникальность внутри склада обеспечивается отдельным ключом.
     check('location_code', sql`${t.code} ~ '^[A-Z0-9][A-Z0-9._-]{0,63}$'`),
+    // Разрешены только зоны receiving/storage/shipping, от которых зависят правила размещения и резерва.
     check('location_kind', sql`${t.kind} in ('receiving', 'storage', 'shipping')`),
   ],
 );

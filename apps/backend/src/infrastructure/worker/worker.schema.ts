@@ -34,6 +34,7 @@ export const processedEvents = pgTable(
     // Составной PK — долговечная область дедупликации. Смена consumerName обходит старые
     // markers, поэтому требует плана миграции/обработки истории, а не переименования настройки.
     primaryKey({ columns: [t.consumerName, t.eventId] }),
+    // Marker относится к стабильному имени consumer; переименование требует плана replay, а не обхода dedup.
     check('processed_consumer_name', sql`${t.consumerName} ~ '^[a-z][a-z0-9.-]{0,95}$'`),
   ],
 );
@@ -64,7 +65,9 @@ export const consumerStreams = pgTable(
     lastProcessedVersion: bigint('last_processed_version', { mode: 'number' }).default(0).notNull(),
   },
   (t) => [
+    // Прогресс каждого consumer хранится отдельно для каждого агрегата, без глобального порядка.
     primaryKey({ columns: [t.consumerName, t.aggregateType, t.aggregateId] }),
+    // Cursor относится к существующему агрегату outbox; связь не создаёт подписку автоматически.
     foreignKey({
       columns: [t.aggregateType, t.aggregateId],
       foreignColumns: [
@@ -72,7 +75,9 @@ export const consumerStreams = pgTable(
         outboxAggregateSequences.aggregateId,
       ],
     }),
+    // Cursor относится к стабильному имени consumer; формат не подтверждает регистрацию обработчика.
     check('consumer_name', sql`${t.consumerName} ~ '^[a-z][a-z0-9.-]{0,95}$'`),
+    // Нулевой cursor означает отсутствие обработанных версий; верхняя граница сохраняет точность JS number.
     check(
       'consumer_cursor_range',
       sql`${t.lastProcessedVersion} between 0 and ${sql.raw(String(MAX_AGGREGATE_VERSION))}`,

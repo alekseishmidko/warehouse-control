@@ -37,6 +37,8 @@ export const shippingEffects = pgTable(
       .references(() => auditEntries.id),
   },
   (t) => [
+    // Положительный ship требует строку shipment без target; return требует target без shipment line.
+    // Проверка формы не заменяет проверку заказа, зоны и полного вектора возврата.
     check(
       'shipping_effect_shape',
       sql`${t.quantity}>0 and ((${t.kind}='ship' and ${t.shipmentLineId} is not null and ${t.targetBalanceId} is null) or (${t.kind}='return' and ${t.shipmentLineId} is null and ${t.targetBalanceId} is not null))`,

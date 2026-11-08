@@ -22,7 +22,9 @@ export const warehouseRoles = pgTable(
     role: text('role').notNull(),
   },
   (t) => [
+    // Одна роль выдаётся пользователю на складе один раз; разные роли и склады не конфликтуют.
     primaryKey({ columns: [t.userId, t.warehouseId, t.role] }),
+    // Неподдерживаемая роль не должна попасть в grants; права этой роли задаёт серверная матрица действий.
     check(
       'identity_warehouse_role',
       sql`${t.role} in ('viewer','warehouse_operator','order_manager','warehouse_supervisor')`,

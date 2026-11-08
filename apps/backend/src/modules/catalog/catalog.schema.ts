@@ -31,8 +31,11 @@ export const products = pgTable(
     unit: text('unit').$type<'piece'>().default('piece').notNull(),
   },
   (t) => [
+    // Единый ASCII-формат SKU исключает пробелы и разный регистр кодов; нормализацию выполняет сервис до INSERT.
     check('product_sku_code', sql`${t.sku} ~ '^[A-Z0-9][A-Z0-9._-]{0,63}$'`),
+    // Имя после trim должно содержать 1..160 символов; CHECK не обрезает сохраняемое значение.
     check('product_name_nonempty', sql`length(trim(${t.name})) between 1 and 160`),
+    // Учёт ведётся только в штуках; новая единица требует согласования количественной модели.
     check('product_unit_piece', sql`${t.unit} = 'piece'`),
   ],
 );

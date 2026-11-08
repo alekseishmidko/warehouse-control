@@ -69,17 +69,20 @@ export const receipts = pgTable(
     // должны принадлежать одному источнику. Иммутабельность posted обеспечивают отдельные триггеры.
     // Индекс списка приёмок: равенство склада, затем стабильный временной ключ.
     index('receipt_warehouse_page_idx').on(t.warehouseId, t.createdAt, t.id),
+    // Ключ служит целью FK задания: документ, склад, receiving-ячейка и posted event проверяются совместно.
     unique('receipt_putaway_source_unique').on(
       t.id,
       t.warehouseId,
       t.receivingLocationId,
       t.postedEventId,
     ),
+    // Receiving location должна принадлежать складу документа; назначение зоны дополнительно проверяет сервис.
     foreignKey({
       name: 'receipt_location_warehouse_fk',
       columns: [t.warehouseId, t.receivingLocationId],
       foreignColumns: [locations.warehouseId, locations.id],
     }),
+    // Draft не имеет фактов проведения; posted требует одновременно дату и событие-основание.
     check(
       'receipt_state',
       sql`(${t.status} = 'draft' and ${t.postedAt} is null and ${t.postedEventId} is null) or (${t.status} = 'posted' and ${t.postedAt} is not null and ${t.postedEventId} is not null)`,
@@ -124,13 +127,18 @@ export const receiptLines = pgTable(
   (t) => [
     // Расширенный ключ позволяет task ссылаться на те же product/quantity исходной строки.
     // UNIQUE позиции + диапазон 1..MAX ограничивают число строк, но не требуют отсутствия пропусков.
+    // Ключ служит целью FK задания и связывает строку с исходными документом, товаром и количеством.
     unique('receipt_line_putaway_source_unique').on(t.receiptId, t.id, t.productId, t.quantity),
+    // Две строки одного документа не могут занимать одну позицию; порядок разных документов независим.
     unique('receipt_line_position_unique').on(t.receiptId, t.position),
+    // Один товар встречается в приёмке один раз, чтобы событие и задания имели однозначное основание.
     unique('receipt_line_product_unique').on(t.receiptId, t.productId),
+    // Позиция лежит в диапазоне допустимого числа строк; UNIQUE позиции не требует непрерывной нумерации.
     check(
       'receipt_line_position',
       sql`${t.position} between 1 and ${sql.raw(String(MAX_RECEIPT_LINES))}`,
     ),
+    // Строка приёмки содержит положительное число штук int4; суммарный предел balance проверяется отдельно.
     check(
       'receipt_line_quantity',
       sql`${t.quantity} between 1 and ${sql.raw(String(MAX_STOCK_QUANTITY))}`,

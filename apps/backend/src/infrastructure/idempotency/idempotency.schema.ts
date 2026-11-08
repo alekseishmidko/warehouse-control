@@ -79,13 +79,17 @@ export const httpIdempotency = pgTable(
   (t) => [
     // PK одновременно ограничивает identity и сериализует concurrent INSERT одинакового scope.
     primaryKey({ columns: [t.actorType, t.actorId, t.operation, t.key] }),
+    // Scope различает user/system; доверенного actor задаёт сервер, а не это ограничение.
     check('http_idempotency_actor', sql`${t.actorType} in ('user','system')`),
+    // Имя операции имеет ограниченный формат, чтобы одинаковый key разделялся по стабильным операциям.
     check('http_idempotency_operation', sql`${t.operation} ~ '^[a-z][a-z0-9.-]{0,95}$'`),
+    // Fingerprint хранится как SHA-256 lowercase hex; сравнение обнаруживает другой запрос с тем же scope/key.
     check('http_idempotency_hash', sql`${t.requestHash} ~ '^[a-f0-9]{64}$'`),
     // JSONB null отличается от SQL NULL: готовый body=null проходит ветку IS NOT NULL.
     // Одного CHECK недостаточно, чтобы запретить commit целой pending-строки: это обязанность сервиса.
     // CHECK не разрешает частично заполненный response. Commit pending предотвращает
     // service protocol; immutable/retention guards реализует отдельная custom migration.
+    // Связывает pending/completed форму сохранённого результата; наличие записи само по себе не доказывает успешный ответ.
     check(
       'http_idempotency_result',
       sql`(${t.statusCode} is null and ${t.body} is null and ${t.headers} is null and ${t.completedAt} is null)

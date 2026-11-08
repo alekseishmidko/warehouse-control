@@ -30,6 +30,8 @@ export const allocations = pgTable(
       .default(0),
   },
   (t) => [
+    // Количество основания равно сумме active/released/transferred/consumed; части неотрицательны и история не теряет единицы.
+    // Приведение к bigint защищает арифметику проверки от переполнения int4.
     check(
       'allocation_quantities',
       sql`${t.allocated}>0 and ${t.active}>=0 and ${t.released}>=0 and ${t.transferred}>=0 and ${t.consumed}>=0 and ${t.allocated}::bigint=${t.active}::bigint+${t.released}+${t.transferred}+${t.consumed}`,

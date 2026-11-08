@@ -103,6 +103,7 @@ export const putawayTasks = pgTable(
     // идемпотентность повторной доставки того же события. Это не повторное начисление остатков.
     // Индекс очереди заданий одного склада; UUID разрешает равные createdAt.
     index('putaway_warehouse_page_idx').on(t.warehouseId, t.createdAt, t.id),
+    // Повтор доставки того же события и строки не создаёт второе задание размещения.
     unique('putaway_event_line_unique').on(t.sourceEventId, t.sourceReceiptLineId),
     // Composite FK проверяют business provenance без чтения чужих repositories:
     // документ posted именно этим event, line/product/quantity действительно принадлежат ему.
@@ -116,6 +117,7 @@ export const putawayTasks = pgTable(
         receipts.postedEventId,
       ],
     }),
+    // Документ, строка, SKU и количество должны совпасть с одной исходной строкой приёмки.
     foreignKey({
       name: 'putaway_receipt_line_fk',
       columns: [t.sourceReceiptId, t.sourceReceiptLineId, t.productId, t.quantity],
@@ -126,17 +128,22 @@ export const putawayTasks = pgTable(
         receiptLines.quantity,
       ],
     }),
+    // Target обязан принадлежать складу задания; NULL до выполнения допускается формой pending.
     foreignKey({
       name: 'putaway_target_warehouse_fk',
       columns: [t.warehouseId, t.targetLocationId],
       foreignColumns: [locations.warehouseId, locations.id],
     }),
     // NULL допустим только до выполнения; SQL boolean формула связывает все completion поля со status.
+    // Задание допускает только ожидание и полное завершение; частичное размещение этим протоколом не задано.
     check('putaway_pending_status', sql`${t.status} in ('pending','completed')`),
+    // Pending не содержит результатов; completed требует target, дату, событие и audit.
+    // Target отличается от source; принадлежность складу защищает отдельный составной FK.
     check(
       'putaway_completion_state',
       sql`(${t.status}='pending' and ${t.targetLocationId} is null and ${t.completedAt} is null and ${t.completedEventId} is null and ${t.completionAuditId} is null) or (${t.status}='completed' and ${t.targetLocationId} is not null and ${t.targetLocationId}<>${t.sourceLocationId} and ${t.completedAt} is not null and ${t.completedEventId} is not null and ${t.completionAuditId} is not null)`,
     ),
+    // Задание переносит положительное количество штук int4; нулевой перенос не является размещением.
     check(
       'putaway_quantity_range',
       sql`${t.quantity} between 1 and ${sql.raw(String(MAX_STOCK_QUANTITY))}`,

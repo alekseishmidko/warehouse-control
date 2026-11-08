@@ -17,6 +17,7 @@ export const orders = pgTable(
   (t) => [
     // У заказа пока нет createdAt: сортировка по UUID не обещает хронологию.
     index('order_warehouse_page_idx').on(t.warehouseId, t.id),
+    // БД принимает только реализованные состояния заказа; сам CHECK не задаёт порядок переходов.
     check(
       'order_status',
       sql`${t.status} in ('draft','active','cancel_pending','cancelled','completed','closed_mixed')`,
@@ -38,7 +39,9 @@ export const orderLines = pgTable(
       integer('quantity').notNull(),
   },
   (t) => [
+    // SKU встречается в заказе один раз: обеспечение и ledger рассчитываются для одной строки товара.
     unique('order_product_unique').on(t.orderId, t.productId),
+    // Заказ содержит положительное целое число штук в диапазоне int4; пустая потребность не создаёт строку.
     check('order_quantity', sql`${t.quantity} between 1 and 2147483647`),
   ],
 );
