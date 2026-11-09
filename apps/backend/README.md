@@ -177,3 +177,7 @@ Jest --runInBand. `pnpm test:functional` запускает все PostgreSQL in
 но не заменяет итоговый gate. Docker обязателен, skip/fallback отсутствуют.
 [Порядок, Mermaid и ограничения](../../docs/pr-checks.md),
 [карта покрытия WMS-206](../../docs/reports/wms-206.md#соответствие-diff-документации-и-тестов).
+
+WMS-304: GET /health/startup, /health/ready, /health/live разделяют init, доступность
+PostgreSQL/drain и ответ event loop. API drain20s, default transaction10s, Kubernetes
+grace30s. [Подробный flow](../../docs/flows/lifecycle.md), [реализация](src/infrastructure/lifecycle/README.md).

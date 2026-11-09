@@ -28,7 +28,7 @@ WorkerModule — отдельный Nest graph, не импортирует AppM
 
 | Файл                                 | Ответственность                                                             |
 | ------------------------------------ | --------------------------------------------------------------------------- |
-| ../../worker.ts                      | Executable bootstrap без HTTP, validated config                             |
+| ../../worker.ts                      | Executable bootstrap с probe listener, validated config                     |
 | worker.module.ts                     | DatabaseModule/InventoryModule и явная регистрация ReceivingPostedHandler   |
 | worker.config.ts                     | Worker-only env validation/defaults, DI token                               |
 | worker.schema.ts                     | Source processed_events/consumer_streams для Drizzle                        |
@@ -102,7 +102,7 @@ sequenceDiagram
 ```
 
 1. Entry point валидирует общую DB config и worker settings, создаёт application
-   context без HTTP. API не запускает polling. Handler registrations — server code,
+   context без warehouse HTTP controllers; отдельный probe listener9100. API не запускает polling. Handler registrations — server code,
    event payload не выбирает произвольный handler/consumer.
 2. Один короткий run claim выбирает максимум batchSize потоков только для реально
    зарегистрированных destinations. Event version = last_completed_version+1.
@@ -191,7 +191,8 @@ processes, SIGTERM drain/deadline, SIGKILL и DB recovery, отсутствие 
 Тесты используют real migrations и disposable harness, Docker failure — не skip.
 
 Delivery diagnostics WMS-111 идут в stdout как JSON после commit; lifecycle/poll ошибки — безопасным текстом. Централизованные
-key-value логи/метрики/tracing — WMS-401/402; HTTP readiness worker ещё нет.
+key-value логи/метрики/tracing — WMS-401/402. WMS-304 добавляет probe listener9100
+с startup/ready/live, без warehouse routes/Service. [Lifecycle flow](../../../../../docs/flows/lifecycle.md).
 Диагностика: eventId/destination/attempts/last_error/lease/token и оба cursors;
 не сбрасывать lease/cursor/markers руками. [Runbook](../../../../../docs/runbooks/event-recovery.md),
 [ADR-0015](../../../../../docs/adr/0015-postgres-worker.md), [outbox](../outbox/README.md).

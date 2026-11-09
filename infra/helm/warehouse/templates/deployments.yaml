@@ -1,8 +1,8 @@
 {{/* Назначение: два независимо управляемых процесса модульного backend из одного image digest.
 Ход release: успешный migration hook → Deployment controller создаёт новые Pod → процесс читает ConfigMap/Secret.
 Job failure останавливает Helm до обновления этих ресурсов. Новая schema обязана поддерживать старые Pod.
-API слушает HTTP; worker опрашивает durable outbox и не имеет HTTP listener. Lifecycle WMS-304 ещё отдельная задача. */}}
-{{/* API/worker — разные процессы одного image. Worker не имеет фиктивного HTTP probe/Service. */}}
+API слушает HTTP; worker опрашивает durable outbox и имеет только probe listener9100. Probes отделяют готовность зависимостей от liveness процесса. */}}
+{{/* API/worker — разные процессы одного image. Worker имеет собственные probes без Service/Gateway. */}}
 {{- range $role := list "api" "worker" }}
 ---
 apiVersion: apps/v1
@@ -12,7 +12,9 @@ metadata:
 spec:
   {{/* Одна replica — local baseline. Surge требует места на том же узле и не доказывает HA. */}}
   replicas: 1
-  {{/* RollingUpdate сохраняет старый Pod до готовности нового; без readiness по БД это не гарантия безошибочного rollout. */}}
+  minReadySeconds: 3
+  progressDeadlineSeconds: 180
+  {{/* Новый Pod должен пройти readiness и minReadySeconds; surge допускает перекрытие workers, защищённое DB leases/locks. */}}
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -51,6 +53,14 @@ spec:
           {{/* Node запускается напрямую PID1, без shell. Выбор args разделяет API и worker, не artifacts. */}}
           command: [node]
           args: [{{ if eq $role "api" }}dist/main.js{{ else }}dist/worker.js{{ end }}]
+          {{- if eq $role "api" }}
+          {{/* Pod уже помечен terminating: EndpointSlice снимает ready, пока API ещё завершает запросы.
+          5s дают Gateway время убрать upstream. Бюджет: preStop5s + API drain20s < grace30s. */}}
+          lifecycle:
+            preStop:
+              exec:
+                command: [node, -e, "setTimeout(() => {}, 5000)"]
+          {{- end }}
           {{/* Helper запрещает privilege escalation/capabilities и делает root filesystem read-only. */}}
           securityContext:
             {{- include "warehouse.security" $ | nindent 12 }}
@@ -71,25 +81,33 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
-          {{- if eq $role "api" }}
+          {{/* API и worker имеют собственные listener/port. Worker не публикуется через Service/Gateway. */}}
           ports:
-            - name: http
-              containerPort: 3000
-          # Существующий /health доказывает только liveness; отдельные probes — WMS-304.
-          {{/* Пока startup probe не прошёл, liveness не перезапускает медленный старт. /health проверяет процесс, не БД. */}}
+            - name: {{ if eq $role "api" }}http{{ else }}health{{ end }}
+              containerPort: {{ if eq $role "api" }}3000{{ else }}9100{{ end }}
+          {{/* Startup разрешает медленный init; дальнейший DB outage не перезапускает живой процесс. */}}
           startupProbe:
             httpGet:
-              path: /health
-              port: http
+              path: /health/startup
+              port: {{ if eq $role "api" }}http{{ else }}health{{ end }}
             failureThreshold: 30
             periodSeconds: 2
-          {{/* Этот probe не доказывает readiness или доступность БД. Worker probe намеренно не имитируется API endpoint. */}}
+            timeoutSeconds: 2
+          {{/* Readiness снимает endpoint при DB outage/drain; активная операция всё равно проверяет ACL/SQL. */}}
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: {{ if eq $role "api" }}http{{ else }}health{{ end }}
+            periodSeconds: 3
+            timeoutSeconds: 2
+            failureThreshold: 1
+          {{/* Liveness не обращается к PostgreSQL и не создаёт restart storm при его отказе. */}}
           livenessProbe:
             httpGet:
-              path: /health
-              port: http
+              path: /health/live
+              port: {{ if eq $role "api" }}http{{ else }}health{{ end }}
             periodSeconds: 10
-          {{- end }}
+            timeoutSeconds: 2
       {{/* Memory emptyDir исчезает вместе с Pod; 16Mi ограничивают scratch, а не постоянные складские данные. */}}
       volumes:
         - name: tmp

@@ -47,7 +47,9 @@ flowchart TD
   A[pnpm check:pr] --> B[Prettier check без изменения файлов]
   B --> L[Typed lint: Promise, any, TS comments]
   L --> R[Architecture graph, negative self-tests и dev process tests]
-  R --> W[Проверить web API generation diff]
+  R --> DC[Проверить зависимости и состояния Kubernetes]
+  DC --> W[Проверить web API generation diff]
+  DC -->|Ошибка| X
   W --> C[TypeScript backend/web и tests typecheck]
   C --> WB[Vite web build]
   WB --> WT[Vitest: transport / journal / components / workspace]

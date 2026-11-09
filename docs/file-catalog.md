@@ -726,3 +726,31 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | [project-review-2026-11-07.md](reports/project-review-2026-11-07.md)          | Ревью всего проекта: область, воспроизведённые findings, YAML comments, проверки и ограничения.                                                    |
 | [project-review-2026-11-08.md](reports/project-review-2026-11-08.md)          | Ревью кода, бизнес-флоу и архитектуры: deadlock возврата/reserve, worker lease, доказательства и границы проверки.                                 |
 | [scripts/postgres-readiness.test.cjs](../scripts/postgres-readiness.test.cjs) | Regression R-02: настоящий Compose/new volume/initdb barrier, отказ socket-only healthy и готовность TCP после release; только disposable cleanup. |
+
+### WMS-304: завершение и rollout
+
+| Файл                                                                                | Назначение                                                                                         |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [lifecycle/README.md](../apps/backend/src/infrastructure/lifecycle/README.md)       | Карта process lifecycle и ссылка на подробный flow.                                                |
+| [api-process.ts](../apps/backend/src/infrastructure/lifecycle/api-process.ts)       | API signals, listener drain, общий deadline и cleanup pool.                                        |
+| [process-health.ts](../apps/backend/src/infrastructure/lifecycle/process-health.ts) | Независимые probes и native listener worker.                                                       |
+| [process-health.spec.ts](../apps/backend/test/unit/process-health.spec.ts)          | Startup/live/ready, outage, drain и HTTP listener.                                                 |
+| [api-lifecycle.spec.ts](../apps/backend/test/integration/api-lifecycle.spec.ts)     | Production API probes и настоящий child SIGTERM drain.                                             |
+| [api-process.fixture.ts](../apps/backend/test/support/api-process.fixture.ts)       | Child-only production API с IPC barrier активного response.                                        |
+| [lifecycle-check.cjs](../scripts/lifecycle-check.cjs)                               | DB outage, Pod kills до/после commit, lease recovery и additive release.                           |
+| [lifecycle.md](flows/lifecycle.md)                                                  | Подробный flow, Mermaid, budgets, rollout и диагностика.                                           |
+| [ADR-0029](adr/0029-process-lifecycle.md)                                           | Решение о probes, drain и overlap workers.                                                         |
+| [wms-304.md](reports/wms-304.md)                                                    | AC, evidence, review, команды и ограничения Gate3.                                                 |
+| [api-process.spec.ts](../apps/backend/test/unit/api-process.spec.ts)                | Реальный HTTP drain/startup signal без БД; измерение production lifecycle в родительском coverage. |
+
+## Закрытие замечаний R-04–R-06
+
+| Файл                                                                | Назначение                                                                                      |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| [review-fixes-r04-r06.md](reports/review-fixes-r04-r06.md)          | Критерии, реализация, red/green и итоговые команды закрытия замечаний.                          |
+| [wms-201-rules-archive.md](reports/wms-201-rules-archive.md)        | Исторический снимок первоначального проекта, не текущая бизнес-политика.                        |
+| [dependency-compat.test.cjs](../scripts/dependency-compat.test.cjs) | Реальные dev consumers: prototype poisoning, glob include/exclude, esbuild TS/CORS.             |
+| [patches/README.md](../patches/README.md)                           | Причина, применение, снятие vendor patch и остаточный registry advisory.                        |
+| [deepmerge@4.3.1.patch](../patches/deepmerge@4.3.1.patch)           | pnpm patch-commit artifact: фильтрация опасных ключей source и target в трёх entrypoints.       |
+| [kubernetes-state.cjs](../scripts/kubernetes-state.cjs)             | Kubernetes status: попытка migration Job и текущая Ready API revision без старых Pods.          |
+| [kubernetes-state.test.cjs](../scripts/kubernetes-state.test.cjs)   | AC-R04-04/05: быстрое завершение Job, старый ready Pod, generation и готовность новой revision. |

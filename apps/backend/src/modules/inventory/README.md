@@ -279,7 +279,10 @@ schemas/picking-transfers.schema.ts. Это private providers inventory, без 
 InventoryService.applyShippingEffects — публичный borrowed-context интерфейс списания
 shipping allocation или полного возврата при отмене. Private ShippingStockService проверяет
 сохранённые источники и storage target, ShippingStockRepository блокирует все затронутые
-balances до первой записи. Списание увеличивает consumed; возврат увеличивает released
+balances до первой записи. Для return сюда входят shipping sources, storage targets
+и все активные storage balances заказа для последующего release. Общий порядок
+product/location действует на весь сценарий отмены под order lock, а не только на
+пару перемещения. Regression AC-R05-01: shipping.spec.ts, реальный DB wait и оба ответа 200. Списание увеличивает consumed; возврат увеличивает released
 и не создаёт новый storage резерв. onHand/reserved/active меняются атомарно.
 
 ShippingEffect связывает allocation, shipment line либо компенсацию, quantity и audit.

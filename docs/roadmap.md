@@ -161,7 +161,7 @@ Review WMS-206 исправил позднее дополнение draft и о�
 
 WMS-207 реализована: [складские списки и история](flows/warehouse-reads.md),
 явные DTO, filters/keyset pagination, read/audit ACL, migration 0032 и PostgreSQL
-EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI и WMS-301–303 также выполнены; далее WMS-304.
+EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI и WMS-301–303 также выполнены; WMS-304 lifecycle/rollout также выполнен, далее WMS-401.
 
 Инженерные проверки дополнены typed lint, architecture guards/self-tests и coverage
 в локальном check:pr. WMS-208 завершён; это не настройка внешнего CI.
@@ -172,8 +172,9 @@ generated API-контракты, Query cache и журнал команд. Gate
 с настоящими API/worker/PostgreSQL. [Флоу](flows/web.md), [проверки и ограничения](reports/wms-208.md).
 WMS-301–303: локальный kind, API/worker/web Helm chart, migrations и NGF/TLS проверены.
 [Gateway flow и ограничения](flows/gateway-tls.md), [evidence](reports/wms-303.md).
-Следующая задача — WMS-304, lifecycle и rollout.
+WMS-304 lifecycle/rollout и Gate3 выполнены, см. [отчёт](reports/wms-304.md).
+Следующая задача — WMS-401.
 
 Dev workflow: добавлена `pnpm dev:all` для PostgreSQL/migrations и host API/worker/web,
 с одним compiler и общим shutdown. [Flow и evidence](flows/dev-environment.md).
-Следующая задача — WMS-304. Static frontend image проверен отдельно от host dev workflow.
+WMS-304 выполнена; следующая задача — WMS-401. Static frontend image проверен отдельно от host dev workflow.

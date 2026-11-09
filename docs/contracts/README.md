@@ -18,7 +18,7 @@ EventContracts с prepareForOutbox/parseForHandler, registry, runtime validator
 
 ## HTTP API
 
-Настроен бизнес-префикс `/api/v1`; существующие `/` и `/health` остаются
+Настроен бизнес-префикс `/api/v1`; технические `/`, `/health` и `/health/startup|ready|live` остаются
 каркасными маршрутами. Не документировать будущие endpoint как работающие.
 JSON использует camelCase, идентификаторы — UUID, время — UTC RFC 3339.
 Списки: cursor pagination с фиксированным стабильным порядком и максимальным limit.

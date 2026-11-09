@@ -2,7 +2,10 @@
 
 ## Findings
 
-### R-01 — P2: worker принимает lease, истёкший во время ожидания row lock
+### R-01 — P2: worker принимает lease, истёкший во время ожидания row lock — исправлено WMS-304
+
+Статус после ревью: исправлено в [WMS-304](wms-304.md). Описание ниже относится
+к исходному дефекту; постоянный regression проверяет expiry после реального lock wait.
 
 Файл: [worker.repository.ts](../../apps/backend/src/infrastructure/worker/repositories/worker.repository.ts:136),
 `WorkerRepository.lock`. Дефект **воспроизведён** на production repository и настоящем
@@ -36,7 +39,7 @@ FOR UPDATE. Оно успевает вычислиться до ожидания
 `IdentityRepository.lockSessionAndReadValidity`. Существующий test «two concurrent
 processors ... recheck state» проверяет изменённое completed состояние после ожидания,
 но не истечение времени при неизменённых строках. Нужного regression test пока нет.
-**Открыто:** поведение не менялось в рамках запроса на ревью.
+**Исправлено WMS-304:** поведение не менялось в первоначальном review; последующее исправление и regression описаны в [отчёте](wms-304.md).
 
 ### R-02 — P2: преждевременный Compose health — исправлено
 
@@ -79,7 +82,11 @@ auto retry, server session вместо dev actor, generated SPA types и про
 services, registry и identity validator сверены; новые бизнес-правила не вводились.
 Исторические reports не переписывались под новый результат.
 
-### R-04 — P3: advisories в development dependency tree
+### R-04 — P3: advisories в development dependency tree — исправлено с остаточным registry advisory
+
+Текущий статус: [R-04–R-06](review-fixes-r04-r06.md). Уязвимые пути esbuild/glob/minimatch
+обновлены, deepmerge исправлен проверяемым pnpm patch без suppression. Полный registry
+audit сохраняет 1 low по версии deepmerge4.3.1. Таблица ниже — результат исходного ревью.
 
 Файлы: [pnpm-lock.yaml](../../pnpm-lock.yaml:2697), root/apps/backend package manifests.
 `pnpm audit --prod --json` вернул exit0: 143 production dependencies, известных
@@ -97,7 +104,7 @@ scan, а не воспроизведённая эксплуатация прил
 Направление: проверить обновление родительских dev tools с поддерживаемыми ranges и
 повторить frozen install/build/tests/audit; отдельно оценить reachability. Не применять
 слепой override несовместимой major версии ради нулевого audit. Наличие advisory не
-приравнивается к доступному через API exploit. **Открыто:** dependencies/lockfile не менялись.
+приравнивается к доступному через API exploit. На момент исходного ревью dependencies/lockfile не менялись; последующее исправление описано выше.
 
 ## Область и способ проверки
 
@@ -226,8 +233,8 @@ CRD input проверяет закреплённый SHA256; это явный 
 Комментарии сверены с фактическими settings, hooks и code owners; не добавлены
 фиктивные worker/readiness probes, автоматический schema rollback, HA или exactly-once.
 Для generated lockfile действует документация у владельца. Функциональные findings
-R-02/R-03 исправлены по отдельному поручению, детали ниже. Открыты R-01 (worker lease)
-и R-04 (совместимое обновление dev dependency tree). WMS-304 и следующие roadmap stages этим review не выполнены.
+R-02/R-03 исправлены по отдельному поручению, детали ниже. R-01 позднее исправлен WMS-304; R-04 позднее исправлен [отдельно](review-fixes-r04-r06.md), с явным остаточным registry advisory.
+Само первоначальное review не выполняло roadmap stages; последующий Gate3 — [WMS-304](wms-304.md).
 
 ## Исправление R-02/R-03: требования до изменения
 
@@ -289,4 +296,4 @@ web: lines62.20%, statements57.77%, branches72.36%, functions52.81%. Baselines �
 понижены. Node/CJS Compose regression проверяется функционально и не выдаётся за
 объединённое Jest/Vitest coverage. WMS-304/HA/external deployment не проверялись этим
 исправлением; Helm rendered profiles сверены без повторного Kubernetes install,
-поскольку их resources/config не менялись. R-02/R-03 закрыты; R-01/R-04 остаются открытыми.
+поскольку их resources/config не менялись. R-02/R-03 закрыты; на том этапе R-01/R-04 оставались открытыми; R-01 позднее исправлен WMS-304, R-04 — [отдельно](review-fixes-r04-r06.md).

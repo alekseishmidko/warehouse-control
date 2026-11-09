@@ -5,6 +5,8 @@ WORKDIR /workspace
 RUN corepack enable && corepack prepare pnpm@10.18.3 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/backend/package.json apps/backend/package.json
+# Vendor patch входит в frozen install, но не копируется в runtime.
+COPY patches ./patches
 
 # Отдельная prod install исключает Jest, TypeScript и Nest CLI из зависимостей runtime.
 # Копировать полный build node_modules и затем удалять dev dependencies не требуется.

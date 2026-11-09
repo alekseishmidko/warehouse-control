@@ -1,4 +1,5 @@
 /** @file Drizzle transaction adapter: scoped capabilities, запрет nested run и отзыв context после callback. */
+import { sql } from 'drizzle-orm';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type {
   TransactionContext,
@@ -32,6 +33,10 @@ export class PostgresTransactionRunner implements TransactionRunner {
       throw new Error('Nested transaction run is forbidden; pass the existing context');
     return this.db.transaction(
       async (client) => {
+        // Общий верхний предел DB-операции API. Worker/identity задают собственные более точные budgets.
+        await client.execute(
+          sql`select set_config('transaction_timeout','10000',true), set_config('statement_timeout','10000',true)`,
+        );
         const context = Object.freeze({}) as TransactionContext;
         clients.set(context, client);
         try {

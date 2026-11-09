@@ -251,11 +251,15 @@ Lease — право начать обработку, locks — защита а�
 
 ## 7. SIGTERM: остановка poll, drain и закрытие ресурсов
 
+WMS-304 добавляет native probe listener и сохраняет hard deadline при rejected
+cleanup. Общие бюджеты API/worker, probes и rollout имеют одного владельца:
+[lifecycle flow](lifecycle.md). Worker закрывает probe listener перед Nest/pool.
+
 ```mermaid
 flowchart TD
   Signal["SIGTERM / SIGINT"] --> Stop["stop flag + abort poll timer + общий shutdown deadline"]
   Stop --> Phase{"Что выполняется?"}
-  Phase -->|"Poll pause"| Close["Закрыть Nest context и pg pool"]
+  Phase -->|"Poll pause"| Close["Закрыть probes, Nest context и pg pool"]
   Phase -->|"Claim A"| Claim["Дождаться claim; не начинать новые handlers"]
   Claim --> Leave["Не начатые claims остаются до expiry"]
   Leave --> Close

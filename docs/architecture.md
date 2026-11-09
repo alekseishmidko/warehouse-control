@@ -58,7 +58,7 @@ context, если изменения обязаны фиксироваться �
 
 Ниже целевая схема с будущим Kafka transport. В host dev web использует Vite proxy;
 на local kind работают Helm API/worker/web, PostgreSQL outbox и NGF/TLS.
-Kafka и отдельные Kafka consumers ещё не развёрнуты. Lifecycle/active rollout — WMS-304.
+Kafka и отдельные Kafka consumers ещё не развёрнуты. Lifecycle/active rollout WMS-304 проверены: [flow](flows/lifecycle.md), [ADR-0029](adr/0029-process-lifecycle.md).
 [Реализованный web flow](flows/web.md).
 
 ```mermaid

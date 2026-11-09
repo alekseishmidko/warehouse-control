@@ -5,6 +5,7 @@ const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const { randomBytes } = require('node:crypto');
 const assert = require('node:assert/strict');
+const { hasMigrationAttempt } = require('./kubernetes-state.cjs');
 const temp = mkdtempSync(join(tmpdir(), 'wms302-'));
 const cluster = 'wms302-' + randomBytes(4).toString('hex');
 const env = { ...process.env, HELM_DRIVER: 'secret', KUBECONFIG: join(temp, 'kubeconfig') };
@@ -34,7 +35,9 @@ function run(command, args, input, timeout = 180000) {
       .replaceAll(runtimePassword, '[redacted]')
       .replace(/postgres(?:ql)?:\/\/[^\s]+/gi, '[database-url]');
     if (diagnostic) console.error(diagnostic.slice(-2500));
-    throw new Error(`${command.split('/').at(-1)} ${args.slice(0, 5).join(' ')} failed`);
+    throw new Error(
+      `${command.split('/').at(-1)} ${args.slice(0, 5).join(' ')} failed${error.code === 'ETIMEDOUT' ? ' (command deadline exceeded)' : ''}`,
+    );
   }
 }
 const k = (args, input) => run(kubectl, ['--context', context, '-n', namespace, ...args], input);
@@ -142,16 +145,23 @@ async function main() {
     run('docker', ['pull', postgresImage], undefined, 240000);
     run('docker', ['tag', postgresImage, 'postgres:17.9-bookworm']);
     attempted = true;
-    run(kind, [
-      'create',
-      'cluster',
-      '--name',
-      cluster,
-      '--image',
-      'kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5',
-      '--wait',
-      '180s',
-    ]);
+    // Внешний deadline включает подготовку node/CNI/storage плюс внутренние 180s Node Ready.
+    // Одинаковый внешний бюджет 180s мог прервать kind до завершения его wait и записи kubeconfig.
+    run(
+      kind,
+      [
+        'create',
+        'cluster',
+        '--name',
+        cluster,
+        '--image',
+        'kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5',
+        '--wait',
+        '180s',
+      ],
+      undefined,
+      300000,
+    );
     run(kind, ['load', 'docker-image', 'warehouse-backend:wms302', '--name', cluster]);
     // Docker Desktop containerd store может не иметь остальных платформ multi-arch index.
     const arch = process.arch === 'arm64' ? 'arm64' : 'amd64';
@@ -235,7 +245,7 @@ async function main() {
     installation = installWhileDatabaseStopped(values);
     await until(
       () => JSON.parse(k(['get', 'pods', '-l', 'job-name=warehouse-migrate-1', '-o', 'json'])),
-      (v) => v.items.some((p) => p.status.containerStatuses?.some((c) => c.state.running)),
+      hasMigrationAttempt,
     );
     assert.equal(JSON.parse(k(['get', 'deployments', '-o', 'json'])).items.length, 0);
     k(['scale', 'statefulset/postgres', '--replicas=1']);
@@ -332,6 +342,7 @@ async function main() {
         run,
         k,
         h,
+        sql,
         apply,
         until,
         temp,

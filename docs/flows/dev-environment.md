@@ -35,7 +35,7 @@ flowchart TD
   M --> F[Vite: Solid HMR, same-origin proxy]
   A --> S[Ctrl+C / SIGTERM / неожиданный exit]
   F --> S
-  S --> C[Закрыть watcher; SIGTERM process groups; bounded wait]
+  S --> C[Закрыть watcher; SIGTERM owned processes; bounded wait]
   C --> Q[При зависании SIGKILL и exit 1]
   C --> O[Процессы завершены; PostgreSQL/volume остаются]
 ```
@@ -90,9 +90,14 @@ TypeScript watcher использует существующий TypeScript 5.9.
 Полная initial сборка выполняется до migrate; watcher не удаляет dist на каждой правке.
 Vite отвечает за frontend HMR. После изменения `.env` следует перезапустить dev:all.
 
-Ctrl+C/SIGTERM закрывает compiler watcher и сразу сигнализирует owned process groups,
+Ctrl+C/SIGTERM закрывает compiler watcher и сразу сигнализирует owned processes.
+Для web сигнал получает сам Vite: он закрывает esbuild по своему протоколу.
+SIGTERM всей web группе во время первой dependency scan преждевременно убивал helper
+и давал EPIPE/exit1; regression с реальными parent/helper закрепляет порядок.
+Остальные команды получают сигнал своей process group,
 в том числе во время build/Compose. API/worker получают SIGTERM напрямую; worker
-использует свой drain. Общий срок — WORKER_SHUTDOWN_TIMEOUT_MS + 5000 ms. Зависшая
+использует свой drain. Общий срок — max(WORKER_SHUTDOWN_TIMEOUT_MS, API_SHUTDOWN_TIMEOUT_MS) + 5000 ms;
+API_SHUTDOWN_TIMEOUT_MS задан в lifecycle/api-process. Зависшая
 группа получает SIGKILL, результат — exit 1. Неожиданный выход одного сервиса завершает
 остальные с exit 1. Без shell wrappers и поиска процессов по имени. Child stdin закрыт:
 Vite не перехватывает Ctrl+C у supervisor. PostgreSQL работает detached через Compose
@@ -127,3 +132,7 @@ onHand=1946 и reserved=466. Временный hot reload probe удалён и
 [Node child processes](https://nodejs.org/docs/latest-v24.x/api/child_process.html).
 Источник команд — [package.json](../../package.json), реализация —
 [dev-all.cjs](../../scripts/dev-all.cjs), тесты — [dev-all.test.cjs](../../scripts/dev-all.test.cjs).
+
+WMS-304: supervisor ждёт max(API shutdown20s, worker shutdown15s)+5s =25s
+по default policy. Watch должен быть остановлен до check:pr. Подробный
+[порядок завершения и probes](lifecycle.md) задаёт один владелец.

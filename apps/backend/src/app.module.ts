@@ -1,6 +1,8 @@
 /** @file Корневой composition root: связывает технический HTTP, PostgreSQL и внутренние складские модули. */
 import { DirectoryReadController } from './infrastructure/http/directory-read.controller';
 import { FulfillmentModule } from './modules/fulfillment/fulfillment.module';
+import { ProcessHealth } from './infrastructure/lifecycle/process-health';
+import { DatabaseService } from './infrastructure/database/database.module';
 import { Module } from '@nestjs/common';
 import { WarehouseReadController } from './infrastructure/http/warehouse-read.controller';
 import { IdentityModule } from './modules/identity/identity.module';
@@ -34,6 +36,13 @@ import { ReceivingModule } from './modules/receiving/receiving.module';
     ReceivingModule,
   ],
   controllers: [DirectoryReadController, WarehouseReadController, AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: ProcessHealth,
+      useFactory: (database: DatabaseService) => new ProcessHealth(() => database.assertReady()),
+      inject: [DatabaseService],
+    },
+  ],
 })
 export class AppModule {}

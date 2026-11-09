@@ -28,3 +28,7 @@
 !apps/web/src/**
 !apps/web/server/
 !apps/web/server/static-server.cjs
+
+# Проверяемый security patch — часть lockfile inputs, без произвольных файлов из patches.
+!patches/
+!patches/deepmerge@4.3.1.patch

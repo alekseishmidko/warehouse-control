@@ -431,11 +431,11 @@ WMS-303 выполнена: NGF/TLS, static web и реальный складс
 
 ### WMS-304. Завершение процессов и обновления
 
-- [ ] **WMS-304.1** — Добавить отдельные startup/readiness/liveness endpoints без зависимости liveness от внешних сервисов.
-- [ ] **WMS-304.2** — Определить termination grace period и timeout текущей операции; на shutdown остановить новые claims/запросы.
-- [ ] **WMS-304.3** — Настроить rollout API и worker, исключить потерю незавершённых задач.
-- [ ] **WMS-304.4** — Удалить pod до/после commit на активной операции; проверить восстановление lease и отсутствие двойных эффектов.
-- [ ] **WMS-304.5** — Проверить rolling update со старой схемой события и совместимой миграцией; записать результат gate 3.
+- [x] **WMS-304.1** — Добавить отдельные startup/readiness/liveness endpoints без зависимости liveness от внешних сервисов.
+- [x] **WMS-304.2** — Определить termination grace period и timeout текущей операции; на shutdown остановить новые claims/запросы.
+- [x] **WMS-304.3** — Настроить rollout API и worker, исключить потерю незавершённых задач.
+- [x] **WMS-304.4** — Удалить pod до/после commit на активной операции; проверить восстановление lease и отсутствие двойных эффектов.
+- [x] **WMS-304.5** — Проверить rolling update со старой схемой события и совместимой миграцией; записать результат gate 3.
 
 Gate 3: чистая установка и повтор демонстрации этапа 2; удаление pod API/worker
 не теряет подтверждённые операции. Dev PostgreSQL с одной репликой не называется HA.
@@ -641,7 +641,8 @@ rollback приложения не выдаётся за rollback данных �
 WMS-101–WMS-112 и **WMS-201** завершены. B1–B4 приняты владельцем продукта 2026-10-29.
 WMS-202 реализована: users/sessions/auth/ACL/CSRF/bootstrap и проверка отсутствия утечек.
 WMS-203 выполнена: размещение, парные movements и атомарное завершение.
-WMS-204–WMS-208 выполнены. Следующая задача — **WMS-304**, lifecycle и rollout. Перед запуском текущего API/operator
+WMS-204–WMS-208 выполнены. WMS-304 выполнена: probes, bounded drain и Gate3 с Pod kills/совместимым rollout.
+Следующая задача — **WMS-401**, наблюдаемость. [Evidence](reports/wms-304.md). Перед запуском текущего API/operator
 bootstrap явно заполнить AUTH_ORIGIN и оба срока сессии, числовых defaults нет.
 Frontend, static web image и NGINX Gateway/TLS проверены в WMS-303; Kafka ещё не реализована. Складские applied migrations
 не переписывать; dev actor не возвращать как fallback. Публикация/внешний deploy требуют
@@ -679,7 +680,8 @@ PostgreSQL и producer/handler regression cases; бизнес-права и эт
 R-02 (Compose TCP health) и R-03 (устаревшая центральная документация) исправлены
 по отдельному поручению; regression подтверждает отказ до изменения и успех после.
 Полный check:pr, Docker gates и исходный npm run app:up прошли.
-R-01 worker lease и R-04 dev dependencies остаются открытыми.
+R-01 worker lease исправлен WMS-304 с постоянным regression test; R-04 исправлен обновлением dev dependency paths и проверяемым vendor patch;
+registry сохраняет 1 low по версии patched deepmerge. [Итоги R-04–R-06](reports/review-fixes-r04-r06.md).
 [Критерии и проверки исправления](reports/project-review-2026-11-07.md#исправление-r-02r-03-требования-до-изменения).
 
 ## Ревью кода, бизнес-флоу и архитектуры 2026-11-08
@@ -687,9 +689,11 @@ R-01 worker lease и R-04 dev dependencies остаются открытыми.
 [Новый отчёт](reports/project-review-2026-11-08.md): R-05 — воспроизведён deadlock
 возврата после частичной сборки против reserve другого заказа; R-01 — повторно
 подтверждено принятие expired claim после lock wait; R-06 — оставшиеся противоречия
-статусов в владельце бизнес-правил. Замечания открыты, код в рамках review не менялся.
-Полный `pnpm check:pr` прошёл: 578 backend tests и 37 web tests. Эти проверки
-не покрывают новые выявленные расписания конкуренции; нужны постоянные regression tests.
+статусов в владельце бизнес-правил. В рамках review код не менялся. R-01 позднее исправлен WMS-304; R-05/R-06 исправлены: общий набор stock locks с PostgreSQL regression; текущие бизнес-правила отделены от истории.
+[Реализация и проверки](reports/review-fixes-r04-r06.md).
+При исходном review `pnpm check:pr` прошёл: 578 backend tests и 37 web tests.
+Выявленные расписания позже закреплены постоянными regression tests R-01/R-05.
+Текущие результаты — [отчёт исправлений](reports/review-fixes-r04-r06.md).
 
 ## Обязательная проверка каждого PR
 

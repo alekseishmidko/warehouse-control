@@ -2,7 +2,7 @@
 
 Владелец описания application chart. Бизнес-сценарии и SQL-invariants остаются у
 модулей приложения. [Подготовка kind](kind-helm.md), [AC и evidence](../reports/wms-302.md).
-Gateway/TLS и полноценные readiness/lifecycle проверки — WMS-303/304.
+Gateway/TLS реализован [WMS-303](gateway-tls.md); probes/lifecycle/active rollout — [WMS-304](lifecycle.md).
 
 ## Участники, доверие и ресурсы
 
@@ -10,7 +10,7 @@ Gateway/TLS и полноценные readiness/lifecycle проверки — W
 digest**, а не изменяемый tag. API, worker и migrator получают одну ссылку image,
 но запускают `node dist/main.js`, `node dist/worker.js` и
 `node dist/infrastructure/database/migrate.js`. API Service — ClusterIP port 3000;
-worker не имеет HTTP Service или фиктивного readiness probe.
+worker имеет только probe listener9100 без HTTP Service/Gateway.
 
 `values.schema.json` проверяет digest, Secret names, HTTPS origin и явные сроки.
 Числовых defaults сессии нет. Сервер повторно проверяет диапазон 30..86400 и
@@ -29,9 +29,10 @@ Kubernetes service account не заменяет DB role: runtime и migration �
 Контейнеры работают с UID/GID 1000, runAsNonRoot, readOnlyRootFilesystem,
 allowPrivilegeEscalation=false, drop ALL и seccomp RuntimeDefault. /tmp — отдельный
 memory emptyDir 16Mi; запросы/лимиты CPU и RAM заданы в values. Grace 30s больше
-worker drain 15s. Существующий /health — liveness процесса; startupProbe ждёт начало
-HTTP. Отдельной проверки readiness БД ещё нет; Running worker не доказывает отсутствие
-зависания, это не обещание WMS-304.
+worker drain15s и API preStop5s+drain20s. /health сохраняет liveness-контракт.
+Startup/ready/live разделены для API/worker; readiness проверяет PostgreSQL и drain,
+liveness не зависит от внешних сервисов. Running само по себе не заменяет probe
+или проверку исхода складской операции. [WMS-304](lifecycle.md).
 
 ## Подготовка platform dependencies
 
@@ -208,3 +209,21 @@ journal/PVC после DB restart и uninstall. finally удаляет толь�
 SQL race tests в serialized-migrations.spec.ts используют два наблюдаемых lock waits,
 новый синтетический SQL, повтор journal и rollback DDL при ошибке. Это не mocks.
 Код chart не даёт доказательства API/worker active rollout, external TLS или gate 3.
+
+## Init:Error NGINX и свободное место Docker
+
+Если gateway Pod не проходит init, сначала прочитать `kubectl logs <pod> -c init`
+в namespace стенда. `no space left on device` означает отказ записи: увеличение
+rollout timeout не устраняет его. `docker system df` показывает cache/images/volumes;
+`df -h` на macOS не показывает свободное место внутреннего диска Docker VM.
+На собственном kind node проверить `docker exec <cluster>-control-plane df -h /var/lib/containerd`.
+Не читать Secret data для этой диагностики.
+
+Перед очисткой изучить `docker buildx du --verbose`. Удалять только воспроизводимый
+cache подтверждённых Warehouse builds с адресным фильтром `id` или `description`.
+[Официальная семантика фильтров](https://docs.docker.com/reference/cli/docker/buildx/prune/):
+несколько filters объединяются AND, `~=` задаёт regex. `--all` расширяет типы cache,
+но не отменяет фильтр. Общий `docker system prune`, удаление volumes или чужих
+контейнеров не являются частью runbook. После освобождения места повторить полный gate.
+Случай ENOSPC и фактически выполненная адресная очистка описаны в
+[отчёте R-04–R-06](../reports/review-fixes-r04-r06.md).

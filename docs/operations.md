@@ -33,9 +33,10 @@ DB client. Job failure не обновляет application Deployments. Нова
 Rollback image не откатывает данные/события. Destructive migration требует отдельного
 плана восстановления и forward fix. [Migration/recovery flow](flows/kubernetes-app.md).
 
-API /health подтверждает liveness процесса, не непрерывную готовность БД. Chart имеет
-startup/liveness API probes; полноценное разделение readiness/liveness/startup и active
-rollout остаётся WMS-304. Worker не открывает фиктивный HTTP endpoint. Gateway Programmed
+API /health сохраняет liveness-контракт. WMS-304 добавляет отдельные
+/health/startup, /health/ready и /health/live для API3000/worker9100. Readiness
+зависит от PostgreSQL и drain; liveness не зависит от внешних сервисов. Worker
+probe listener не имеет warehouse routes или Service. [Lifecycle/rollout](flows/lifecycle.md). Gateway Programmed
 не доказывает готовность NGINX Pod: ждать data-plane rollout и реальную HTTP/TLS проверку.
 
 ## Images, конфигурация и полномочия

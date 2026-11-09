@@ -43,38 +43,42 @@ async function start(): Promise<void> {
       await barrier;
     },
   };
-  await runWorkerProcess(async () => {
-    const builder = Test.createTestingModule({ imports: [WorkerModule] })
-      .overrideProvider(DATABASE_CONFIG)
-      .useValue(validateEnvironment(process.env))
-      .overrideProvider(WORKER_CONFIG)
-      .useValue(config);
-    const production = process.env.TEST_PUTAWAY_HANDLER === 'true';
-    if (!production) builder.overrideProvider(WORKER_HANDLERS).useValue([handler]);
-    const app = await builder.compile();
-    await app.init();
-    if (production) {
-      const inventory = app.get(InventoryService);
-      const create = inventory.createPutawayTasks.bind(inventory);
-      // Тот же IPC hook, но после настоящих task/audit INSERT production inventory,
-      // до marker/commit worker. Handler/SQL остаются реальными, добавляется только barrier.
-      inventory.createPutawayTasks = async (...args: Parameters<typeof create>) => {
-        const result = await create(...args);
-        process.send?.('handling');
-        await barrier;
+  await runWorkerProcess(
+    async () => {
+      const builder = Test.createTestingModule({ imports: [WorkerModule] })
+        .overrideProvider(DATABASE_CONFIG)
+        .useValue(validateEnvironment(process.env))
+        .overrideProvider(WORKER_CONFIG)
+        .useValue(config);
+      const production = process.env.TEST_PUTAWAY_HANDLER === 'true';
+      if (!production) builder.overrideProvider(WORKER_HANDLERS).useValue([handler]);
+      const app = await builder.compile();
+      await app.init();
+      if (production) {
+        const inventory = app.get(InventoryService);
+        const create = inventory.createPutawayTasks.bind(inventory);
+        // Тот же IPC hook, но после настоящих task/audit INSERT production inventory,
+        // до marker/commit worker. Handler/SQL остаются реальными, добавляется только barrier.
+        inventory.createPutawayTasks = async (...args: Parameters<typeof create>) => {
+          const result = await create(...args);
+          process.send?.('handling');
+          await barrier;
+          return result;
+        };
+      }
+      const worker = app.get(WorkerService);
+      const original = worker.process.bind(worker);
+      // IPC отмечает именно завершённый production COMMIT, не выход из handler callback.
+      worker.process = async (claim: DeliveryClaim) => {
+        const result = await original(claim);
+        if (result === 'completed') process.send?.('committed');
         return result;
       };
-    }
-    const worker = app.get(WorkerService);
-    const original = worker.process.bind(worker);
-    // IPC отмечает именно завершённый production COMMIT, не выход из handler callback.
-    worker.process = async (claim: DeliveryClaim) => {
-      const result = await original(claim);
-      if (result === 'completed') process.send?.('committed');
-      return result;
-    };
-    return app;
-  }, config);
+      return app;
+    },
+    config,
+    0,
+  );
   // IPC channel сам удерживает child event loop; после production close закрываем test-only channel.
   process.disconnect?.();
 }

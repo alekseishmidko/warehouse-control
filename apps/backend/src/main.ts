@@ -3,6 +3,7 @@
  * Валидирует окружение до запуска; ошибка старта не раскрывает credentials, exit code 1.
  */
 import 'reflect-metadata';
+import { runApiProcess } from './infrastructure/lifecycle/api-process';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { loadEnvironment } from './infrastructure/config/environment';
@@ -11,17 +12,15 @@ import { configureHttp } from './infrastructure/http/configure-http';
 /** Запускает HTTP listener; ошибки создания и bind передаются вызывающему коду. */
 async function bootstrap(): Promise<void> {
   const config = loadEnvironment();
-  const app = await NestFactory.create(AppModule, { abortOnError: false });
-  // Единая настройка с harness/generator: prefix и correlation не должны различаться по способу запуска.
-  configureHttp(app);
-  app.enableShutdownHooks();
-  try {
-    // Bind использует validated IP; auth/ACL действуют независимо от адреса listener.
-    await app.listen(config.port, config.httpHost);
-  } catch {
-    await app.close();
-    throw new Error('Application startup failed');
-  }
+  await runApiProcess(
+    async () => {
+      const app = await NestFactory.create(AppModule, { abortOnError: false });
+      configureHttp(app);
+      return app;
+    },
+    config.port,
+    config.httpHost,
+  );
 }
 
 void bootstrap().catch(() => {

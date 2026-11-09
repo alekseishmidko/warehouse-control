@@ -417,6 +417,9 @@ test('production OpenAPI includes only actual routes, technical exclusions and P
         '/api/v1/warehouses/{warehouseId}/products',
         '/api/v1/warehouses/{warehouseId}/locations',
         '/health',
+        '/health/startup',
+        '/health/ready',
+        '/health/live',
       ].sort(),
     );
     expect(document.components?.schemas?.Problem).toBeDefined();

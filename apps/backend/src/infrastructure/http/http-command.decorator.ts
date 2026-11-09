@@ -11,7 +11,7 @@ import { commandScopeOf } from './request-context';
 export const TECHNICAL_ROUTE = 'warehouse:technical-route';
 /** Metadata key постоянной operation: входит в уникальный idempotency scope. */
 export const COMMAND_OPERATION = 'warehouse:command-operation';
-/** Только / и /health отмечаются техническими; будущие бизнес-routes закрыты guard по умолчанию. */
+/** Только /, /health и его startup/ready/live probes отмечаются техническими; будущие бизнес-routes закрыты guard по умолчанию. */
 export const TechnicalRoute = () => SetMetadata(TECHNICAL_ROUTE, true);
 /**
  * Помечает метод командой и одновременно описывает required key/errors в OpenAPI.

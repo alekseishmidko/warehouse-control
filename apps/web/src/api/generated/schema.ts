@@ -208,6 +208,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/health/startup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AppController_startup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AppController_live"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AppController_ready"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -2225,6 +2273,258 @@ export interface operations {
                 content: {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
+            };
+        };
+    };
+    AppController_startup: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id. */
+                "X-Correlation-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Инициализация процесса завершена. */
+            200: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Безопасный problem response; stack/driver input не раскрываются. */
+            400: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Безопасный problem response; stack/driver input не раскрываются. */
+            401: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Безопасный problem response; stack/driver input не раскрываются. */
+            403: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Безопасный problem response; stack/driver input не раскрываются. */
+            404: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Безопасный problem response; stack/driver input не раскрываются. */
+            500: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Инициализация ещё не завершена. */
+            503: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AppController_live: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id. */
+                "X-Correlation-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Event loop отвечает; внешние сервисы не проверяются. */
+            200: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Безопасный problem response; stack/driver input не раскрываются. */
+            400: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Безопасный problem response; stack/driver input не раскрываются. */
+            401: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Безопасный problem response; stack/driver input не раскрываются. */
+            403: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Безопасный problem response; stack/driver input не раскрываются. */
+            404: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Безопасный problem response; stack/driver input не раскрываются. */
+            500: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    AppController_ready: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Не задан → UUID сервера; некорректный → 400. Ответ содержит X-Correlation-Id. */
+                "X-Correlation-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Процесс принимает работу, PostgreSQL доступен. */
+            200: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Безопасный problem response; stack/driver input не раскрываются. */
+            400: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Безопасный problem response; stack/driver input не раскрываются. */
+            401: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Безопасный problem response; stack/driver input не раскрываются. */
+            403: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Безопасный problem response; stack/driver input не раскрываются. */
+            404: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Безопасный problem response; stack/driver input не раскрываются. */
+            500: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Drain или PostgreSQL недоступен. */
+            503: {
+                headers: {
+                    /** @description Идентификатор текущего HTTP запроса, включая replay. */
+                    "X-Correlation-Id"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

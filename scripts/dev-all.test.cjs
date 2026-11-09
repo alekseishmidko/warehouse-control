@@ -227,3 +227,40 @@ test(
     }
   },
 );
+
+/** Vite владеет esbuild: parent закрывает helper по своему протоколу, общий SIGTERM рвёт этот протокол. */
+test(
+  'graceful web shutdown lets the parent close its helper before group kill',
+  { timeout: 5000 },
+  async () => {
+    const manager = new DevProcesses({ env: process.env, shutdownMs: 1000 });
+    const entry = manager.start(
+      'web',
+      process.execPath,
+      [
+        '-e',
+        `
+    const { spawn } = require('node:child_process');
+    const helper = spawn(process.execPath, ['-e',
+      "process.on('SIGTERM',()=>process.exit(42));process.on('message',()=>process.exit(0));process.send('ready');setInterval(()=>{},1000)"
+    ], { stdio: ['ignore','ignore','ignore','ipc'] });
+    helper.once('message',()=>process.send('ready'));
+    helper.once('exit',code=>process.exit(code===0 ? 0 : 1));
+    process.on('SIGTERM',()=>helper.send('close'));
+  `,
+      ],
+      {
+        persistent: true,
+        gracefulSignalTarget: 'process',
+        stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+      },
+    );
+    try {
+      await once(entry.child, 'message');
+      await manager.stop();
+      assert.equal((await entry.done).code, 0);
+    } finally {
+      await manager.stop();
+    }
+  },
+);

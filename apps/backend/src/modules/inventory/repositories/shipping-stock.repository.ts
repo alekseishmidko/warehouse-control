@@ -58,7 +58,23 @@ export class ShippingStockRepository {
           product: e.source.product_id,
           location,
         });
-    // Все balances вектора блокируются в общем порядке, а не отдельными парами в порядке DTO.
+    if (kind === 'return') {
+      // Return и следующий release storage — один сценарий под order lock. Если взять
+      // только shipping/target, поздний release A после target B инвертирует reserve A→B.
+      // Собираем ВСЕ активные storage balances заказа, включая строки без staged товара.
+      // order_lines читается только для retained связи allocation→order; чужих записей здесь нет.
+      const storage = await tx.execute<{
+        warehouse: string;
+        product: string;
+        location: string;
+      }>(sql`select distinct b.warehouse_id as warehouse,b.product_id as product,b.location_id as location
+        from stock_allocations a join stock_balances b on b.id=a.balance_id
+        join locations l on l.id=b.location_id join order_lines ol on ol.id=a.line_id
+        where ol.order_id=${entries[0].source.order_id} and a.active>0 and l.kind='storage'`);
+      for (const key of storage.rows) keys.set(`${key.product}/${key.location}`, key);
+    }
+    // Единый порядок SKU/location включает поздний release отмены. Повторное получение
+    // уже принадлежащего context lock при release не вводит новые ожидания после stock mutations.
     for (const [, key] of [...keys].sort(([a], [b]) => a.localeCompare(b))) {
       await tx.execute(
         sql`insert into stock_balances(warehouse_id,product_id,location_id) values(${key.warehouse},${key.product},${key.location}) on conflict(warehouse_id,location_id,product_id) do nothing`,

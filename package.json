@@ -44,7 +44,7 @@
     "format:check": "prettier --check .",
     "test:identity:coverage": "pnpm --filter @warehouse/backend test:identity:coverage",
     "test:functional": "pnpm --filter @warehouse/backend test:functional",
-    "check:pr": "pnpm format:check && pnpm lint && pnpm check:architecture && pnpm test:quality && pnpm test:dev && pnpm web:api:check && pnpm typecheck && pnpm --filter @warehouse/web build && pnpm test:web && pnpm test:web:server && pnpm test:postgres:readiness && pnpm --filter @warehouse/backend test:pr",
+    "check:pr": "pnpm format:check && pnpm lint && pnpm check:architecture && pnpm test:quality && pnpm test:dependencies && pnpm test:kubernetes:observations && pnpm test:dev && pnpm web:api:check && pnpm typecheck && pnpm --filter @warehouse/web build && pnpm test:web && pnpm test:web:server && pnpm test:postgres:readiness && pnpm --filter @warehouse/backend test:pr",
     "lint": "eslint apps/backend/src apps/backend/test apps/web/src apps/web/test apps/web/vite.config.ts --max-warnings 0",
     "check:architecture": "node scripts/quality/architecture.cjs",
     "test:quality": "node --test scripts/quality/*.test.cjs",
@@ -58,8 +58,11 @@
     "dev:backend": "pnpm --filter @warehouse/backend dev",
     "kubernetes:gate": "node scripts/kubernetes-gate.cjs",
     "test:web:server": "node --test apps/web/server/static-server.test.cjs",
+    "lifecycle:gate": "WMS_LIFECYCLE=1 WMS_GATEWAY=1 node scripts/kubernetes-gate.cjs",
     "gateway:gate": "WMS_GATEWAY=1 node scripts/kubernetes-gate.cjs",
-    "test:postgres:readiness": "node --test scripts/postgres-readiness.test.cjs"
+    "test:postgres:readiness": "node --test scripts/postgres-readiness.test.cjs",
+    "test:dependencies": "node --test scripts/dependency-compat.test.cjs",
+    "test:kubernetes:observations": "node --test scripts/kubernetes-state.test.cjs"
   },
   "private": true,
   "devDependencies": {
@@ -67,6 +70,7 @@
     "eslint": "10.14.0",
     "eslint-plugin-solid": "0.18.1",
     "prettier": "3.9.10",
+    "typescript": "5.9.3",
     "typescript-eslint": "8.72.1"
   },
   "pnpm": {
@@ -74,7 +78,13 @@
       "body-parser@2.3.0": "2.4.0",
       "multer@2.4.0": "2.5.0",
       "js-yaml@5.3.0": "5.4.1",
-      "fast-uri@3.1.8": "3.1.9"
+      "fast-uri@3.1.8": "3.1.9",
+      "@esbuild-kit/core-utils@3.3.2>esbuild": "0.25.12",
+      "glob@>=9.0.0 <=14.0.1": "14.0.2",
+      "minimatch@>=7.0.0 <11.0.1": "11.0.5"
+    },
+    "patchedDependencies": {
+      "deepmerge@4.3.1": "patches/deepmerge@4.3.1.patch"
     }
   }
 }
