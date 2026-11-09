@@ -1210,5 +1210,17 @@
     "statements": 0,
     "functions": 0,
     "branches": 100
+  },
+  "src/infrastructure/lifecycle/api-process.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 66.66,
+    "branches": 91.66
+  },
+  "src/infrastructure/lifecycle/process-health.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 96.42
   }
 }

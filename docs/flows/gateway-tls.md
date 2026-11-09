@@ -189,3 +189,17 @@ Gateway/Route объекты кластера; не применять таку�
 нужных данных; порядок безопасного удаления PostgreSQL — у WMS-301/302.
 Single-node kind не доказывает HA, внешний load balancer, production DNS или rollout
 без потери активных операций. Последнее проверяет WMS-304.
+
+## Ожидание новой API revision в локальном gate
+
+Port-forward выбирает новый внешний порт; gate записывает соответствующий AUTH_ORIGIN
+и обновляет приложение. До login нужно дождаться текущей observed generation,
+updated/available/total replicas и ровно desired Ready Pods без старых/terminating
+upstream. Helm wait и anonymous GET401 сами по себе недостаточны: старый Pod тоже
+готов и возвращает401, но отклонит новый Origin с403.
+
+`hasReadyApiRevision` в `scripts/kubernetes-state.cjs` проверяет Deployment и PodList.
+Gateway gate затем повторяет только безопасный GET до401 и выполняет один login POST.
+Auth/CSRF policy не ослабляется; POST не повторяется автоматически. AC-R04-05 проверяет
+старый ready/new starting Pod, завершённую revision, terminating/пустой список и stale
+observed generation. [Исправление и команды](../reports/review-fixes-r04-r06.md).

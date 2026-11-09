@@ -513,3 +513,57 @@ test('explicitly empty registry leaves delivery pending and starts no implicit n
     (await database().connection.pool.query('select status,attempts from outbox_deliveries')).rows,
   ).toEqual([{ status: 'pending', attempts: 0 }]);
 });
+
+test('AC-304-04: claim expired during unchanged row lock wait cannot start a handler', async () => {
+  await events();
+  const w = await worker();
+  const [claim] = await w.service.claim();
+  const pool = database().connection.pool;
+  // Deadline задаётся до blocker: последующий commit не меняет tuple, только освобождает lock.
+  await pool.query(
+    "update delivery_streams set lease_until=clock_timestamp()+interval '1 second' where lease_token=$1",
+    [claim.token],
+  );
+  await pool.query(
+    'update outbox_deliveries set lease_until=(select lease_until from delivery_streams where lease_token=$1) where lease_token=$1',
+    [claim.token],
+  );
+  const blocker = await pool.connect();
+  let pending: Promise<unknown> | undefined;
+  try {
+    await blocker.query('begin');
+    await blocker.query('select 1 from delivery_streams where lease_token=$1 for update', [
+      claim.token,
+    ]);
+    await blocker.query('select 1 from outbox_deliveries where lease_token=$1 for update', [
+      claim.token,
+    ]);
+    pending = w.runner
+      .run((c) => w.repository.lock(c, claim))
+      .then(
+        (value) => ({ value }),
+        (error: unknown) => ({ error }),
+      );
+    await waitForDatabaseLock(database(), 'delivery_streams');
+    const deadline = Date.now() + 5000;
+    let expired = false;
+    while (Date.now() < deadline) {
+      expired = (
+        await pool.query(
+          'select lease_until<clock_timestamp() expired from delivery_streams where lease_token=$1',
+          [claim.token],
+        )
+      ).rows[0].expired;
+      if (expired) break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(expired).toBe(true);
+    await blocker.query('commit');
+    expect(await pending).toEqual({ value: null });
+    expect((await pool.query('select count(*) from processed_events')).rows[0].count).toBe('0');
+  } finally {
+    await blocker.query('rollback');
+    blocker.release();
+    await pending;
+  }
+});

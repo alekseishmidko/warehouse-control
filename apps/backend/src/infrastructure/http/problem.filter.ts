@@ -94,6 +94,11 @@ export class ProblemFilter implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost): void {
     const request = host.switchToHttp().getRequest<Request>();
     const response = host.switchToHttp().getResponse<Response>();
+    this.respond(error, request, response);
+  }
+
+  /** Общий renderer для Nest filter и admission middleware: один безопасный Problem contract. */
+  respond(error: unknown, request: Request, response: Response): void {
     // Response после client timeout может быть уже закрыт, хотя DB transaction закончилась.
     if (response.headersSent || response.destroyed) return;
     const code = errorCode(error);

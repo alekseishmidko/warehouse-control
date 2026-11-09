@@ -112,7 +112,7 @@ flowchart TD
   C --> D[Оператор подтверждает полный вектор и причину]
   D --> E[Policy return → idempotency → order lock]
   E --> F[Проверить полный staged остаток и storage своего склада]
-  F --> G[Inventory: все balance locks в общем порядке]
+  F --> G[Inventory: shipping + target + остаточный storage, locks по product/location]
   G --> H[shipping onHand/reserved/active уменьшаются]
   H --> I[storage onHand увеличивается; shipping released увеличивается]
   I --> J[Immutable effects и пары движений]
@@ -129,8 +129,13 @@ flowchart TD
 не возвращается обратно: требуется сверка, заказ остаётся pending. Locks не удерживаются
 во время переноски товара. Вектор агрегирован по order line, сервер раскрывает его в
 все исходные allocations; это поддерживает многократные частичные сборки одного SKU.
-Все source/target balances сначала создаются/блокируются по product/location для полного
-вектора, затем изменяются. Это предотвращает взаимное ожидание из-за порядка DTO.
+До stock изменений inventory собирает объединение source/target balances полного вектора
+и всех активных storage balances заказа, включая строки без staged. Order lock удерживается
+в том же context. Все ключи создаются/блокируются по product/location, затем меняются stock
+и остаточный reserve. Поздний release повторно получает уже принадлежащие транзакции locks.
+Без объединения return в B и поздний release A конфликтовали с reserve A→B другого заказа.
+AC-R05-01 в shipping integration удерживает настоящий return после effects, наблюдает
+pg_blocking_pids конкурирующего reserve и проверяет оба ответа 200, ledger и replay.
 Переполнение int4 target откатывает весь возврат. Новые storage allocations не создаются:
 B3 освобождает резерв, а не повторно резервирует товар.
 

@@ -1,4 +1,4 @@
-/** @file Отдельный executable worker: validated config, Nest application context без HTTP и bounded SIGTERM drain. */
+/** @file Отдельный executable worker: validated config, Nest context без бизнес-HTTP, probe listener9100 и bounded SIGTERM drain. */
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { WorkerModule } from './infrastructure/worker/worker.module';

@@ -31,6 +31,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /** Ограниченный SELECT без бизнес-эффекта; ошибки остаются внутри probe adapter. */
+  async assertReady(): Promise<void> {
+    const probe = { text: 'select 1', query_timeout: 1000 };
+    await this.connection.pool.query(probe);
+  }
+
   /** Дожидается возврата клиентов и закрывает соединения при штатном завершении Nest. */
   async onModuleDestroy(): Promise<void> {
     if (!this.connection.pool.ended) await this.connection.pool.end();

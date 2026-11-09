@@ -6,10 +6,12 @@ const https = require('node:https');
 const http = require('node:http');
 const { randomBytes, createHash, X509Certificate } = require('node:crypto');
 const assert = require('node:assert/strict');
+const { hasReadyApiRevision } = require('./kubernetes-state.cjs');
 const { canonicalImage } = require('./kind-image.cjs');
 /** Поднимает gateway и проверяет TLS chain через Node CA, затем UI с ограниченным test-only SPKI pin. */
 async function checkGateway({
   run,
+  sql,
   k,
   h,
   apply,
@@ -255,8 +257,14 @@ async function checkGateway({
             r.on('end', () => resolve({ status: r.statusCode, headers: r.headers, body }));
           },
         );
-        req.on('error', reject);
-        req.setTimeout(5000, () => req.destroy(new Error('HTTPS timeout')));
+        req.on('error', (error) =>
+          reject(
+            new Error(
+              `HTTPS ${options.method ?? 'GET'} ${path} failed: ${error.code ?? 'transport error'}`,
+            ),
+          ),
+        );
+        req.setTimeout(options.timeoutMs ?? 5000, () => req.destroy(new Error('HTTPS timeout')));
         req.end(options.body);
       });
     let ready = false;
@@ -335,12 +343,31 @@ async function checkGateway({
       ],
       JSON.stringify({ login: 'gateway.admin', password: loginPassword }),
     );
+    // Helm --wait может учитывать ready старого ReplicaSet. Ждём текущую revision и удаления старых upstream.
+    // Перед auth POST ждём окончания setup rollout; повторяем только безопасный anonymous GET.
+    await until(
+      () => ({
+        deployment: JSON.parse(k(['get', 'deployment', 'warehouse-api', '-o', 'json'])),
+        pods: JSON.parse(k(['get', 'pods', '-l', 'app.kubernetes.io/component=api', '-o', 'json'])),
+      }),
+      ({ deployment, pods }) => hasReadyApiRevision(deployment, pods),
+    );
+    let apiReady = false;
+    for (let i = 0; i < 60; i++) {
+      try {
+        apiReady = (await request('/api/v1/warehouses')).status === 401;
+        if (apiReady) break;
+      } catch {}
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    assert.ok(apiReady, 'Gateway API setup rollout unavailable');
     const signed = await request('/api/v1/auth/login', {
       method: 'POST',
       headers: { Origin: origin, 'Content-Type': 'application/json', 'X-CSRF-Protection': '1' },
       body: JSON.stringify({ login: 'gateway.admin', password: loginPassword }),
     });
     assert.equal(signed.status, 200);
+    console.log('PASS initial HTTPS login after setup rollout');
     const cookie = signed.headers['set-cookie'][0];
     assert.ok(cookie.startsWith('__Host-wms_session='));
     for (const flag of ['Secure', 'HttpOnly', 'SameSite=Strict', 'Path=/'])
@@ -518,6 +545,27 @@ async function checkGateway({
     console.log(
       'PASS Chromium HTTPS login → receive10 → putaway → reserve/pick/ship3 → stock7; unknown page/API and upstream failure',
     );
+    if (process.env.WMS_LIFECYCLE === '1')
+      await require('./lifecycle-check.cjs').checkLifecycle({
+        k,
+        h,
+        run,
+        apply,
+        until,
+        sql,
+        request,
+        auth,
+        fixture,
+        config,
+        values,
+        temp,
+        cluster,
+        kind,
+        kubectl,
+        context,
+        namespace,
+        env,
+      });
   } finally {
     await browser?.close();
     if (forward && forward.exitCode === null) {

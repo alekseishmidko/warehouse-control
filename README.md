@@ -22,7 +22,8 @@ Solid/TypeScript/Vite SPA — в [apps/web](apps/web/README.md).
 транзакции/audit, минимальные catalog/warehouses/inventory, event contracts, outbox writer, HTTP/idempotency и приёмка draft/posted.
 Worker/putaway handler готовы WMS-109/110; Docker image/Compose готовы WMS-112.
 WMS-201–208: серверные сессии/права, размещение, заказ/резерв/сборка/отгрузка,
-чтение/история и Solid UI. Браузерный gate 2 пройден; API/worker Helm chart реализован WMS-302; static web image и Gateway/TLS проверены WMS-303. Следующий этап — WMS-304.
+чтение/история и Solid UI. Браузерный gate 2 пройден; API/worker Helm chart реализован WMS-302; static web image и Gateway/TLS проверены WMS-303. WMS-304 выполнена: probes, bounded shutdown и Gate3 с Pod kills/rolling update.
+[Lifecycle flow](docs/flows/lifecycle.md), [evidence](docs/reports/wms-304.md). Следующий этап — WMS-401.
 
 ## Запуск
 
@@ -267,6 +268,9 @@ reload той же вкладки возвращает результат без
 Результаты аудита и рефакторинга recovery/storage: [отчёт](docs/reports/application-audit.md).
 Version-specific pnpm.overrides в package.json фиксируют security patches четырёх
 транзитивных production-зависимостей; версии, причины и команды проверки приведены в отчёте.
+Dev dependency paths esbuild/glob/minimatch закреплены отдельно; deepmerge исправлен
+через [vendor patch](patches/README.md). `pnpm test:dependencies` проверяет настоящие
+consumers и входит в check:pr. Полный registry audit сохраняет 1 low по patched версии.
 
 Локальный Kubernetes backend: [application flow](docs/flows/kubernetes-app.md),
 [AC, review и evidence WMS-302](docs/reports/wms-302.md). `pnpm kubernetes:gate`
@@ -279,10 +283,15 @@ Version-specific pnpm.overrides в package.json фиксируют security patc
 старта API/worker/БД. Команды и их последовательность определяет `package.json`.
 
 `pnpm-lock.yaml` генерирует pnpm 10.18.3. `lockfileVersion` задаёт формат;
-`settings` и `overrides` фиксируют правила разрешения; `importers` описывают прямые
+`settings` и `overrides` фиксируют правила разрешения; `patchedDependencies` связывает
+patch-файл и его hash для проверки frozen install; `importers` описывают прямые
 зависимости каждого workspace; `packages` хранят точные версии, integrity и peer
 ограничения; `snapshots` связывают транзитивные зависимости с конкретными peer sets.
 Lockfile не содержит шагов запуска приложения. Не редактировать его зависимости
 или пояснения вручную: менять manifest и выполнять `pnpm install`, затем проверять
 `pnpm install --frozen-lockfile` и Docker clean build. Для generated YAML описание
 хранится здесь, чтобы следующая генерация не теряла комментарии.
+
+`pnpm lifecycle:gate` выполняет чистый kind/Helm/NGF стенд, HTTPS UI-сценарий,
+DB outage, Pod kills до/после commit и compatible migration/rolling update.
+Используются только disposable ресурсы; версии/tools и ограничения — в [runbook](docs/flows/lifecycle.md).

@@ -8,7 +8,8 @@ Chart не устанавливает PostgreSQL/Gateway и не создаёт 
 Обязательные image digest, Secret names и явную auth policy задаёт оператор;
 values.schema.json проверяет структуру. Base values не является готовой конфигурацией.
 values-dev.yaml задаёт local Secret names и Never pull policy. /health остаётся
-liveness, полноценные probes — WMS-304. TLS/browser hosting описан в WMS-303.
+liveness; API/worker имеют отдельные startup/ready/live probes WMS-304.
+[Budgets, drain и rollout](../../../docs/flows/lifecycle.md). TLS/browser hosting описан в WMS-303.
 
 Файлы templates: accounts — runtime и hook SA, configmap — несекретная среда,
 deployments — два процесса, migration — release revision Job, service — API,

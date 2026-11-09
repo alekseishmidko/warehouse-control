@@ -1,4 +1,9 @@
 /** @file WMS-206: реальные shipment, возврат B3, HTTP dedup, locks, rollback и независимая сверка ledger. */
+import { ReceivingService } from '@backend/modules/receiving/services/receiving.service';
+import { WarehousesService } from '@backend/modules/warehouses/services/warehouses.service';
+import { WorkerService } from '@backend/infrastructure/worker/services/worker.service';
+import { postedReceiptFixture } from '../support/posted-receipt.fixture';
+import type { Response as TestResponse } from 'supertest';
 import { ShippingService } from '@backend/modules/fulfillment/services/shipping.service';
 import { InventoryService } from '@backend/modules/inventory/services/inventory.service';
 import {
@@ -566,4 +571,198 @@ test('AC-QUALITY-01: reserve → partial pick → partial ship → cancel → re
       }),
     ],
   });
+});
+
+test('AC-R05-01: cancellation return and another order reservation complete without a stock lock inversion', async () => {
+  const x = await postedReceiptFixture(app, 10);
+  const runner = app.get<TransactionRunner>(TRANSACTION_RUNNER);
+  const inventory = app.get(InventoryService),
+    warehouses = app.get(WarehousesService);
+  const extra = await runner.run((c) =>
+    warehouses.createLocation(c, {
+      ...x.fixture.metadata,
+      warehouseId: x.fixture.warehouse.id,
+      code: 'RETURN',
+      kind: 'storage',
+    }),
+  );
+  // UUID генерирует production owner. Сортируем две реальные ячейки и только затем размещаем stock:
+  // A<B гарантировано без случайных циклов генерации подходящего UUID.
+  const [source, target] = [x.fixture.storage, extra].sort((a, b) => a.id.localeCompare(b.id));
+  const place = async (receiptId: string, locationId: string) => {
+    const [claim] = await worker.get(WorkerService).claim();
+    expect(await worker.get(WorkerService).process(claim)).toBe('completed');
+    const task = (
+      await db().connection.pool.query('select id from putaway_tasks where source_receipt_id=$1', [
+        receiptId,
+      ])
+    ).rows[0];
+    await runner.run((c) =>
+      inventory.executePutawayTask(c, task.id, locationId, x.fixture.metadata),
+    );
+  };
+  await place(x.document.id, source.id);
+  const manager = await identityFixture(app, {
+    warehouseId: x.fixture.warehouse.id,
+    role: 'warehouse_supervisor',
+  });
+  const competitor = await identityFixture(app, {
+    warehouseId: x.fixture.warehouse.id,
+    role: 'order_manager',
+  });
+  const createOrder = async (actor: typeof manager, quantity: number) => {
+    const result = await warehouseCommand(app, 'orders', actor, {
+      warehouseId: x.fixture.warehouse.id,
+      lines: [{ productId: x.fixture.product.id, quantity }],
+    }).expect(201);
+    await warehouseCommand(app, `orders/${result.body.id}/confirm`, actor).expect(200);
+    return result.body as { id: string; lines: { id: string }[] };
+  };
+  const order = await createOrder(manager, 10);
+  await warehouseCommand(app, `orders/${order.id}/reserve`, manager, {
+    lines: [{ lineId: order.lines[0].id, quantity: 10 }],
+  }).expect(200);
+  const task = await warehouseCommand(app, `orders/${order.id}/picking-tasks`, manager).expect(201);
+  await warehouseCommand(app, `picking-tasks/${task.body.id}/start`, manager).expect(200);
+  await warehouseCommand(app, `picking-tasks/${task.body.id}/confirm`, manager, {
+    taskLineId: task.body.lines[0].id,
+    actualQuantity: 3,
+    targetLocationId: x.fixture.shipping.id,
+    shortage: false,
+  }).expect(200);
+  await warehouseCommand(app, `orders/${order.id}/cancel`, manager).expect(200);
+  // B существует до начала race, иначе ожидающий reserve snapshot не увидит новую позицию.
+  const secondReceipt = await runner.run(async (c) => {
+    const receiving = app.get(ReceivingService);
+    const draft = await receiving.create(
+      c,
+      {
+        warehouseId: x.fixture.warehouse.id,
+        receivingLocationId: x.fixture.receiving.id,
+        lines: [{ productId: x.fixture.product.id, quantity: 1 }],
+      },
+      x.fixture.metadata,
+    );
+    return receiving.post(c, draft.id, x.fixture.metadata);
+  });
+  await place(secondReceipt.id, target.id);
+  const other = await createOrder(competitor, 1);
+  let reached!: () => void, release!: () => void;
+  const barrier = new Promise<void>((resolve) => {
+    reached = resolve;
+  });
+  const resume = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const apply = inventory.applyShippingEffects.bind(inventory);
+  let returnPid = 0;
+  const hook = jest
+    .spyOn(inventory, 'applyShippingEffects')
+    .mockImplementation(async (...args: Parameters<typeof apply>) => {
+      const result = await apply(...args);
+      returnPid = (
+        await transactionClient(args[0]).execute<{ pid: number }>(sql`select pg_backend_pid() pid`)
+      ).rows[0].pid;
+      // Только test barrier: transaction и её реальные stock locks остаются открытыми.
+      reached();
+      await resume;
+      return result;
+    });
+  type Outcome = { response: TestResponse } | { error: unknown };
+  const observe = (p: PromiseLike<TestResponse>): Promise<Outcome> =>
+    Promise.resolve(p).then(
+      (response) => ({ response }),
+      (error: unknown) => ({ error }),
+    );
+  let returning: Promise<Outcome> | undefined, reserving: Promise<Outcome> | undefined;
+  const key = randomUUID();
+  const body = {
+    reasonCode: 'customer-cancelled',
+    lines: [{ lineId: order.lines[0].id, quantity: 3, targetLocationId: target.id }],
+  };
+  try {
+    returning = observe(
+      warehouseCommand(app, `orders/${order.id}/cancellation-return`, manager, body, key),
+    );
+    // Ошибка до hook должна завершить тест и освободить ресурсы, а не ждать Jest timeout.
+    await Promise.race([
+      barrier,
+      returning.then((outcome) => {
+        if ('error' in outcome) throw outcome.error;
+        throw new Error(`Return ended before the stock barrier: ${outcome.response.status}`);
+      }),
+    ]);
+    reserving = observe(
+      warehouseCommand(app, `orders/${other.id}/reserve`, competitor, {
+        lines: [{ lineId: other.lines[0].id, quantity: 1 }],
+      }),
+    );
+    await waitForDatabaseLock(db(), 'stock_balances');
+    expect(
+      (
+        await db().connection.pool.query(
+          'select exists(select 1 from pg_stat_activity where $1=any(pg_blocking_pids(pid))) waiting',
+          [returnPid],
+        )
+      ).rows[0].waiting,
+    ).toBe(true);
+    release();
+    const [returned, reserved] = await Promise.all([returning, reserving]);
+    if ('error' in returned) throw returned.error;
+    if ('error' in reserved) throw reserved.error;
+    expect(returned.response.status).toBe(200);
+    expect(reserved.response.status).toBe(200);
+    expect(returned.response.body).toMatchObject({
+      status: 'cancelled',
+      lines: [{ cancelled: 10, shipped: 0, reservedStorage: 0, reservedShipping: 0 }],
+    });
+    expect(reserved.response.body.lines[0]).toMatchObject({
+      quantity: 1,
+      reservedStorage: 1,
+      reservedShipping: 0,
+      open: 0,
+    });
+    expect(
+      (
+        await warehouseCommand(
+          app,
+          `orders/${order.id}/cancellation-return`,
+          manager,
+          body,
+          key,
+        ).expect(200)
+      ).body,
+    ).toEqual(returned.response.body);
+    const balances = (
+      await db().connection.pool.query(
+        'select location_id,on_hand,reserved from stock_balances where warehouse_id=$1',
+        [x.fixture.warehouse.id],
+      )
+    ).rows;
+    expect(balances.find((b) => b.location_id === source.id)).toMatchObject({
+      on_hand: 7,
+      reserved: 1,
+    });
+    expect(balances.find((b) => b.location_id === target.id)).toMatchObject({
+      on_hand: 4,
+      reserved: 0,
+    });
+    expect(balances.find((b) => b.location_id === x.fixture.shipping.id)).toMatchObject({
+      on_hand: 0,
+      reserved: 0,
+    });
+    expect(
+      (
+        await db().connection.pool.query(
+          "select count(*) from shipping_effects where order_id=$1 and kind='return'",
+          [order.id],
+        )
+      ).rows[0].count,
+    ).toBe('1');
+    await reconcile();
+  } finally {
+    release();
+    await Promise.allSettled([returning, reserving].filter((p) => p !== undefined));
+    hook.mockRestore();
+  }
 });

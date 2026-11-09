@@ -1,6 +1,8 @@
 /** @file Общая настройка production/test/OpenAPI приложения до init; не открывает listener и не касается БД. */
+import { ProblemFilter } from './problem.filter';
+import { ProcessHealth } from '../lifecycle/process-health';
 import type { Request, Response, NextFunction } from 'express';
-import { INestApplication, RequestMethod } from '@nestjs/common';
+import { INestApplication, RequestMethod, ServiceUnavailableException } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { correlationMiddleware } from './request-context';
 /**
@@ -15,6 +17,20 @@ export function configureHttp(app: INestApplication): void {
     next();
   });
   app.use(correlationMiddleware);
+  const health = app.get(ProcessHealth);
+  const problems = new ProblemFilter();
+  // Уже принятый запрос дойдёт до commit; новый запрос после signal не начинает бизнес-операцию.
+  app.use((request: Request, response: Response, next: NextFunction) => {
+    if (
+      health.draining &&
+      !['/health', '/health/live', '/health/startup', '/health/ready'].includes(request.path)
+    ) {
+      // Drain обязан сохранять тот же Problem/Correlation contract, что и ошибки controller.
+      problems.respond(new ServiceUnavailableException(), request, response);
+      return;
+    }
+    next();
+  });
   // Даже parser errors получат correlationId, потому что middleware зарегистрирован первым.
   (app as NestExpressApplication).useBodyParser('json', { limit: 256 * 1024 });
   // Исключение ограничено GET: оно не делает произвольные будущие методы root controller публичными по URL.
@@ -22,6 +38,10 @@ export function configureHttp(app: INestApplication): void {
     exclude: [
       { path: '/', method: RequestMethod.GET },
       { path: 'health', method: RequestMethod.GET },
+      ...['startup', 'live', 'ready'].map((kind) => ({
+        path: `health/${kind}`,
+        method: RequestMethod.GET,
+      })),
     ],
   });
 }

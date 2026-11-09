@@ -59,7 +59,11 @@ generated API-контракты, Query cache и журнал команд. Gate
 с настоящими API/worker/PostgreSQL. [Флоу](flows/web.md), [проверки и ограничения](reports/wms-208.md).
 WMS-301–303 выполнены: kind, Helm API/worker/web, NGINX Gateway Fabric и TLS проверены
 реальным складским UI-сценарием. [Gateway flow](flows/gateway-tls.md),
-[evidence и ограничения доверия](reports/wms-303.md). Следующая задача — WMS-304, lifecycle и rollout.
+[evidence и ограничения доверия](reports/wms-303.md). WMS-304 выполнена: [lifecycle/rollout](flows/lifecycle.md),
+[Gate3 и ограничения](reports/wms-304.md). Следующая задача — WMS-401.
+
+Закрытие R-04–R-06: [исправления, тесты и ограничение registry audit](reports/review-fixes-r04-r06.md).
+Полный audit сохраняет 1 low по patched deepmerge; production audit — без advisory.
 
 Ревью всего checkout и YAML-комментарии: [отчёт 2026-11-07](reports/project-review-2026-11-07.md).
 Открытые findings и ограничения перечислены в отчёте; зелёные gates не заменяют их исправление.
@@ -112,6 +116,7 @@ WMS-301–303 выполнены: kind, Helm API/worker/web, NGINX Gateway Fabri
 - Dev окружение запускается одной `pnpm dev:all`: PostgreSQL/migrate и host API/worker/web с общим shutdown.
 - WMS-302: API/worker в Kubernetes, pre-release migrations, Secret refs и local persistence проверены; [flow](flows/kubernetes-app.md).
 - WMS-303: static web image, NGF/Gateway/TLS и полный HTTPS UI gate проверены; [flow](flows/gateway-tls.md).
+- WMS-304: startup/ready/live API/worker, bounded drain, Pod kills и совместимый rolling release проверены.
 - Не реализованы Kafka и внешний CI/CD; production deployment не выполнялся.
 - `ReceivingPosted v1` зарегистрирован и используется outbox/worker; внешний Kafka transport ещё не подключён.
 - Локальные schema/fixtures/generation проверки выполняются в unit suite;
@@ -187,7 +192,7 @@ ShippingChanged требует shipmentId для действий над док�
 
 WMS-207 реализована: [складские списки и история](flows/warehouse-reads.md),
 явные DTO, filters/keyset pagination, read/audit ACL, migration 0032 и PostgreSQL
-EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI и WMS-301–303 также выполнены; далее WMS-304.
+EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI и WMS-301–304 также выполнены; далее WMS-401.
 
 [Качество, критерии приёмки и coverage](quality.md): обязательные AC ID, typed lint,
 архитектурные guards и измерение собственного backend. [Отчёт](reports/quality-baseline.md).

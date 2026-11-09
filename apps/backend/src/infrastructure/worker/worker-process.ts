@@ -1,4 +1,7 @@
-/** @file Process lifecycle: signal до/после startup, bounded drain и finally закрытие Nest/pg без HTTP listener. */
+/** @file Process lifecycle: signal до/после startup, bounded drain и finally закрытие probes/Nest/pg без warehouse HTTP listener. */
+import type { Server } from 'node:http';
+import { ProcessHealth } from '../lifecycle/process-health';
+import { DatabaseService } from '../database/database.module';
 import type { INestApplicationContext } from '@nestjs/common';
 import type { WorkerConfig } from './worker.config';
 import { WorkerLoop } from './services/worker-loop';
@@ -15,9 +18,12 @@ import { HandlerRegistry } from './services/handler-registry';
 export async function runWorkerProcess(
   createApplication: () => Promise<INestApplicationContext>,
   config: WorkerConfig,
+  healthPort = 9100,
 ): Promise<void> {
   let app: INestApplicationContext | undefined;
   let loop: WorkerLoop | undefined;
+  let probes: Server | undefined;
+  let health: ProcessHealth | undefined;
   let stopped = false;
   let deadline: NodeJS.Timeout | undefined;
   /** Signal обрабатывается один раз; повторный не начинает новый drain/timeout и не открывает новые claims. */
@@ -25,6 +31,7 @@ export async function runWorkerProcess(
     if (stopped) return;
     stopped = true;
     loop?.stop();
+    if (health) health.draining = true;
     deadline = setTimeout(() => {
       console.error('Worker shutdown deadline exceeded');
       process.exit(1);
@@ -34,6 +41,10 @@ export async function runWorkerProcess(
   process.on('SIGINT', stop);
   try {
     app = await createApplication();
+    health = new ProcessHealth(() => app!.get(DatabaseService).assertReady());
+    probes = await health.listen(healthPort);
+    health.started = true;
+    health.draining = stopped;
     const activeLoop = app.get<WorkerLoop>(WorkerLoop);
     loop = activeLoop;
     if (stopped) activeLoop.stop();
@@ -47,13 +58,24 @@ export async function runWorkerProcess(
   } finally {
     // Тот же hard deadline охватывает close pool. При ошибке без signal тоже нужен предел.
     if (!stopped) stop();
+    let closed = false;
     try {
-      await app?.close();
+      try {
+        if (probes)
+          await new Promise<void>((resolve, reject) =>
+            probes!.close((error) => (error ? reject(error) : resolve())),
+          );
+      } finally {
+        // Даже ошибка probe listener не должна пропустить закрытие DB pool.
+        await app?.close();
+      }
+      closed = true;
     } catch {
       process.exitCode = 1;
       console.error('Worker resource cleanup failed');
     }
-    if (deadline) clearTimeout(deadline);
+    // При rejected cleanup resources могут остаться открыты: hard deadline сохраняется.
+    if (closed && deadline) clearTimeout(deadline);
     process.off('SIGTERM', stop);
     process.off('SIGINT', stop);
   }

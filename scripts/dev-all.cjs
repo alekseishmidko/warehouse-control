@@ -97,6 +97,7 @@ class DevProcesses {
       cwd = this.cwd,
       env = this.env,
       persistent = false,
+      gracefulSignalTarget = 'group',
       stdio = ['ignore', 'inherit', 'inherit'],
     } = {},
   ) {
@@ -107,7 +108,7 @@ class DevProcesses {
       stdio,
       detached: process.platform !== 'win32',
     });
-    const entry = { child, name, persistent, expected: false, closed: false };
+    const entry = { child, name, persistent, gracefulSignalTarget, expected: false, closed: false };
     entry.done = new Promise((resolve) => {
       child.once('error', () => {
         entry.error = new Error('Не удалось запустить ' + name);
@@ -135,7 +136,13 @@ class DevProcesses {
   signal(entry, signal) {
     if (entry.closed || !entry.child.pid) return;
     try {
-      if (process.platform === 'win32') entry.child.kill(signal);
+      // Vite сам закрывает esbuild по протоколу; SIGTERM всей группе убивает helper раньше close.
+      // Deadline всегда завершает группу, чтобы зависший parent не оставил grandchildren.
+      if (
+        process.platform === 'win32' ||
+        (signal === 'SIGTERM' && entry.gracefulSignalTarget === 'process')
+      )
+        entry.child.kill(signal);
       else process.kill(-entry.child.pid, signal);
     } catch (error) {
       if (error.code !== 'ESRCH') throw new Error('Не удалось остановить дочерний процесс');
@@ -310,7 +317,11 @@ async function main() {
       require('../apps/backend/dist/infrastructure/worker/worker.config').validateWorkerEnvironment(
         config.env,
       );
-    manager.shutdownMs = worker.shutdownTimeoutMs + 5000;
+    // Supervisor должен дать обоим процессам их полный deadline и запас на закрытие compiler/Vite.
+    const {
+      API_SHUTDOWN_TIMEOUT_MS,
+    } = require('../apps/backend/dist/infrastructure/lifecycle/api-process');
+    manager.shutdownMs = Math.max(worker.shutdownTimeoutMs, API_SHUTDOWN_TIMEOUT_MS) + 5000;
     if (manager.stopping) return;
     console.log('[dev:all] PostgreSQL и миграции');
     await manager.run('postgres', 'docker', [
@@ -343,6 +354,7 @@ async function main() {
       {
         cwd: path.join(root, 'apps/web'),
         persistent: true,
+        gracefulSignalTarget: 'process',
         // Root .env содержит credentials. Vite получает только parent env и server-only proxy target.
         env: { ...process.env, NODE_ENV: 'development', WEB_API_TARGET: config.apiUrl },
       },

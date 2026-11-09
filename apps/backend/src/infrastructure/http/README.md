@@ -1,6 +1,7 @@
 # HTTP boundaries
 
-Для менеджера: технические GET / и /health public. Receiving create/post/get требуют
+Для менеджера: технические GET /, /health и /health/startup|ready|live public.
+Подробное разделение probes и drain — [lifecycle flow](../../../../../docs/flows/lifecycle.md). Receiving create/post/get требуют
 серверную сессию и роль именно нужного склада. Без сессии 401; без права/CSRF 403.
 Неизвестные DTO-поля/UUID/key дают безопасный 400, credentials/SQL/stack не отражаются.
 Старый dev actor удалён: development не означает обход настоящей auth.

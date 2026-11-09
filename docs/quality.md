@@ -36,18 +36,20 @@ Promise await/return/catch обязательны; void сам по себе н�
 с новым volume/initdb barrier не должен считать Unix socket готовностью TCP.
 Без Docker проверка падает; skip/fallback не предусмотрены.
 
-| Команда                 | Что реально проверяется                                                                                                             |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| pnpm lint               | Typed ESLint backend/web/tests, Solid rules, запрет backend/React imports в web, any/Promises/TS suppressions                       |
-| pnpm check:architecture | Статические TS/TSX imports/exports/литеральные require/import: shared, private repositories, web/backend boundaries, runtime cycles |
-| pnpm test:quality       | Отрицательные self-tests guards и настоящих lint rules                                                                              |
-| pnpm test:dev           | Env/порты и lifecycle dev:all на настоящих child processes: SIGTERM, crash, deadline и ошибка drain                                 |
-| pnpm test:coverage      | Все Jest suites с Docker, build/generation; покрытие всех собственных dist JS файлов                                                |
-| pnpm test:web           | Vitest/jsdom и V8 всех собственных web TS/TSX, критические пороги и отдельный baseline                                              |
-| pnpm test:web:gate      | Chromium + Vite proxy + настоящие API/worker/PostgreSQL; Docker и установленный Chromium                                            |
-| pnpm check:pr           | Полная цепочка выше, format/typecheck/contracts/OpenAPI и tests/coverage                                                            |
+| Команда                           | Что реально проверяется                                                                                                                                                            |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| pnpm lint                         | Typed ESLint backend/web/tests, Solid rules, запрет backend/React imports в web, any/Promises/TS suppressions                                                                      |
+| pnpm check:architecture           | Статические TS/TSX imports/exports/литеральные require/import: shared, private repositories, web/backend boundaries, runtime cycles                                                |
+| pnpm test:kubernetes:observations | Regression Kubernetes status: быстрая migration attempt и завершённая API revision перед auth; результат проверяет настоящий kind gate                                             |
+| pnpm test:dependencies            | Проверка реальных consumers vendor patch deepmerge, archiver glob и esbuild CORS; входит в check:pr. Полный registry audit отдельно, ограничения — [patches](../patches/README.md) |
+| pnpm test:quality                 | Отрицательные self-tests guards и настоящих lint rules                                                                                                                             |
+| pnpm test:dev                     | Env/порты и lifecycle dev:all на настоящих child processes: SIGTERM, crash, deadline и ошибка drain                                                                                |
+| pnpm test:coverage                | Все Jest suites с Docker, build/generation; покрытие всех собственных dist JS файлов                                                                                               |
+| pnpm test:web                     | Vitest/jsdom и V8 всех собственных web TS/TSX, критические пороги и отдельный baseline                                                                                             |
+| pnpm test:web:gate                | Chromium + Vite proxy + настоящие API/worker/PostgreSQL; Docker и установленный Chromium                                                                                           |
+| pnpm check:pr                     | Полная цепочка выше, format/typecheck/contracts/OpenAPI и tests/coverage                                                                                                           |
 
-ESLint 10.14.0 и typescript-eslint 8.72.1 закреплены в lockfile. Typed parser использует
+ESLint 10.14.0 и typescript-eslint 8.72.1 закреплены в lockfile. Root TypeScript 5.9.3 закрепляет compiler peers lint на той же версии, что приложения. Typed parser использует
 backend tsconfig/source/tests и web tsconfig. Solid lint 0.18.1 проверяет реактивный JSX.
 Node: ^22.22.2, ^24.15.0 либо >=26; нижняя граница учитывает jsdom 30.1.3.
 Docker runtime Node 24 совместим.

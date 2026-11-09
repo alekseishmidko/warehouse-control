@@ -127,7 +127,14 @@ export class WorkerRepository {
    * @returns null для completed, stale/expired token либо cursor, который уже продвинут.
    */
   async lock(context: TransactionContext, claim: DeliveryClaim): Promise<LockedDelivery | null> {
-    const result = await transactionClient(context).execute<{
+    const tx = transactionClient(context);
+    // Target expressions могут вычислиться до lock wait. Сначала берём строки без проверки времени.
+    await tx.execute(sql`select s.destination from delivery_streams s
+      join outbox_deliveries d on d.destination=s.destination and d.event_id=${claim.eventId}
+      where s.destination=${claim.destination} and s.aggregate_type=${claim.aggregateType}
+        and s.aggregate_id=${claim.aggregateId} for update of s,d`);
+    // Новый statement видит свежие DB clock и состояние уже под принадлежащими нам locks.
+    const result = await tx.execute<{
       envelope: unknown;
       attempts: number;
       retry_attempt_base: number;
@@ -139,8 +146,7 @@ export class WorkerRepository {
       from delivery_streams s join outbox_events e on e.aggregate_type=s.aggregate_type and e.aggregate_id=s.aggregate_id
       join outbox_deliveries d on d.event_id=e.event_id and d.destination=s.destination
       where s.destination=${claim.destination} and s.aggregate_type=${claim.aggregateType} and s.aggregate_id=${claim.aggregateId}
-        and e.event_id=${claim.eventId} and e.aggregate_version=${claim.version}
-      for update of s,d`);
+        and e.event_id=${claim.eventId} and e.aggregate_version=${claim.version}`);
     const row = result.rows[0];
     return row?.valid
       ? { envelope: row.envelope, attempts: row.attempts, retryAttemptBase: row.retry_attempt_base }

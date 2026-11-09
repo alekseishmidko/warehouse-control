@@ -32,7 +32,8 @@ Compose health/logs и результаты проверки конфигура�
 
 `DATABASE_URL` берётся из [config](../config/README.md). Nest startup выполняет
 SELECT 1 до открытия HTTP. При ошибке подключение закрывается. При bind failure
-main закрывает приложение; SIGTERM запускает shutdown hooks и закрывает pool.
+runApiProcess закрывает приложение после drain active responses; SIGTERM сначала
+закрывает readiness/listener, затем pool. [Lifecycle flow](../../../../../docs/flows/lifecycle.md).
 Startup не применяет миграции автоматически. WMS-103 добавляет TRANSACTION_RUNNER provider с scoped context.
 
 ## Миграции и команды из корня

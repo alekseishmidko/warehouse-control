@@ -37,6 +37,8 @@ async function main() {
       'package.json',
       'pnpm-lock.yaml',
       'pnpm-workspace.yaml',
+      // Frozen install проверяет hash vendor patch даже при фильтрации workspace.
+      'patches/deepmerge@4.3.1.patch',
       'tsconfig.base.json',
       `apps/${app}/package.json`,
       `apps/${app}/Dockerfile`,

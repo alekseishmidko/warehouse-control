@@ -4,6 +4,8 @@ WORKDIR /workspace
 RUN corepack enable && corepack prepare pnpm@10.18.3 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY apps/web/package.json apps/web/package.json
+# Vendor patch нужен pnpm при frozen install; runtime stage получает только dist.
+COPY patches ./patches
 RUN pnpm install --filter @warehouse/web --frozen-lockfile
 COPY apps/web/tsconfig.json apps/web/vite.config.ts apps/web/index.html apps/web/
 COPY apps/web/src apps/web/src
