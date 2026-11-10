@@ -452,13 +452,18 @@ Gate 3: чистая установка и повтор демонстрации
 
 ### WMS-401. Централизованный logger, key-value логи и трассировка
 
-- [ ] **WMS-401.1** — Создать единый logger на Pino для API, worker, CLI и Nest startup/shutdown; заменить разрозненные console/Nest logs. Зафиксировать формат: одно JSON-сообщение на строку, данные отдельными key-value полями, без ручной сборки строк. Общий контракт/правила — shared/logging, Nest/Pino I/O adapter и конфигурация — infrastructure/logging; не создавать logger в каждом модуле. Описать уровни, redaction, безопасный startup fallback и режим локального pretty output, отключённый при централизованном сборе.
-- [ ] **WMS-401.2** — Подключить OTel в startup до instrumentation, задать service/environment/process attributes.
-- [ ] **WMS-401.3** — Передавать validated correlationId/trace context HTTP → event → handler; для отложенного выполнения использовать link по выбранной модели. Зафиксировать общую схему логов: timestamp, level, service, environment, process, module, event, message; добавлять correlationId, traceId/spanId, eventId, aggregateId, destination, attempt, durationMs и errorCode по контексту. Child logger получает контекст сценария без ручного повторения полей в каждом вызове; контексты параллельных запросов/обработок не смешиваются.
-- [ ] **WMS-401.4** — Добавить spans бизнес-операции, transaction и обработки без записи полного payload. Логировать начало/результат, rollback, retry и ошибки отдельными событиями с key-value полями; успешный commit не объявлять до завершения runner. Исключать credentials, tokens, cookies, персональные данные, полный HTTP/event payload и небезопасные driver errors. Операционные логи не заменяют транзакционный бизнес-аудит.
-- [ ] **WMS-401.5** — Проверить на реальном сценарии, что один документ находится по логам и traces, включая повтор и ошибку. Автоматически проверить JSON parsing каждой строки, обязательные поля, redaction, отсутствие утечки контекста между параллельными сценариями и ложного success после rollback; добавить примеры логов и команды диагностики в README logging.
+WMS-401 реализована: общий Pino runtime API/worker/CLI/Nest, OTel и реальный
+HTTP → outbox → linked handler flow. Проверены PostgreSQL faults, replay/retry, privacy,
+parent команды и штатное завершение. Collection stack остаётся WMS-402.
+[Текущий статус](reports/wms-401.md).
 
-Целевой пример key-value сообщения (пока не реализованный формат):
+- [x] **WMS-401.1** — Создать единый logger на Pino для API, worker, CLI и Nest startup/shutdown; заменить разрозненные console/Nest logs. Зафиксировать формат: одно JSON-сообщение на строку, данные отдельными key-value полями, без ручной сборки строк. Общий контракт/правила — shared/logging, Nest/Pino I/O adapter и конфигурация — infrastructure/logging; не создавать logger в каждом модуле. Описать уровни, redaction, безопасный startup fallback и режим локального pretty output, отключённый при централизованном сборе.
+- [x] **WMS-401.2** — Подключить OTel в startup до instrumentation, задать service/environment/process attributes.
+- [x] **WMS-401.3** — Передавать validated correlationId/trace context HTTP → event → handler; для отложенного выполнения использовать link по выбранной модели. Зафиксировать общую схему логов: timestamp, level, service, environment, process, module, event, message; добавлять correlationId, traceId/spanId, eventId, aggregateId, destination, attempt, durationMs и errorCode по контексту. Child logger получает контекст сценария без ручного повторения полей в каждом вызове; контексты параллельных запросов/обработок не смешиваются.
+- [x] **WMS-401.4** — Добавить spans бизнес-операции, transaction и обработки без записи полного payload. Логировать начало/результат, rollback, retry и ошибки отдельными событиями с key-value полями; успешный commit не объявлять до завершения runner. Исключать credentials, tokens, cookies, персональные данные, полный HTTP/event payload и небезопасные driver errors. Операционные логи не заменяют транзакционный бизнес-аудит.
+- [x] **WMS-401.5** — Проверить на реальном сценарии, что один документ находится по логам и traces, включая повтор и ошибку. Автоматически проверить JSON parsing каждой строки, обязательные поля, redaction, отсутствие утечки контекста между параллельными сценариями и ложного success после rollback; добавить примеры логов и команды диагностики в README logging.
+
+Пример реализованного key-value сообщения (синтетические значения):
 
 ```json
 {
@@ -477,8 +482,8 @@ Gate 3: чистая установка и повтор демонстрации
 ```
 
 Идентификаторы и числа передаются отдельными полями, а message остаётся коротким
-пояснением для человека. Этот пример описывает будущий лог после commit;
-он не означает, что receiving или централизованный logger уже подключены.
+пояснением для человека. receiving.posted выводится после commit; traceId/spanId/eventId
+добавляются по контексту. [Runtime flow и evidence](flows/logging.md).
 
 ### WMS-402. Централизованный сбор логов, метрики, dashboards и сигналы
 

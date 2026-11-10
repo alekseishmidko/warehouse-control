@@ -1,4 +1,6 @@
 /** @file Единая фабрика pg Pool/Drizzle для Nest и CLI; владелец обязан вызвать pool.end(). */
+import { logEvent } from '../logging/runtime-logger';
+import { AsyncResource } from 'node:async_hooks';
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from './schema';
@@ -17,9 +19,18 @@ export function createDatabaseConnection(databaseUrl: string) {
   // Listener предотвращает uncaught EventEmitter error без утечки driver/credentials.
   // pg помечает соединение непригодным: следующий query/commit отвергнет транзакцию,
   // поэтому этот обработчик не превращает потерю соединения в успешный commit/retry.
+  // Socket создаётся лениво, иногда внутри первого HTTP request/transaction ALS.
+  // Его поздняя idle error не принадлежит этому запросу и не должна попасть в уже
+  // закрытый transaction log buffer. Bind фиксирует startup-контекст владельца pool.
+  const logConnectionFailure = AsyncResource.bind(() =>
+    logEvent('database.connection_failed', {
+      module: 'transaction',
+      errorCode: 'DATABASE_REJECTED',
+    }),
+  );
   pool.on('connect', (client) => {
-    client.on('error', () => console.error('Database client connection error'));
+    client.on('error', logConnectionFailure);
   });
-  pool.on('error', () => console.error('Database pool connection error'));
+  pool.on('error', logConnectionFailure);
   return { pool, db: drizzle(pool, { schema }) };
 }

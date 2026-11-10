@@ -1,4 +1,5 @@
 /** @file Process lifecycle: signal до/после startup, bounded drain и finally закрытие probes/Nest/pg без warehouse HTTP listener. */
+import { logEvent } from '../logging/runtime-logger';
 import type { Server } from 'node:http';
 import { ProcessHealth } from '../lifecycle/process-health';
 import { DatabaseService } from '../database/database.module';
@@ -33,7 +34,7 @@ export async function runWorkerProcess(
     loop?.stop();
     if (health) health.draining = true;
     deadline = setTimeout(() => {
-      console.error('Worker shutdown deadline exceeded');
+      logEvent('worker.shutdown_deadline');
       process.exit(1);
     }, config.shutdownTimeoutMs);
   };
@@ -48,13 +49,12 @@ export async function runWorkerProcess(
     const activeLoop = app.get<WorkerLoop>(WorkerLoop);
     loop = activeLoop;
     if (stopped) activeLoop.stop();
-    if (!app.get(HandlerRegistry).destinations().length)
-      console.info('Worker has no registered handlers; deliveries remain pending');
-    console.info('Worker ready');
+    if (!app.get(HandlerRegistry).destinations().length) logEvent('worker.idle');
+    logEvent('worker.ready');
     await activeLoop.run();
   } catch {
     process.exitCode = 1;
-    console.error('Worker lifecycle failed');
+    logEvent('process.failed');
   } finally {
     // Тот же hard deadline охватывает close pool. При ошибке без signal тоже нужен предел.
     if (!stopped) stop();
@@ -72,7 +72,7 @@ export async function runWorkerProcess(
       closed = true;
     } catch {
       process.exitCode = 1;
-      console.error('Worker resource cleanup failed');
+      logEvent('process.failed');
     }
     // При rejected cleanup resources могут остаться открыты: hard deadline сохраняется.
     if (closed && deadline) clearTimeout(deadline);

@@ -1,4 +1,5 @@
 /** @file HTTP lifecycle: signal до startup, остановка приёма, drain до закрытия pool и общий deadline. */
+import { logEvent } from '../logging/runtime-logger';
 import type { INestApplication } from '@nestjs/common';
 import { Server } from 'node:http';
 import { ProcessHealth } from './process-health';
@@ -26,7 +27,7 @@ export async function runApiProcess(
     stopped = true;
     if (app) app.get(ProcessHealth).draining = true;
     deadline = setTimeout(() => {
-      console.error('API shutdown deadline exceeded');
+      logEvent('api.shutdown_deadline');
       process.exit(1);
     }, API_SHUTDOWN_TIMEOUT_MS);
     wake();
@@ -40,7 +41,7 @@ export async function runApiProcess(
     if (!stopped) await app.init();
     if (!stopped) {
       await app.listen(port, host);
-      console.info('API ready');
+      logEvent('api.ready');
       await signal;
     }
     app.get(ProcessHealth).draining = true;

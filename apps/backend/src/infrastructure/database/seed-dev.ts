@@ -1,4 +1,6 @@
 /** @file Dev-only CLI fixtures: guard до подключения, одна транзакция, закрытие Nest/pool в finally. */
+import { logEvent, nestLogger } from '../logging/runtime-logger';
+import '../logging/startup';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { Module } from '@nestjs/common';
@@ -19,7 +21,8 @@ async function main(): Promise<void> {
   if (loadEnvironment().nodeEnv !== 'development')
     throw new Error('Dev fixtures require development');
   const app = await NestFactory.createApplicationContext(DevFixturesModule, {
-    logger: false,
+    // Framework пишет в общий stderr; stdout остаётся протоколом результата CLI.
+    logger: nestLogger,
     abortOnError: false,
   });
   try {
@@ -28,14 +31,14 @@ async function main(): Promise<void> {
       .run((context) =>
         createDevWarehouseFixtures(context, app.get(CatalogService), app.get(WarehousesService)),
       );
-    console.log(
+    process.stdout.write(
       JSON.stringify({
         productId: fixture.product.id,
         warehouseId: fixture.warehouse.id,
         receivingLocationId: fixture.receiving.id,
         storageLocationId: fixture.storage.id,
         shippingLocationId: fixture.shipping.id,
-      }),
+      }) + '\n',
     );
   } finally {
     await app.close();
@@ -43,8 +46,6 @@ async function main(): Promise<void> {
 }
 
 void main().catch(() => {
-  console.error(
-    'Dev fixtures failed. Require development mode, database availability and applied migrations.',
-  );
+  logEvent('seed.failed');
   process.exitCode = 1;
 });

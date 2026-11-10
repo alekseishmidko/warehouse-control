@@ -51,3 +51,6 @@ same-origin transport и явное восстановление сохранё�
 
 [0029. Process lifecycle](0029-process-lifecycle.md) — WMS-304: probes, bounded drain,
 общий timeout операции, readiness rollout и DB fencing перекрывающихся workers.
+
+[0030. Operational observability](0030-operational-observability.md) — WMS-401:
+общий Pino JSONL stderr, безопасные ручные OTel spans, deferred consumer links и commit buffer.

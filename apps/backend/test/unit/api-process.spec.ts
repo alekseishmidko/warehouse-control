@@ -1,4 +1,5 @@
 /** @file API lifecycle с настоящим HTTP listener: drain активного response и signal до bind, без PostgreSQL. */
+import * as logging from '@backend/infrastructure/logging/runtime-logger';
 import { Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Server } from 'node:http';
@@ -113,7 +114,7 @@ test('AC-304-02: hanging startup reaches the process deadline; repeated signal d
   const exit = jest.spyOn(process, 'exit').mockImplementation(() => {
     throw new Error('hard deadline');
   });
-  const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+  const log = jest.spyOn(logging, 'logEvent').mockImplementation(() => {});
   jest.useFakeTimers();
   const running = runApiProcess(() => factory, 0, '127.0.0.1');
   try {
@@ -124,7 +125,7 @@ test('AC-304-02: hanging startup reaches the process deadline; repeated signal d
     signal?.call(process, 'SIGTERM');
     expect(() => jest.advanceTimersByTime(10000)).toThrow('hard deadline');
     expect(exit).toHaveBeenCalledWith(1);
-    expect(log).toHaveBeenCalledWith('API shutdown deadline exceeded');
+    expect(log).toHaveBeenCalledWith('api.shutdown_deadline');
   } finally {
     release();
     await running;
@@ -199,7 +200,7 @@ test('AC-304-02: rejected cleanup retains the hard deadline instead of hanging i
   const exit = jest.spyOn(process, 'exit').mockImplementation(() => {
     throw new Error('hard deadline');
   });
-  const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+  const log = jest.spyOn(logging, 'logEvent').mockImplementation(() => {});
   jest.useFakeTimers();
   const running = runApiProcess(async () => failing, 0, '127.0.0.1');
   const rejected = expect(running).rejects.toThrow('cleanup failed');

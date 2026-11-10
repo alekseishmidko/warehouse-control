@@ -754,3 +754,23 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | [deepmerge@4.3.1.patch](../patches/deepmerge@4.3.1.patch)           | pnpm patch-commit artifact: фильтрация опасных ключей source и target в трёх entrypoints.       |
 | [kubernetes-state.cjs](../scripts/kubernetes-state.cjs)             | Kubernetes status: попытка migration Job и текущая Ready API revision без старых Pods.          |
 | [kubernetes-state.test.cjs](../scripts/kubernetes-state.test.cjs)   | AC-R04-04/05: быстрое завершение Job, старый ready Pod, generation и готовность новой revision. |
+
+## WMS-401: логирование и трассировка
+
+| Файл                                                                                     | Назначение                                                               |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [log-contract.ts](../apps/backend/src/shared/logging/log-contract.ts)                    | События, уровни, сообщения и scalar allowlist без I/O.                   |
+| [shared/logging/README.md](../apps/backend/src/shared/logging/README.md)                 | Правила контракта и границы текущей реализации.                          |
+| [pino-logger.ts](../apps/backend/src/infrastructure/logging/pino-logger.ts)              | Pino JSON sink, child и AsyncLocalStorage scopes.                        |
+| [infrastructure/logging/README.md](../apps/backend/src/infrastructure/logging/README.md) | Runtime adapter, конфигурация, пример и диагностика.                     |
+| [logging.spec.ts](../apps/backend/test/unit/logging.spec.ts)                             | JSON parsing, allowlist/redaction, параллельный контекст и sink failure. |
+| [wms-401.md](reports/wms-401.md)                                                         | AC, review, evidence и ограничения WMS-401.                              |
+
+| [logging.md](flows/logging.md) | Runtime flow: trust, commit buffer, trace links и lifecycle. |
+
+| [runtime-logger.ts](../apps/backend/src/infrastructure/logging/runtime-logger.ts) | Process sink, Nest adapter, ALS и transaction buffer. |
+| [startup.ts](../apps/backend/src/infrastructure/logging/startup.ts) | Preload executable, safe fallback и bounded flush. |
+| [telemetry.ts](../apps/backend/src/infrastructure/logging/telemetry.ts) | Manual SDK spans, W3C validation и OTLP/HTTP. |
+| [telemetry.spec.ts](../apps/backend/test/unit/telemetry.spec.ts) | SDK/OTLP, privacy, fallback, pretty и buffer tests. |
+| [observability.spec.ts](../apps/backend/test/integration/observability.spec.ts) | Real document HTTP/SQL/worker, links, replay, retry и commit faults. |
+| [ADR-0030](adr/0030-operational-observability.md) | Выбор каналов логов, ручного tracing и producer links. |

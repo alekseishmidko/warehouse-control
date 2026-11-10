@@ -1,4 +1,6 @@
 /** @file Read-only CLI проверки подключения и baseline; завершает pool и скрывает driver errors. */
+import { logEvent } from '../logging/runtime-logger';
+import '../logging/startup';
 import { sql } from 'drizzle-orm';
 import { loadEnvironment } from '../config/environment';
 import { createDatabaseConnection } from './connection';
@@ -12,13 +14,13 @@ async function main(): Promise<void> {
       sql`select current_setting('server_version') as version`,
     );
     await db.select().from(applicationMetadata).limit(1);
-    console.log(`Database check passed (PostgreSQL ${result.rows[0].version})`);
+    logEvent('database.checked');
   } finally {
     await pool.end();
   }
 }
 
 void main().catch(() => {
-  console.error('Database check failed. Check configuration, connectivity and applied migrations.');
+  logEvent('process.failed');
   process.exitCode = 1;
 });

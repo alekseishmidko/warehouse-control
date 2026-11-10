@@ -23,6 +23,8 @@
  * System admin должен отдельно получить warehouse role, чтобы проводить складские операции.
  * Подробный пример безопасного ввода и flow: docs/flows/identity.md, раздел Bootstrap.
  */
+import { logEvent, nestLogger } from '../../infrastructure/logging/runtime-logger';
+import '../../infrastructure/logging/startup';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { loadEnvironment } from '../../infrastructure/config/environment';
@@ -64,13 +66,14 @@ async function main(): Promise<void> {
     )
       throw new Error('Invalid bootstrap input');
     app = await NestFactory.createApplicationContext(IdentityModule, {
-      logger: false,
+      // Framework пишет в общий stderr; stdout остаётся протоколом результата CLI.
+      logger: nestLogger,
       abortOnError: false,
     });
     const user = await app
       .get(UsersService)
       .bootstrap({ login: value.login, password: value.password });
-    console.log(JSON.stringify({ event: 'identity.bootstrapped', ...user }));
+    process.stdout.write(JSON.stringify({ event: 'identity.bootstrapped', ...user }) + '\n');
   } finally {
     try {
       await app?.close();
@@ -80,6 +83,6 @@ async function main(): Promise<void> {
   }
 }
 void main().catch(() => {
-  console.error('Identity bootstrap failed; check opt-in, DB role, one-time state and input');
+  logEvent('process.failed');
   process.exitCode = 1;
 });

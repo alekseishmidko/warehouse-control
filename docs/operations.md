@@ -92,8 +92,8 @@ Gates создают свои случайные projects/clusters/credentials/v
 ## Ещё не реализовано
 
 - Kafka/Strimzi и broker failure tests; текущий transport — PostgreSQL outbox.
-- Prometheus/Grafana/Loki/Tempo, Pino/OTel instrumentation и численные SLO/alert policy.
-  Сейчас доступны безопасная worker delivery диагностика и local backlog signal CLI.
+- Prometheus/Grafana/Loki/Tempo и численные SLO/alert policy. Pino/OTel runtime реализован
+  WMS-401: [настройки и ограничения](flows/logging.md). Local backlog signal CLI не заменяет alert delivery.
 - Внешние CI/CD, image publishing/GitOps/Argo CD, автоматический compatibility comparison
   с основной веткой и vulnerability remediation pipeline.
 - Проверенные HA/storage backups/restore, внешний DNS/load balancer, production Secrets
@@ -111,9 +111,9 @@ pending/retry/dead и возраст backlog, throughput, schema/dedup/lease/blo
 высокой cardinality. Dead delivery требует alert; численные SLO, retention и thresholds
 фиксируются по baseline нагрузочного теста. Текущий local signal CLI не заменяет alert delivery.
 
-Будущая OTel instrumentation должна переносить context через HTTP/event envelope.
-Отложенная обработка может создавать отдельный trace со span link, а не держать
-исходный span открытым часами. Секреты и полные bodies в логи/traces не передаются.
+WMS-401 переносит validated traceparent через HTTP/event envelope. Отложенный handler
+создаёт отдельный root trace с producer link. Секреты, SQL и bodies не передаются.
+Exporter endpoint опционален; без collector spans не сохраняются. [Flow](flows/logging.md).
 
 Внешняя PR pipeline должна выполнять frozen install, quality/contract compatibility,
 image checks и Helm lint/render. Main delivery через registry/GitOps/Argo CD требует

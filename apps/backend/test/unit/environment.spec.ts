@@ -1,11 +1,54 @@
 /** @file Unit suite конфигурации: strict validation, defaults и безопасный реальный startup без Docker. */
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
-import { validateEnvironment } from '@backend/infrastructure/config/environment';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import {
+  loadRootEnvironment,
+  loadEnvironment,
+  validateEnvironment,
+} from '@backend/infrastructure/config/environment';
 
 const valid = { DATABASE_URL: 'postgresql://user:private-password@localhost:15432/warehouse' };
 
 describe('runtime configuration', () => {
+  test('optional env file preserves process precedence, reports safe file errors and validates after load', () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'wms401-env-'));
+    const saved = { ...process.env };
+    try {
+      const file = resolve(dir, '.env');
+      delete process.env.WMS401_ENV_FILE_TEST;
+      process.env.DATABASE_URL = valid.DATABASE_URL;
+      process.env.NODE_ENV = 'test';
+      process.env.PORT = '4321';
+      process.env.HTTP_HOST = '127.0.0.1';
+      delete process.env.DEV_ACTOR_ENABLED;
+      // Parent проверяет ветки loader на пустом файле: native env не должен протечь между Jest suites.
+      writeFileSync(file, '');
+      loadRootEnvironment(resolve(dir, 'missing'));
+      expect(process.env.WMS401_ENV_FILE_TEST).toBeUndefined();
+      expect(loadEnvironment(file).port).toBe(4321);
+      // Node.loadEnvFile изменяет native env, Jest использует изолированную копию process.env.
+      // Проверяем фактическую загрузку в настоящем Node executable, а не подменяем loader mock.
+      writeFileSync(file, 'WMS401_ENV_FILE_TEST=loaded\nPORT=9999\n');
+      const child = spawnSync(
+        process.execPath,
+        [
+          '-e',
+          "const e=require('./dist/infrastructure/config/environment');const c=e.loadEnvironment(process.argv[1]);process.stdout.write(JSON.stringify({port:c.port,loaded:process.env.WMS401_ENV_FILE_TEST}))",
+          file,
+        ],
+        { env: { ...process.env }, encoding: 'utf8' },
+      );
+      expect(child.status).toBe(0);
+      expect(JSON.parse(child.stdout)).toEqual({ port: 4321, loaded: 'loaded' });
+      expect(() => loadRootEnvironment(dir)).toThrow('Cannot load root .env');
+    } finally {
+      for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key];
+      Object.assign(process.env, saved);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
   test('defaults and validated explicit settings', () => {
     const config = validateEnvironment(valid);
     expect(config.port).toBe(3000);

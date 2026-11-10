@@ -172,7 +172,7 @@ Testcontainers PostgreSQL той же версии, что Compose. Покрыт
 Fault triggers/direct SQL нужны только для проверки constraints/сбоя и живут в
 disposable DB. Reset отключает retention triggers только в admin test cleanup.
 Worker redelivery, crash после claim и конкуренция проверяются WMS-109
-в worker.spec.ts/worker-process.spec.ts, см. [worker](../worker/README.md). WMS-111 добавляет локальные JSON diagnostics/inspect/retry/signal; централизованные logs/metrics ещё впереди.
+в worker.spec.ts/worker-process.spec.ts, см. [worker](../worker/README.md). WMS-111 добавляет локальные JSON diagnostics/inspect/retry/signal; Pino/OTel runtime WMS-401 подключён, collection/metrics WMS-402 ещё впереди.
 
 Связанные документы: [ADR-0012](../../../../../docs/adr/0012-outbox-writer.md),
 [outbox protocol](../../../../../docs/outbox.md),
@@ -265,3 +265,9 @@ WMS-204: order aggregate (migration 0023), fulfillment.order-changed v1. Order s
 тот же writer, записывает immutable факт созданного/подтверждённого/зарезервированного/
 освобождённого/отменённого заказа. Consumers пока нет, deliveries не создаются; новый consumer
 требует replay/start-position плана. Payload — ссылка/order action, не snapshot quantities.
+
+## Операционная диагностика WMS-401
+
+Контекст, ручные OTel spans, commit outcome и безопасный Pino stderr описаны у
+[владельца logging flow](../../../../../docs/flows/logging.md). Raw HTTP/event/SQL payload
+и driver errors не выводятся. Диагностика не заменяет транзакционный AuditService.

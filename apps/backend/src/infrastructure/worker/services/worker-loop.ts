@@ -1,4 +1,5 @@
 /** @file Poll scheduler: batch parallelism ограничен pool, stop прерывает polling и ожидает активные handlers. */
+import { logEvent } from '../../logging/runtime-logger';
 import { Inject, Injectable } from '@nestjs/common';
 import { setTimeout as delay } from 'node:timers/promises';
 import { WORKER_CONFIG, WorkerConfig } from '../worker.config';
@@ -44,7 +45,7 @@ export class WorkerLoop {
             );
         });
       } catch {
-        console.error('Worker poll failed');
+        logEvent('worker.poll_failed', { module: 'worker', errorCode: 'OPERATION_FAILED' });
       }
       // Не логируем exception/env/payload. Даже DB outage не создаёт busy retry loop.
       try {

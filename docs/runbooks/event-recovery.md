@@ -78,7 +78,7 @@ node apps/backend/dist/infrastructure/outbox/outbox-admin.js signal
 ```
 
 Команда использует тот же env guard. Внешние каналы/уведомления не вызываются и не
-настроены этим этапом. Pino/Loki/метрики и alert routing — WMS-401/402.
+настроены этим этапом. Pino/OTel runtime — WMS-401; Loki/метрики и alert routing — WMS-402.
 
 ## 2. Устранить причину до retry
 

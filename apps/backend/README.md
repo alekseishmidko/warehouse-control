@@ -48,7 +48,10 @@ production авторизации ещё нет; consumer inventory.putaway по
 Config [документирован отдельно](src/infrastructure/config/README.md): NODE_ENV,
 PORT и DATABASE_URL. API не запускается без валидного URL и доступной БД.
 Встроенных миграций при старте нет: выполнить отдельную команду db:migrate.
-Логи Nest/console пока не заменены Pino; драйверные ошибки наружу не выводятся.
+API/worker/CLI и Nest используют общий Pino JSONL в stderr; raw driver/framework errors
+не сериализуются. Ручные OTel spans связывают HTTP → outbox → handler; collector endpoint
+опционален. [Настройки и диагностика](src/infrastructure/logging/README.md),
+[подробный flow](../../docs/flows/logging.md).
 
 Из корня: pnpm dev/typecheck/build/start, db:generate/db:migrate/db:check,
 test/test:unit/test:integration/test:config/test:db-baseline. `pnpm start` и db:check требуют актуального build.
@@ -144,7 +147,8 @@ OutboxRecoveryService экспортируется из OutboxModule; CLI entryp
 infrastructure/outbox/outbox-admin.ts запускает только этот graph без HTTP/worker.
 Scripts outbox:inspect/retry/signal используют build output, outbox:recovery-check готовит
 build/tests и проверяет runbook. Raw JSON automation запускает Node executable напрямую.
-Новые worker diagnostics поля/NDJSON не являются полным logging stack WMS-401.
+WMS-401 подключает worker diagnostics к общему Pino/OTel runtime. Loki/Tempo и alert delivery
+относятся к WMS-402; CLI stdout остаётся отдельным протоколом результата.
 [Role/command/flows](../../docs/flows/outbox-recovery.md), [ADR-0017](../../docs/adr/0017-local-outbox-recovery.md).
 
 ## Docker runtime WMS-112

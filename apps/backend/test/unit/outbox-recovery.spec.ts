@@ -1,5 +1,6 @@
 /** @file Локальные unit-контракты восстановления: строгие флаги, явное разрешение
  * и фильтрация key-value диагностики. PostgreSQL/Docker здесь не требуются. */
+import { configureLogging, stopLogging } from '@backend/infrastructure/logging/runtime-logger';
 import { randomUUID } from 'node:crypto';
 import {
   parseRecoveryOptions,
@@ -15,6 +16,9 @@ import { logDelivery } from '@backend/infrastructure/worker/delivery-logger';
 import { WorkerLoop } from '@backend/infrastructure/worker/services/worker-loop';
 import type { WorkerService } from '@backend/infrastructure/worker/services/worker.service';
 import { validateWorkerEnvironment } from '@backend/infrastructure/worker/worker.config';
+afterEach(async () => {
+  await stopLogging();
+});
 const id = randomUUID();
 const correlation = randomUUID();
 /** Успешный разбор нормализует UUID, добавляет server correlation и документированные пороги. */
@@ -127,18 +131,50 @@ test('diagnostic selects key-value fields, omits token/unknown properties and ma
   });
   expect(safeDeliveryError('DATABASE_REJECTED')).toBe('DATABASE_REJECTED');
   expect(safeDeliveryError(null)).toBeNull();
-  const sink = jest.spyOn(console, 'info').mockImplementation(() => {});
+  const lines: string[] = [];
+  configureLogging(
+    { process: 'worker', environment: 'test', module: 'worker' },
+    {
+      write(line: string) {
+        lines.push(line);
+      },
+    },
+  );
   logDelivery('dead', diagnostic);
-  expect(JSON.parse(sink.mock.calls[0][0])).toEqual({
-    event: 'worker.delivery',
-    status: 'dead',
-    ...diagnostic,
+  const record = JSON.parse(lines[0]);
+  expect(record).toMatchObject({
+    event: 'delivery.dead',
+    level: 'error',
+    process: 'worker',
+    module: 'worker',
+    eventId: id,
+    aggregateId: id,
+    destination: 'inventory.putaway',
+    attempt: 2,
+    errorCode: 'REDACTED',
   });
-  sink.mockImplementation(() => {
-    throw new Error('closed stdout');
-  });
+  for (const field of [
+    'timestamp',
+    'level',
+    'service',
+    'environment',
+    'process',
+    'module',
+    'event',
+    'message',
+  ])
+    expect(typeof record[field]).toBe('string');
+  expect(record).not.toHaveProperty('correlationId');
+  expect(lines.join('')).not.toContain('secret');
+  configureLogging(
+    { process: 'worker', environment: 'test', module: 'worker' },
+    {
+      write() {
+        throw new Error('closed sink');
+      },
+    },
+  );
   expect(() => logDelivery('dead', diagnostic)).not.toThrow();
-  sink.mockRestore();
 });
 
 /** Promise обработки отклоняется с чувствительным cause; loop выводит только безопасный
@@ -162,25 +198,31 @@ test('failed persistence retains per-claim diagnostic context without raw cause;
   const loop = new WorkerLoop(worker as unknown as WorkerService, validateWorkerEnvironment({}));
   // Тестовый барьер: вывод диагностики синхронно вызывает stop, запрещая следующий claim.
   // Имитируем отказ сохранения результата, а не бизнес-эффект; raw cause не должен попасть в лог.
-  const sink = jest.spyOn(console, 'info').mockImplementation(() => {
-    loop.stop();
-  });
+  const lines: string[] = [];
+  configureLogging(
+    { process: 'worker', environment: 'test', module: 'worker' },
+    {
+      write(line: string) {
+        lines.push(line);
+        loop.stop();
+      },
+    },
+  );
   try {
     await loop.run();
-    const record = JSON.parse(sink.mock.calls[0][0]);
+    const record = JSON.parse(lines[0]);
     expect(record).toMatchObject({
-      status: 'persistence-failed',
+      event: 'delivery.persistence_failed',
       eventId: id,
       correlationId: correlation,
       attempt: 4,
-      consumer: 'inventory.putaway',
-      lastError: 'TRANSIENT_FAILURE',
+      destination: 'inventory.putaway',
+      errorCode: 'TRANSIENT_FAILURE',
     });
     expect(JSON.stringify(record)).not.toContain('secret');
     expect(record).not.toHaveProperty('token');
     expect(worker.claim).toHaveBeenCalledTimes(1);
   } finally {
     loop.stop();
-    sink.mockRestore();
   }
 });
