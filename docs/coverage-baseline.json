@@ -1222,5 +1222,35 @@
     "statements": 100,
     "functions": 100,
     "branches": 96.42
+  },
+  "src/infrastructure/logging/pino-logger.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/shared/logging/log-contract.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/logging/runtime-logger.ts": {
+    "lines": 90.51,
+    "statements": 90.51,
+    "functions": 80,
+    "branches": 85
+  },
+  "src/infrastructure/logging/startup.ts": {
+    "lines": 32.83,
+    "statements": 32.83,
+    "functions": 0,
+    "branches": 33.33
+  },
+  "src/infrastructure/logging/telemetry.ts": {
+    "lines": 96,
+    "statements": 96,
+    "functions": 66.66,
+    "branches": 91.07
   }
 }

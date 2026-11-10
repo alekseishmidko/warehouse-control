@@ -1,4 +1,5 @@
 /** @file Outbox write interface: UUID/sequence allocation и validation в обязательном caller-owned context. */
+import { currentTraceparent, remoteTrace } from '../../logging/telemetry';
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { TransactionContext } from '../../../shared/transactions/transaction.port';
@@ -38,7 +39,13 @@ export class OutboxService {
     // Первый snapshot фиксирует вход до первого await и проверяет payload до счётчика.
     // UUID создаётся локально, без сетевого I/O. После rollback UUID не считается опубликованным.
     const eventId = randomUUID();
-    const candidate = this.contracts.prepareForOutbox({ ...input, eventId, aggregateVersion: 1 });
+    const producerContext = currentTraceparent();
+    const candidate = this.contracts.prepareForOutbox({
+      ...input,
+      ...(producerContext ? { traceparent: producerContext } : {}),
+      eventId,
+      aggregateVersion: 1,
+    });
     const version = await this.repository.nextVersion(
       context,
       candidate.event.aggregateType,
@@ -47,8 +54,16 @@ export class OutboxService {
     // Повторная проверка обязательна: окончательная версия может увеличить число bytes сообщения.
     // Writer metadata задаётся повторно после JSON snapshot: даже input.toJSON не может
     // подменить выделенный UUID/sequence. Parsed snapshot уже не содержит исполняемых методов.
+    const snapshot = { ...candidate.event };
+    const parent =
+      currentTraceparent() ??
+      (remoteTrace(snapshot.traceparent) ? snapshot.traceparent : undefined);
+    delete snapshot.traceparent;
+    delete snapshot.tracestate;
+    delete snapshot.baggage;
     const prepared = this.contracts.prepareForOutbox({
-      ...candidate.event,
+      ...snapshot,
+      ...(parent ? { traceparent: parent } : {}),
       eventId,
       aggregateVersion: version,
     });

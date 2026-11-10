@@ -1,4 +1,6 @@
 /** @file Владелец claim/process/failure transactions; handler effect и durable ack имеют одну границу commit. */
+import { traced, linkProducer } from '../../logging/telemetry';
+import { logScope } from '../../logging/runtime-logger';
 import { Inject, Injectable } from '@nestjs/common';
 import {
   TRANSACTION_RUNNER,
@@ -53,60 +55,78 @@ export class WorkerService {
    * Внешнее I/O в handler запрещено; все его операции awaited в одном context с marker/cursors/ack.
    */
   async process(claim: DeliveryClaim): Promise<'completed' | 'retry' | 'dead' | 'stale'> {
-    try {
-      await this.transactions.run(async (context) => {
-        await this.repository.boundTransaction(context, this.config.transactionTimeoutMs);
-        const delivery = await this.repository.lock(context, claim);
-        if (!delivery) throw new StaleDeliveryError();
-        const event = this.contracts.parseForHandler(JSON.stringify(delivery.envelope));
-        // Защищаем routing identity дополнительно к SQL CHECK, до handler/marker.
-        if (
-          event.eventId.toLowerCase() !== claim.eventId ||
-          event.aggregateId.toLowerCase() !== claim.aggregateId ||
-          event.aggregateType !== claim.aggregateType ||
-          event.aggregateVersion !== claim.version
-        )
-          throw new PermanentDeliveryError('IDENTITY_MISMATCH');
-        const handler = this.registry.get(claim.destination);
-        if (!handler) throw new PermanentDeliveryError('HANDLER_MISSING');
-        if (!(await this.repository.prepareConsumer(context, claim))) {
-          await handler.handle(context, event);
-          await this.repository.markProcessed(context, claim);
-        }
-        // Lease мог истечь во время handler, но обе строки всё ещё locked:
-        // reclaim SKIP LOCKED не сменит token до commit, повторной проверки wall clock не нужно.
-        await this.repository.complete(context, claim);
-      });
-      logDelivery('completed', deliveryDiagnostic({ ...claim, lastError: null }));
-      return 'completed';
-    } catch (error) {
-      if (error instanceof StaleDeliveryError) {
-        logDelivery('stale', deliveryDiagnostic(claim));
-        return 'stale';
-      }
-      const classification = classifyDeliveryError(error);
-      // Callback уже rollback-нут. При потере commit ack эта проверка увидит completed
-      // и не перепишет результат; при reclaim новым worker старый token тоже будет отклонён.
-      const result = await this.transactions.run(async (context) => {
-        await this.repository.boundTransaction(context, this.config.transactionTimeoutMs);
-        const delivery = await this.repository.lock(context, claim);
-        if (!delivery) return 'stale';
-        // Новый административный base открывает бюджет, но attempt в диагностике остаётся общим.
-        // Backoff рассчитывается по попытке текущего бюджета, иначе retry после 10 попыток
-        // сразу исчерпал бы тот же лимит повторно.
-        const budgetAttempt = delivery.attempts - delivery.retryAttemptBase;
-        const dead = classification.permanent || budgetAttempt >= this.config.maxAttempts;
-        await this.repository.fail(
-          context,
-          claim,
-          dead,
-          classification.code,
-          retryDelayMs(budgetAttempt, this.config),
-        );
-        return dead ? ('dead' as const) : ('retry' as const);
-      });
-      logDelivery(result, deliveryDiagnostic({ ...claim, lastError: classification.code }));
-      return result;
-    }
+    return logScope(
+      {
+        module: 'worker',
+        correlationId: claim.correlationId ?? undefined,
+        eventId: claim.eventId,
+        aggregateId: claim.aggregateId,
+        destination: claim.destination,
+        attempt: claim.attempt,
+      },
+      () =>
+        traced(
+          'handler',
+          async (handlerSpan) => {
+            try {
+              await this.transactions.run(async (context) => {
+                await this.repository.boundTransaction(context, this.config.transactionTimeoutMs);
+                const delivery = await this.repository.lock(context, claim);
+                if (!delivery) throw new StaleDeliveryError();
+                const event = this.contracts.parseForHandler(JSON.stringify(delivery.envelope));
+                linkProducer(event.traceparent, handlerSpan);
+                // Защищаем routing identity дополнительно к SQL CHECK, до handler/marker.
+                if (
+                  event.eventId.toLowerCase() !== claim.eventId ||
+                  event.aggregateId.toLowerCase() !== claim.aggregateId ||
+                  event.aggregateType !== claim.aggregateType ||
+                  event.aggregateVersion !== claim.version
+                )
+                  throw new PermanentDeliveryError('IDENTITY_MISMATCH');
+                const handler = this.registry.get(claim.destination);
+                if (!handler) throw new PermanentDeliveryError('HANDLER_MISSING');
+                if (!(await this.repository.prepareConsumer(context, claim))) {
+                  await handler.handle(context, event);
+                  await this.repository.markProcessed(context, claim);
+                }
+                // Lease мог истечь во время handler, но обе строки всё ещё locked:
+                // reclaim SKIP LOCKED не сменит token до commit, повторной проверки wall clock не нужно.
+                await this.repository.complete(context, claim);
+              });
+              logDelivery('completed', deliveryDiagnostic({ ...claim, lastError: null }));
+              return 'completed';
+            } catch (error) {
+              if (error instanceof StaleDeliveryError) {
+                logDelivery('stale', deliveryDiagnostic(claim));
+                return 'stale';
+              }
+              const classification = classifyDeliveryError(error);
+              // Callback уже rollback-нут. При потере commit ack эта проверка увидит completed
+              // и не перепишет результат; при reclaim новым worker старый token тоже будет отклонён.
+              const result = await this.transactions.run(async (context) => {
+                await this.repository.boundTransaction(context, this.config.transactionTimeoutMs);
+                const delivery = await this.repository.lock(context, claim);
+                if (!delivery) return 'stale';
+                // Новый административный base открывает бюджет, но attempt в диагностике остаётся общим.
+                // Backoff рассчитывается по попытке текущего бюджета, иначе retry после 10 попыток
+                // сразу исчерпал бы тот же лимит повторно.
+                const budgetAttempt = delivery.attempts - delivery.retryAttemptBase;
+                const dead = classification.permanent || budgetAttempt >= this.config.maxAttempts;
+                await this.repository.fail(
+                  context,
+                  claim,
+                  dead,
+                  classification.code,
+                  retryDelayMs(budgetAttempt, this.config),
+                );
+                return dead ? ('dead' as const) : ('retry' as const);
+              });
+              logDelivery(result, deliveryDiagnostic({ ...claim, lastError: classification.code }));
+              return result;
+            }
+          },
+          true,
+        ),
+    );
   }
 }

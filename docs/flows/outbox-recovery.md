@@ -161,7 +161,7 @@ Signal одним SQL statement считает dead, backlog (pending/retry/proc
 отдельно от active backlog. Alert если dead≥deadLimit, backlog≥backlogLimit либо active backlog
 старше maxAgeSeconds. Defaults: 1 / 100 / 60s. Это наблюдение, не автоматический retry.
 Node exit 0 healthy / 2 alert / 1 denial/failure; stdout JSON, уведомлений наружу нет.
-Future centralized logging/metrics/notifications — WMS-401/402, не обещание готового Loki/Pino.
+Pino/OTel runtime WMS-401 подключён; collection/metrics/notifications WMS-402 ещё не реализованы.
 
 ## Evidence и ограничения
 
@@ -191,13 +191,13 @@ replay/rebuild и исправление corrupted immutable facts не реал
 | [recovery.repository.ts](../../apps/backend/src/infrastructure/outbox/repositories/recovery.repository.ts)     | Заимствованный context, SQL NOWAIT, запись history и scheduling без собственного commit; таймауты по 5s            |
 | [outbox.schema.ts](../../apps/backend/src/infrastructure/outbox/outbox.schema.ts)                              | retry_attempt_base и outbox_recovery_actions; назначение ограничений и ссылки на аудит/delivery                    |
 | [delivery-diagnostic.ts](../../apps/backend/src/shared/diagnostics/delivery-diagnostic.ts)                     | Чистый выбор полей, проверка correlation UUID и маскирование неизвестной ошибки                                    |
-| [delivery-logger.ts](../../apps/backend/src/infrastructure/worker/delivery-logger.ts)                          | Локальный JSON stdout после завершения транзакции; ошибка вывода не отменяет commit                                |
+| [delivery-logger.ts](../../apps/backend/src/infrastructure/worker/delivery-logger.ts)                          | Общий Pino JSONL stderr после завершения транзакции; ошибка sink не отменяет commit                                |
 | [worker.repository.ts](../../apps/backend/src/infrastructure/worker/repositories/worker.repository.ts)         | Бюджет attempts-base, сбор claims/exhausted без I/O под блокировками                                               |
 | [worker.service.ts](../../apps/backend/src/infrastructure/worker/services/worker.service.ts)                   | Вывод результата только после commit; backoff по текущему бюджету, общий attempt в логах                           |
 | [worker-loop.ts](../../apps/backend/src/infrastructure/worker/services/worker-loop.ts)                         | allSettled сохраняет независимость потоков; ошибка persistence связана с конкретным claim по индексу               |
 | [Миграции README](../../apps/backend/drizzle/README.md#wms-111)                                                | Назначение 0016/0017, SQL-права и триггеры; applied/generated SQL не редактируется для комментариев                |
 | [Интеграционные тесты](../../apps/backend/test/integration/outbox-recovery.spec.ts)                            | Настоящий CLI, AFTER-trigger fault, удерживаемые блокировки, конкурирующие операторы, роль и rollback              |
-| [Unit-тесты](../../apps/backend/test/unit/outbox-recovery.spec.ts)                                             | Граница ввода, redaction, отказ stdout, остановка poll через тестовый барьер                                       |
+| [Unit-тесты](../../apps/backend/test/unit/outbox-recovery.spec.ts)                                             | Граница ввода, redaction, отказ Pino sink, остановка poll через тестовый барьер                                    |
 | [database-harness.ts](../../apps/backend/test/support/database-harness.ts)                                     | Cleanup полного FK-графа вместе с recovery history; отключение trigger только в disposable admin БД                |
 
 ### Что означает диагностическое чтение
@@ -229,3 +229,7 @@ read committed. Каждый запрос видит свой снимок, по
 или закрытия после успешного commit не доказывает rollback: сначала inspect, затем решение.
 Raw stack, SQL и credentials не нужны для выбора ветки; для подробной диагностики остаются
 проверенный runbook и состояние БД. Выход 2 от signal — штатный alert, а не отказ команды.
+
+Операционные события CLI (`process.started/failed/stopped`, transaction.*) идут в stderr
+по [общему logging flow](logging.md). Stdout остаётся JSON результата команды, включая
+явно запрошенный inspect payload; collector не должен включать этот result protocol.

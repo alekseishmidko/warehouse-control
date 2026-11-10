@@ -418,7 +418,12 @@ test.each([{ NODE_ENV: 'production' }, { OUTBOX_ADMIN_ENABLED: 'false' }])(
       DATABASE_URL: 'postgresql://offline@127.0.0.1:1/db',
     });
     expect(result.code).toBe(1);
-    expect(JSON.parse(result.stderr).code).toBe('LOCAL_ACCESS_REQUIRED');
+    const records = result.stderr
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as { code?: string; event: string });
+    expect(records.every((record) => typeof record.event === 'string')).toBe(true);
+    expect(records.filter((record) => record.code === 'LOCAL_ACCESS_REQUIRED')).toHaveLength(1);
     const invalid = await cli(['inspect', '--event', 'secret']);
     expect(invalid.code).toBe(1);
     expect(invalid.stderr).not.toContain('secret');

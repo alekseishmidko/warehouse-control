@@ -1,14 +1,27 @@
-/** @file Локальный вывод диагностики доставки в stdout после завершения транзакции.
- * Не заменяет будущую централизованную систему логирования WMS-401 и не меняет результат в БД. */
+/** @file Безопасная диагностика доставки только после commit; token/payload отсутствуют в общем logger contract. */
 import type { DeliveryDiagnostic } from '../../shared/diagnostics/delivery-diagnostic';
-/** Пытается вывести одну строку JSON; ошибка вывода не запускает повтор уже зафиксированного эффекта.
- * @param status Серверная стадия обработки, а не произвольная строка от пользователя.
- * @param diagnostic Отфильтрованный результат deliveryDiagnostic без токена и payload.
- * @returns Ничего; исключение console.info подавляется. Долговечная история остаётся в БД. */
-export function logDelivery(status: string, diagnostic: DeliveryDiagnostic): void {
-  try {
-    console.info(JSON.stringify({ event: 'worker.delivery', status, ...diagnostic }));
-  } catch {
-    /* Закрытый stdout не меняет результат БД; повторный вывод здесь мог бы вызвать рекурсивную ошибку. */
-  }
+import { logEvent } from '../logging/runtime-logger';
+/** Стадия определяется серверным service, неизвестная стадия считается stale. */
+export function logDelivery(status: string, d: DeliveryDiagnostic): void {
+  const event =
+    status === 'persistence-failed'
+      ? 'delivery.persistence_failed'
+      : status === 'claimed'
+        ? 'delivery.claimed'
+        : status === 'completed'
+          ? 'delivery.completed'
+          : status === 'retry'
+            ? 'delivery.retry'
+            : status === 'dead'
+              ? 'delivery.dead'
+              : 'delivery.stale';
+  logEvent(event, {
+    module: 'worker',
+    correlationId: d.correlationId ?? undefined,
+    eventId: d.eventId,
+    aggregateId: d.stream.aggregateId,
+    destination: d.consumer,
+    attempt: d.attempt,
+    errorCode: d.lastError ?? undefined,
+  });
 }

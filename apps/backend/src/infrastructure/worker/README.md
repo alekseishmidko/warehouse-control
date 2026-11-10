@@ -190,8 +190,10 @@ processes, SIGTERM drain/deadline, SIGKILL и DB recovery, отсутствие 
 `pnpm test`, `pnpm typecheck`, `pnpm db:generate` (no diff после generation).
 Тесты используют real migrations и disposable harness, Docker failure — не skip.
 
-Delivery diagnostics WMS-111 идут в stdout как JSON после commit; lifecycle/poll ошибки — безопасным текстом. Централизованные
-key-value логи/метрики/tracing — WMS-401/402. WMS-304 добавляет probe listener9100
+Delivery diagnostics и lifecycle/poll ошибки идут через общий Pino JSONL stderr WMS-401.
+Ручной handler span создаёт отдельный root trace с producer link; поля eventId/aggregateId/
+destination/attempt связывают попытки без payload. [Logging flow](../../../../../docs/flows/logging.md).
+Централизованное хранение/метрики/alerts — WMS-402. WMS-304 добавляет probe listener9100
 с startup/ready/live, без warehouse routes/Service. [Lifecycle flow](../../../../../docs/flows/lifecycle.md).
 Диагностика: eventId/destination/attempts/last_error/lease/token и оба cursors;
 не сбрасывать lease/cursor/markers руками. [Runbook](../../../../../docs/runbooks/event-recovery.md),
@@ -201,7 +203,7 @@ key-value логи/метрики/tracing — WMS-401/402. WMS-304 добавл�
 
 DeliveryClaim содержит sanitized correlationId/total attempt/lastError. Общая форма
 shared/diagnostics — eventId, correlationId, stream, consumer, attempt, lastError, без token.
-delivery-logger.ts — local NDJSON sink после claim/processing/failure commit, exhausted claim
+delivery-logger.ts — adapter общего Pino после claim/processing/failure commit, exhausted claim
 также логируется dead. Best-effort sink failure не меняет DB outcome; durable source — таблицы.
 
 Worker budget/backoff использует attempts-retry_attempt_base, total attempts никогда не
@@ -209,7 +211,7 @@ Worker budget/backoff использует attempts-retry_attempt_base, total at
 обычный failure/claim его не меняет. Config maxAttempts остаётся bounded попытками одного budget.
 [Полный recovery flow](../../../../../docs/flows/outbox-recovery.md),
 [команды](../../../../../docs/runbooks/event-recovery.md). Это локальная диагностика,
-полный Pino/Loki/OTel stack и внешние alert channels ещё не реализованы.
+Loki/Tempo collection и внешние alert channels ещё не реализованы; Pino/OTel runtime подключён.
 
 WMS-203: InventoryModule добавляет execution providers и OutboxModule, но HTTP/identity composition
 остаётся отдельным InventoryHttpModule API graph. Worker не требует human AUTH policy.

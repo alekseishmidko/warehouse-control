@@ -559,3 +559,32 @@ test('owner cannot update envelope or truncate retained outbox graph', async () 
     ),
   ).rejects.toMatchObject({ code: '42501' });
 });
+
+/** Extensions не дают producer обходить validated trace policy; схема бизнес-события остаётся прежней. */
+test('WMS-401: without active span writer retains only valid traceparent and removes baggage/tracestate', async () => {
+  const parent = `00-${'a'.repeat(32)}-${'b'.repeat(16)}-01`;
+  for (const traceparent of [parent, 'PRIVATE_INVALID_TRACE']) {
+    const event = await runner.run((context) =>
+      outbox.append(
+        context,
+        outboxFixture({
+          traceparent,
+          tracestate: 'PRIVATE_STATE',
+          baggage: 'PRIVATE_BAGGAGE',
+          futureField: 'retained',
+        }),
+      ),
+    );
+    expect(event.traceparent).toBe(traceparent === parent ? parent : undefined);
+    expect(event).not.toHaveProperty('tracestate');
+    expect(event).not.toHaveProperty('baggage');
+    expect(event).toHaveProperty('futureField', 'retained');
+    const stored = (
+      await database().connection.pool.query(
+        'select envelope from outbox_events where event_id=$1',
+        [event.eventId],
+      )
+    ).rows[0].envelope;
+    expect(stored).toEqual(event);
+  }
+});

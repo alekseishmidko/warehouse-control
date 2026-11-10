@@ -84,8 +84,9 @@ migration Job, Secret/configuration. Готово, когда кластер п�
 
 ## 4. Наблюдаемость и нагрузка
 
-OTel, Pino, Prometheus/Grafana, Loki/Tempo, k6.
-Готово, когда виден путь команды до обработчика, есть alert на dead/backlog,
+WMS-401 выполнена: Pino/OTel runtime и HTTP → outbox → linked handler.
+[Evidence и ограничения](reports/wms-401.md). WMS-402–404: Prometheus/Grafana, Loki/Tempo, k6 и recovery drill.
+Этап готов, когда виден путь команды до обработчика, есть alert на dead/backlog,
 измерены baseline и ограничения стенда.
 
 ## 5. Kafka

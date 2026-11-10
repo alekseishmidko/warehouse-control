@@ -1,5 +1,8 @@
 /** @file Отдельный executable worker: validated config, Nest context без бизнес-HTTP, probe listener9100 и bounded SIGTERM drain. */
+import { logEvent } from './infrastructure/logging/runtime-logger';
+import './infrastructure/logging/startup';
 import 'reflect-metadata';
+import { nestLogger } from './infrastructure/logging/runtime-logger';
 import { NestFactory } from '@nestjs/core';
 import { WorkerModule } from './infrastructure/worker/worker.module';
 import { loadWorkerConfig } from './infrastructure/worker/worker.config';
@@ -11,18 +14,21 @@ async function bootstrapWorker(): Promise<void> {
     const config = loadWorkerConfig();
     await runWorkerProcess(
       () =>
-        NestFactory.createApplicationContext(WorkerModule, { logger: false, abortOnError: false }),
+        NestFactory.createApplicationContext(WorkerModule, {
+          logger: nestLogger,
+          abortOnError: false,
+        }),
       config,
     );
   } catch {
     process.exitCode = 1;
-    console.error('Worker startup failed');
+    logEvent('process.failed');
   }
 }
 // Импорт файла инструментами не запускает polling; только executable entrypoint.
 if (require.main === module)
   bootstrapWorker().catch(() => {
     // Последняя граница executable: не допускает необработанный rejection и не печатает credentials.
-    console.error('Worker entrypoint failed');
+    logEvent('process.failed');
     process.exitCode = 1;
   });

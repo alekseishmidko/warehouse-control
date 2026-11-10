@@ -77,3 +77,9 @@ Origin. Backend AUTH_ORIGIN должен совпадать с web origin. Cooki
 ослаблена; CORS выключен. Browser gate использует отдельные случайные loopback ports
 и передаёт origin через DI harness, не process.env. `directory-reads.spec.ts`
 проверяет реальный ACL/paging, `web-gate.spec.ts` — полный UI/HTTP/SQL сценарий.
+
+## Операционная диагностика WMS-401
+
+Контекст, ручные OTel spans, commit outcome и безопасный Pino stderr описаны у
+[владельца logging flow](../../../../../docs/flows/logging.md). Raw HTTP/event/SQL payload
+и driver errors не выводятся. Диагностика не заменяет транзакционный AuditService.

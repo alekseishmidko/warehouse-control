@@ -60,7 +60,8 @@ generated API-контракты, Query cache и журнал команд. Gate
 WMS-301–303 выполнены: kind, Helm API/worker/web, NGINX Gateway Fabric и TLS проверены
 реальным складским UI-сценарием. [Gateway flow](flows/gateway-tls.md),
 [evidence и ограничения доверия](reports/wms-303.md). WMS-304 выполнена: [lifecycle/rollout](flows/lifecycle.md),
-[Gate3 и ограничения](reports/wms-304.md). Следующая задача — WMS-401.
+[Gate3 и ограничения](reports/wms-304.md). WMS-401 выполнена: [Pino runtime и OTel](reports/wms-401.md), реальные HTTP/outbox/handler links,
+replay/retry и rollback проверены. Collection/dashboards/alerts — отдельная WMS-402.
 
 Закрытие R-04–R-06: [исправления, тесты и ограничение registry audit](reports/review-fixes-r04-r06.md).
 Полный audit сохраняет 1 low по patched deepmerge; production audit — без advisory.
@@ -192,7 +193,7 @@ ShippingChanged требует shipmentId для действий над док�
 
 WMS-207 реализована: [складские списки и история](flows/warehouse-reads.md),
 явные DTO, filters/keyset pagination, read/audit ACL, migration 0032 и PostgreSQL
-EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI и WMS-301–304 также выполнены; далее WMS-401.
+EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI и WMS-301–304 также выполнены; WMS-401 подключает Pino/OTel runtime.
 
 [Качество, критерии приёмки и coverage](quality.md): обязательные AC ID, typed lint,
 архитектурные guards и измерение собственного backend. [Отчёт](reports/quality-baseline.md).

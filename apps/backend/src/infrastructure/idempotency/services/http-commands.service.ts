@@ -1,4 +1,7 @@
 /** @file Владелец command transaction: dedup claim, бизнес-callback и success result атомарны. */
+import { traced } from '../../logging/telemetry';
+import { LOG_MODULES, type LogFields } from '../../../shared/logging/log-contract';
+import { logScope, logEvent } from '../../logging/runtime-logger';
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { canonicalJson } from '../../../shared/serialization/canonical-json';
@@ -58,62 +61,86 @@ export class HttpCommandsService {
     const hash = createHash('sha256').update(canonicalJson(normalizedRequest)).digest('hex');
     // Единственная транзакция охватывает и unique claim, и callback, и response snapshot.
     // Возвращённое значение будет доступно caller только после успешного COMMIT runner.
-    return this.transactions.run(async (context) => {
-      // Permission/session locks удерживаются до результата, поэтому отзыв не обходит saved replay.
-      // Callback обязателен для production warehouse controllers; test-only protocol fixture может его не задавать.
-      await authorize?.(context);
-      // Unique INSERT ждёт владельца scope. false означает, что тот успел закоммитить
-      // строку; после его rollback INSERT мог бы выполниться и вернуть true.
-      if (!(await this.repository.claim(context, scope, hash))) {
-        // Нужен отдельный statement: read committed snapshot ожидавшего INSERT мог
-        // ещё не видеть winner. Нельзя заменить этот read на SELECT того же statement.
-        const previous = await this.repository.find(context, scope);
-        // Committed pending нарушает протокол: повторно запускать work опасно,
-        // поскольку состояние уже не доказывает отсутствие предыдущего эффекта.
-        if (!previous || previous.statusCode === null || previous.completedAt === null)
-          throw new Error('Invalid committed idempotency state');
-        if (previous.requestHash !== hash) throw new CommandError('IDEMPOTENCY_CONFLICT');
-        return {
-          statusCode: previous.statusCode as CommandResult['statusCode'],
-          body: previous.body,
-          headers: previous.headers ?? {},
-        };
-      }
-      // Результат копируется до записи; будущие мутации исходного body не меняют сохранённый response.
-      const candidate = await work(context);
-      let result: CommandResult;
-      // Canonical serializer отклоняет non-JSON/нестабильные значения и делает копию.
-      // Неверный ответ сформировал сервер, поэтому его ошибка не должна стать HTTP 400 клиента.
-      try {
-        result = JSON.parse(canonicalJson(candidate)) as CommandResult;
-      } catch {
-        throw new Error('Invalid command result');
-      }
-      if (!result || typeof result !== 'object' || Array.isArray(result))
-        throw new Error('Invalid command result');
-      if (
-        ![200, 201, 202].includes(result.statusCode) ||
-        !Object.hasOwn(result, 'body') ||
-        Object.keys(result).some((key) => !['statusCode', 'body', 'headers'].includes(key))
-      )
-        throw new Error('Invalid command result');
-      // Сохраняем только относительный Location: replay не должен повторять cookies,
-      // credentials или произвольные transport headers предыдущего HTTP запроса.
-      if (
-        result.headers !== undefined &&
-        (!result.headers ||
-          typeof result.headers !== 'object' ||
-          Array.isArray(result.headers) ||
-          Object.keys(result.headers).some((key) => key !== 'location') ||
-          (result.headers.location !== undefined &&
-            !/^\/api\/v1\/[A-Za-z0-9/._~-]{1,480}$/.test(result.headers.location)))
-      )
-        throw new Error('Invalid command headers');
-      const snapshot = { ...result, headers: result.headers ?? {} };
-      // Это UPDATE в ещё открытой транзакции, не самостоятельное подтверждение команды.
-      // Текущий X-Correlation-Id добавит HTTP adapter, он не часть сохранённого response.
-      await this.repository.complete(context, scope, snapshot);
-      return snapshot;
-    });
+    const module = LOG_MODULES.find((value) => value === scope.operation.split('.')[0]) ?? 'http';
+    return logScope({ correlationId: scope.correlationId, module }, () =>
+      traced('operation', async () => {
+        let replay = false;
+        const started = performance.now();
+        logEvent('operation.started');
+        try {
+          const result = await this.transactions.run(async (context) => {
+            // Permission/session locks удерживаются до результата, поэтому отзыв не обходит saved replay.
+            // Callback обязателен для production warehouse controllers; test-only protocol fixture может его не задавать.
+            await authorize?.(context);
+            // Unique INSERT ждёт владельца scope. false означает, что тот успел закоммитить
+            // строку; после его rollback INSERT мог бы выполниться и вернуть true.
+            if (!(await this.repository.claim(context, scope, hash))) {
+              // Нужен отдельный statement: read committed snapshot ожидавшего INSERT мог
+              // ещё не видеть winner. Нельзя заменить этот read на SELECT того же statement.
+              replay = true;
+              const previous = await this.repository.find(context, scope);
+              // Committed pending нарушает протокол: повторно запускать work опасно,
+              // поскольку состояние уже не доказывает отсутствие предыдущего эффекта.
+              if (!previous || previous.statusCode === null || previous.completedAt === null)
+                throw new Error('Invalid committed idempotency state');
+              if (previous.requestHash !== hash) throw new CommandError('IDEMPOTENCY_CONFLICT');
+              return {
+                statusCode: previous.statusCode as CommandResult['statusCode'],
+                body: previous.body,
+                headers: previous.headers ?? {},
+              };
+            }
+            // Результат копируется до записи; будущие мутации исходного body не меняют сохранённый response.
+            const candidate = await work(context);
+            let result: CommandResult;
+            // Canonical serializer отклоняет non-JSON/нестабильные значения и делает копию.
+            // Неверный ответ сформировал сервер, поэтому его ошибка не должна стать HTTP 400 клиента.
+            try {
+              result = JSON.parse(canonicalJson(candidate)) as CommandResult;
+            } catch {
+              throw new Error('Invalid command result');
+            }
+            if (!result || typeof result !== 'object' || Array.isArray(result))
+              throw new Error('Invalid command result');
+            if (
+              ![200, 201, 202].includes(result.statusCode) ||
+              !Object.hasOwn(result, 'body') ||
+              Object.keys(result).some((key) => !['statusCode', 'body', 'headers'].includes(key))
+            )
+              throw new Error('Invalid command result');
+            // Сохраняем только относительный Location: replay не должен повторять cookies,
+            // credentials или произвольные transport headers предыдущего HTTP запроса.
+            if (
+              result.headers !== undefined &&
+              (!result.headers ||
+                typeof result.headers !== 'object' ||
+                Array.isArray(result.headers) ||
+                Object.keys(result.headers).some((key) => key !== 'location') ||
+                (result.headers.location !== undefined &&
+                  !/^\/api\/v1\/[A-Za-z0-9/._~-]{1,480}$/.test(result.headers.location)))
+            )
+              throw new Error('Invalid command headers');
+            const snapshot = { ...result, headers: result.headers ?? {} };
+            // Это UPDATE в ещё открытой транзакции, не самостоятельное подтверждение команды.
+            // Текущий X-Correlation-Id добавит HTTP adapter, он не часть сохранённого response.
+            await this.repository.complete(context, scope, snapshot);
+            return snapshot;
+          });
+          const fields: LogFields = { durationMs: performance.now() - started };
+          // Только складской документ приёмки; identity DTO/user IDs не попадают в агрегатные логи.
+          if (module === 'receiving' && result.body && typeof result.body === 'object') {
+            if ('id' in result.body && typeof result.body.id === 'string')
+              fields.aggregateId = result.body.id;
+            if ('postedEventId' in result.body && typeof result.body.postedEventId === 'string')
+              fields.eventId = result.body.postedEventId;
+          }
+          logEvent(replay ? 'operation.replayed' : 'operation.completed', fields);
+          return result;
+        } catch (error) {
+          logEvent('operation.failed', { errorCode: 'OPERATION_FAILED' });
+          throw error;
+        }
+      }),
+    );
   }
 }

@@ -54,8 +54,7 @@ export function validateEnvironment(env: NodeJS.ProcessEnv): RuntimeConfig {
 }
 
 /** Загружает optional root .env; переменные процесса имеют приоритет. Не требует файла в production. */
-export function loadEnvironment(): RuntimeConfig {
-  const envPath = resolve(__dirname, '../../../../../.env');
+export function loadRootEnvironment(envPath = resolve(__dirname, '../../../../../.env')): void {
   if (existsSync(envPath)) {
     try {
       loadEnvFile(envPath);
@@ -63,5 +62,9 @@ export function loadEnvironment(): RuntimeConfig {
       throw new Error('Cannot load root .env');
     }
   }
+}
+/** Загружает root env и валидирует runtime до подключения к БД. */
+export function loadEnvironment(envPath?: string): RuntimeConfig {
+  loadRootEnvironment(envPath);
   return validateEnvironment(process.env);
 }

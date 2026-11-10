@@ -130,3 +130,9 @@ Callback work может не запускаться при replay, поэтом
 внутри work. Test-only protocol fixture не объявляет warehouse endpoint production.
 Auth/credential admin controllers не кешируют password inputs в этом storage, чтобы
 не создавать быстрый проверочный SHA-256 fingerprint. [Подробности](../../../../../docs/flows/identity.md).
+
+## Операционная диагностика WMS-401
+
+Контекст, ручные OTel spans, commit outcome и безопасный Pino stderr описаны у
+[владельца logging flow](../../../../../docs/flows/logging.md). Raw HTTP/event/SQL payload
+и driver errors не выводятся. Диагностика не заменяет транзакционный AuditService.

@@ -127,3 +127,9 @@ Catalog/Warehouses graph, не поднимает HTTP/auth и не требуе
 и выполняет один параметризованный SELECT в borrowed context. Timestamp+UUID DESC
 или UUID ASC, limit+1, без COUNT/OFFSET. Cursor хранит микросекунды, служебные поля
 удаляются из projection. [Флоу и проверки](../../../../../docs/flows/warehouse-reads.md).
+
+## Операционная диагностика WMS-401
+
+Контекст, ручные OTel spans, commit outcome и безопасный Pino stderr описаны у
+[владельца logging flow](../../../../../docs/flows/logging.md). Raw HTTP/event/SQL payload
+и driver errors не выводятся. Диагностика не заменяет транзакционный AuditService.

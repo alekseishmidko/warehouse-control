@@ -201,3 +201,9 @@ flowchart LR
 Тесты: warehouse-reads.spec.ts, warehouse-read-plans.spec.ts, keyset-page.spec.ts.
 Чтение не создаёт audit, event или HTTP idempotency запись. SQL timeout/ошибка
 откатывает read run; публичный ответ не содержит SQL, credentials и ORM-модели.
+
+## Диагностика WMS-401
+
+`receiving.posted` содержит только безопасные ID документа/события и request context.
+Runner буферизует запись до подтверждения COMMIT; rollback не выводит ложный success.
+Replay не создаёт повторный business fact. [Подробный logging flow](../../../../../docs/flows/logging.md).

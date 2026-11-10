@@ -1,4 +1,5 @@
 /** @file Вертикальный receiving: draft и posting заимствуют command context; GET владеет read transaction. */
+import { logEvent } from '../../../infrastructure/logging/runtime-logger';
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import {
@@ -171,6 +172,13 @@ export class ReceivingService {
     });
     // Ошибки после append нельзя подавлять: counter, delivery и весь stock должны откатиться.
     await this.repository.markPosted(context, document.id, postedAt, event.eventId);
+    // При заимствованном context это только запись в буфер; runner выводит её после COMMIT.
+    logEvent('receiving.posted', {
+      module: 'receiving',
+      correlationId: metadata.correlationId,
+      aggregateId: document.id,
+      eventId: event.eventId,
+    });
     return { ...document, status: 'posted', postedAt, postedEventId: event.eventId };
   }
 
