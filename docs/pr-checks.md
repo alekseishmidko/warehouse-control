@@ -123,3 +123,7 @@ DB locks, SQL fault injection и Chromium web gate 2. Vitest и Jest unit в э�
 и apps/web/coverage. Browser coverage не объединяется с V8/Jest. Быстрые команды UI:
 `pnpm test:web`, `pnpm test:web:gate`, `pnpm web:api:check`. [Web запуск](../apps/web/README.md).
 Новые или пропавшие source записи и снижение метрик блокируют baseline guard.
+
+WMS-402: `pnpm test:observability:receiver` входит в check:pr; полный Docker fault drill
+выполняется отдельно `pnpm observability:gate`. Не запускать его параллельно с coverage
+из-за общей Docker VM. [Проверки и ограничения](reports/wms-402.md).

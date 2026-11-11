@@ -487,11 +487,15 @@ parent команды и штатное завершение. Collection stack �
 
 ### WMS-402. Централизованный сбор логов, метрики, dashboards и сигналы
 
-- [ ] **WMS-402.1** — Настроить Prometheus scrape, Grafana, Loki и Tempo отдельным локальным профилем. Подключить централизованный сбор JSON stdout/stderr контейнеров API/worker/CLI через collector в Loki: collector выбрать и задокументировать при реализации. Приложение не отправляет логи в Loki синхронно из бизнес-транзакции; описать parsing key-value JSON, добавление namespace/pod/container metadata и обработку строк startup fallback.
-- [ ] **WMS-402.2** — Экспортировать HTTP/DB/outbox метрики с ограниченной cardinality.
-- [ ] **WMS-402.3** — Создать dashboards: пользовательская операция, очередь доставки, состояние workers и infrastructure. Добавить централизованный поиск логов по correlationId/eventId/aggregateId/errorCode и переходы log ↔ trace; подтвердить поиск событий одного сценария из API и worker. В labels Loki оставлять только ограниченные service/environment/process/module; UUID, trace IDs и текст ошибок хранить полями, не labels.
-- [ ] **WMS-402.4** — Добавить alerts на dead, oldest age и ошибки обработки; определить локальный получатель без несанкционированных внешних сообщений.
-- [ ] **WMS-402.5** — Искусственно вызвать сбой и проверить alert firing/resolution; задать предварительные storage/retention limits. Проверить restart collector и недоступность Loki: бизнес-операции не зависят от доставки логов, buffers/retries ограничены, возможные потери и диагностика документированы. Описать доступ к логам и очистку по retention; не обещать exactly once доставку логов.
+WMS-402 реализована: отдельный profile, Alloy, bounded metrics,4 dashboards и local alerts.
+Реальный fault gate проверил firing/resolution, API/worker/CLI search и Loki/collector outage.
+[Evidence, проверки и ограничения](reports/wms-402.md).
+
+- [x] **WMS-402.1** — Настроить Prometheus scrape, Grafana, Loki и Tempo отдельным локальным профилем. Подключить централизованный сбор JSON stdout/stderr контейнеров API/worker/CLI через collector в Loki: collector выбрать и задокументировать при реализации. Приложение не отправляет логи в Loki синхронно из бизнес-транзакции; описать parsing key-value JSON, добавление namespace/pod/container metadata и обработку строк startup fallback.
+- [x] **WMS-402.2** — Экспортировать HTTP/DB/outbox метрики с ограниченной cardinality.
+- [x] **WMS-402.3** — Создать dashboards: пользовательская операция, очередь доставки, состояние workers и infrastructure. Добавить централизованный поиск логов по correlationId/eventId/aggregateId/errorCode и переходы log ↔ trace; подтвердить поиск событий одного сценария из API и worker. В labels Loki оставлять только ограниченные service/environment/process/module; UUID, trace IDs и текст ошибок хранить полями, не labels.
+- [x] **WMS-402.4** — Добавить alerts на dead, oldest age и ошибки обработки; определить локальный получатель без несанкционированных внешних сообщений.
+- [x] **WMS-402.5** — Искусственно вызвать сбой и проверить alert firing/resolution; задать предварительные storage/retention limits. Проверить restart collector и недоступность Loki: бизнес-операции не зависят от доставки логов, buffers/retries ограничены, возможные потери и диагностика документированы. Описать доступ к логам и очистку по retention; не обещать exactly once доставку логов.
 
 ### WMS-403. Нагрузочные сценарии
 

@@ -774,3 +774,36 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | [telemetry.spec.ts](../apps/backend/test/unit/telemetry.spec.ts) | SDK/OTLP, privacy, fallback, pretty и buffer tests. |
 | [observability.spec.ts](../apps/backend/test/integration/observability.spec.ts) | Real document HTTP/SQL/worker, links, replay, retry и commit faults. |
 | [ADR-0030](adr/0030-operational-observability.md) | Выбор каналов логов, ручного tracing и producer links. |
+
+## WMS-402: локальная инфраструктура
+
+| Файл                                                                                                                                  | Назначение                                         |
+| ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| [infra/observability/README.md](../infra/observability/README.md)                                                                     | Запуск, доступ, retention, ограничения и cleanup.  |
+| [infra/observability/compose.yaml](../infra/observability/compose.yaml)                                                               | Отдельные локальные Prometheus/Grafana/Loki/Tempo. |
+| [infra/observability/prometheus.yaml](../infra/observability/prometheus.yaml)                                                         | Scrape инфраструктуры.                             |
+| [infra/observability/loki.yaml](../infra/observability/loki.yaml)                                                                     | Filesystem TSDB и retention compactor.             |
+| [infra/observability/tempo.yaml](../infra/observability/tempo.yaml)                                                                   | OTLP HTTP и local trace blocks.                    |
+| [infra/observability/grafana/provisioning/datasources/local.yaml](../infra/observability/grafana/provisioning/datasources/local.yaml) | Datasource UID и trace/log ссылки.                 |
+| [docs/reports/wms-402.md](../docs/reports/wms-402.md)                                                                                 | Матрица открытых AC и evidence.                    |
+
+| Файл                                                                                                                                | Назначение                                                              |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [apps/backend/src/infrastructure/metrics/runtime-metrics.ts](../apps/backend/src/infrastructure/metrics/runtime-metrics.ts)         | Fixed metrics, single-flight read-only SQL snapshot, internal listener. |
+| [apps/backend/src/infrastructure/metrics/README.md](../apps/backend/src/infrastructure/metrics/README.md)                           | Единицы, SQL timeout, labels и lifecycle metrics.                       |
+| [apps/backend/test/unit/metrics.spec.ts](../apps/backend/test/unit/metrics.spec.ts)                                                 | Настоящий HTTP metrics, histogram и cardinality.                        |
+| [apps/backend/test/integration/metrics.spec.ts](../apps/backend/test/integration/metrics.spec.ts)                                   | Real PostgreSQL snapshot, lock timeout и отказ sink.                    |
+| [infra/observability/config.alloy](../infra/observability/config.alloy)                                                             | Scoped Docker discovery, parsing, metadata и bounded write.             |
+| [infra/observability/compose.application.yaml](../infra/observability/compose.application.yaml)                                     | Opt-in network, metrics/OTLP и Docker non-blocking logs.                |
+| [infra/observability/alerts.yaml](../infra/observability/alerts.yaml)                                                               | Начальные dev conditions для age/dead/errors/unknown.                   |
+| [infra/observability/alertmanager.yaml](../infra/observability/alertmanager.yaml)                                                   | Только локальный webhook receiver.                                      |
+| [infra/observability/receiver.cjs](../infra/observability/receiver.cjs)                                                             | Bounded локальный RAM journal уведомлений.                              |
+| [scripts/observability/receiver.test.cjs](../scripts/observability/receiver.test.cjs)                                               | Реальный HTTP receiver и clock-jump readiness regression.               |
+| [scripts/observability/gate.cjs](../scripts/observability/gate.cjs)                                                                 | Hooks общего business gate: Loki/collector faults и recovery.           |
+| [docs/adr/0031-local-observability.md](../docs/adr/0031-local-observability.md)                                                     | Выбор collector, metrics и local alert delivery.                        |
+| [docs/flows/observability.md](../docs/flows/observability.md)                                                                       | Полный trust/data/failure flow WMS-402.                                 |
+| [infra/observability/grafana/provisioning/dashboards/local.yaml](../infra/observability/grafana/provisioning/dashboards/local.yaml) | Provisioning versioned dashboards.                                      |
+| [infra/observability/grafana/dashboards/operation.json](../infra/observability/grafana/dashboards/operation.json)                   | HTTP/business outcomes и поиск.                                         |
+| [infra/observability/grafana/dashboards/queue.json](../infra/observability/grafana/dashboards/queue.json)                           | Delivery count/age и поиск.                                             |
+| [infra/observability/grafana/dashboards/workers.json](../infra/observability/grafana/dashboards/workers.json)                       | Scrape/processing outcomes и поиск.                                     |
+| [infra/observability/grafana/dashboards/infrastructure.json](../infra/observability/grafana/dashboards/infrastructure.json)         | Up/pool pressure и поиск.                                               |

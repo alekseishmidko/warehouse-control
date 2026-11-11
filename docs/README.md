@@ -203,3 +203,7 @@ EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI и WMS-30
 [WMS-301: локальный kind и Helm](flows/kind-helm.md) — профиль chart, подготовка image, хранение и cleanup; фактические проверки — [отчёт](reports/wms-301.md).
 
 [WMS-302: application chart и migrations](flows/kubernetes-app.md), [критерии и evidence](reports/wms-302.md).
+
+WMS-402 реализована: [отдельный локальный observability profile](../infra/observability/README.md),
+Alloy JSONL collection, bounded HTTP/DB/outbox metrics, dashboards и local alerts.
+[Проверки и ограничения](reports/wms-402.md); WMS-403/404 не выполнены.

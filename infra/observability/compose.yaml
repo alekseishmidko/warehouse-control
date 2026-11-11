@@ -1,0 +1,95 @@
+# Отдельный локальный профиль WMS-402; не устанавливает приложение и не читает рабочую .env.
+# Порты доступны только loopback. Соседние конфигурации монтируются read-only.
+services:
+  receiver:
+    image: node:24.22.1-bookworm-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205
+    user: node
+    command: [node, /app/receiver.cjs]
+    read_only: true
+    volumes: ['./receiver.cjs:/app/receiver.cjs:ro']
+    ports: ['127.0.0.1:${WMS_RECEIVER_PORT:-9080}:8080']
+    mem_limit: 64m
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    command:
+      [
+        --config.file=/etc/alertmanager/config.yaml,
+        --storage.path=/alertmanager,
+        --data.retention=24h,
+      ]
+    volumes:
+      - ./alertmanager.yaml:/etc/alertmanager/config.yaml:ro
+      - alertmanager:/alertmanager
+    ports: ['127.0.0.1:${WMS_ALERTMANAGER_PORT:-9093}:9093']
+    mem_limit: 128m
+  collector:
+    image: grafana/alloy:v1.12.0
+    command:
+      [
+        run,
+        --disable-reporting,
+        --server.http.listen-addr=0.0.0.0:12345,
+        --storage.path=/var/lib/alloy,
+        /etc/alloy/config.alloy,
+      ]
+    environment:
+      WMS_APP_PROJECT: ${WMS_APP_PROJECT:-wms-app}
+    # Доверенный dev daemon; volume ro не запрещает API mutations. Внешнему стенду нужен API proxy/RBAC.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config.alloy:/etc/alloy/config.alloy:ro
+      - collector:/var/lib/alloy
+    mem_limit: 256m
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    command:
+      [
+        --config.file=/etc/prometheus/prometheus.yaml,
+        --storage.tsdb.retention.time=24h,
+        --storage.tsdb.retention.size=512MB,
+      ]
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - prometheus:/prometheus
+      - ./alerts.yaml:/etc/prometheus/alerts.yaml:ro
+    ports: ['127.0.0.1:${WMS_PROMETHEUS_PORT:-9090}:9090']
+    mem_limit: 512m
+  loki:
+    image: grafana/loki:3.5.0
+    command: [-config.file=/etc/loki/config.yaml]
+    volumes:
+      - ./loki.yaml:/etc/loki/config.yaml:ro
+      - loki:/loki
+    ports: ['127.0.0.1:${WMS_LOKI_PORT:-3100}:3100']
+    mem_limit: 512m
+  tempo:
+    image: grafana/tempo:2.8.0
+    command: [-config.file=/etc/tempo/config.yaml]
+    volumes:
+      - ./tempo.yaml:/etc/tempo/config.yaml:ro
+      - tempo:/var/tempo
+    ports: ['127.0.0.1:${WMS_TEMPO_PORT:-3200}:3200', '127.0.0.1:${WMS_OTLP_PORT:-4318}:4318']
+    mem_limit: 512m
+  grafana:
+    image: grafana/grafana:12.0.0
+    # Анонимный Viewer только для изолированного loopback dev; редактирование dashboards требует login.
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      GF_PLUGINS_PREINSTALL_DISABLED: 'true'
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana:/var/lib/grafana
+    ports: ['127.0.0.1:${WMS_GRAFANA_PORT:-3001}:3000']
+    mem_limit: 512m
+# Имена volumes scoped Compose project. Retention ограничивает срок, но не является disk quota.
+volumes:
+  prometheus: {}
+  loki: {}
+  tempo: {}
+  grafana: {}
+  collector: {}
+  alertmanager: {}

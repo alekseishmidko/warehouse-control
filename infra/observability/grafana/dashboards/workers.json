@@ -1,0 +1,120 @@
+{
+  "uid": "wms-workers",
+  "title": "Состояние workers",
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Worker scrape",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=\"worker\"}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Processing outcomes",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(event) (rate(wms_events_total{job=\"worker\",event=~\"delivery.*|worker.*\"}[1m]))"
+        }
+      ]
+    },
+    {
+      "id": 99,
+      "title": "Поиск сценария: API + worker + CLI",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 24,
+        "h": 12
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service=\"warehouse-backend\"} | json | correlationId =~ \"$correlationId\" | eventId =~ \"$eventId\" | aggregateId =~ \"$aggregateId\" | errorCode =~ \"$errorCode\""
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "correlationId",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        },
+        "label": "correlationId"
+      },
+      {
+        "name": "eventId",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        },
+        "label": "eventId"
+      },
+      {
+        "name": "aggregateId",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        },
+        "label": "aggregateId"
+      },
+      {
+        "name": "errorCode",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        },
+        "label": "errorCode"
+      }
+    ]
+  }
+}

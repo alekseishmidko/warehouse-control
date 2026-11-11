@@ -4,7 +4,8 @@
 
 Доступны host dev, Compose backend и single-node kind. Kubernetes manifests, Helm chart
 API/worker/web и NGINX Gateway Fabric/TLS реализованы WMS-301–303. Это локальные стенды;
-внешний production deployment, Kafka, observability stack и CI/CD pipelines не настроены.
+локальная observability WMS-402 реализована отдельным profile; внешний production
+deployment, Kafka и CI/CD pipelines не настроены.
 Фактический статус — [карта](README.md), открытые findings — [отчёт ревью](reports/project-review-2026-11-07.md).
 
 | Режим                | Запуск и владелец инструкции                                                                                 | Данные и границы                                                              |
@@ -92,8 +93,8 @@ Gates создают свои случайные projects/clusters/credentials/v
 ## Ещё не реализовано
 
 - Kafka/Strimzi и broker failure tests; текущий transport — PostgreSQL outbox.
-- Prometheus/Grafana/Loki/Tempo и численные SLO/alert policy. Pino/OTel runtime реализован
-  WMS-401: [настройки и ограничения](flows/logging.md). Local backlog signal CLI не заменяет alert delivery.
+- Численные production SLO и baseline WMS-403/404. Локальные Prometheus/Grafana/Loki/Tempo,
+  Alloy и проверяемые local alerts WMS-402 реализованы: [flow/ограничения](flows/observability.md).
 - Внешние CI/CD, image publishing/GitOps/Argo CD, автоматический compatibility comparison
   с основной веткой и vulnerability remediation pipeline.
 - Проверенные HA/storage backups/restore, внешний DNS/load balancer, production Secrets
@@ -123,3 +124,7 @@ Secrets, например SOPS/age с ключом вне Git; сейчас та
 Нагрузочные k6 и будущие Kafka fault tests должны проверять конкуренцию за stock,
 рост outbox, потерю broker ack, отказ broker, старые события и rollout. Существующие
 PostgreSQL crash/rollback tests не доказывают поведение ещё не подключённого транспорта.
+
+Наблюдаемость: [локальный запуск и cleanup](../infra/observability/README.md),
+[реальный fault drill и evidence](reports/wms-402.md). Внешний observability deployment
+и Kubernetes collector/RBAC этим Compose profile не устанавливаются.

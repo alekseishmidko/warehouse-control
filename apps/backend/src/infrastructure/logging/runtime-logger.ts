@@ -1,4 +1,5 @@
 /** @file Process owner Pino: единый sink, bounded-context поля, Nest adapter без raw framework messages. */
+import { observeLogEvent, startMetrics } from '../metrics/runtime-metrics';
 import type { LoggerService } from '@nestjs/common';
 import { trace } from '@opentelemetry/api';
 import pino from 'pino';
@@ -50,6 +51,7 @@ export function configureLogging(
     sink.on('error', ignoreStreamError);
   logger = createOperationalLogger(identity, sink);
   enabled = true;
+  startMetrics(identity.process);
 }
 /** Контекст устанавливается один раз на HTTP/command/handler boundary. */
 export function logScope<T>(fields: LogFields, work: () => T): T {
@@ -72,7 +74,10 @@ export function logEvent(event: LogEvent, fields: LogFields = {}): void {
   if (selected.attempt) active?.setAttribute('wms.attempt', selected.attempt);
   const queue = buffers.getStore();
   if (queue) queue.push({ event, fields: selected });
-  else logger.emit(event, selected);
+  else {
+    observeLogEvent(event, selected);
+    logger.emit(event, selected);
+  }
 }
 /** Nest lifecycle logs не раскрывают произвольный message/optionalParams/stack. */
 export const nestLogger: LoggerService = {
@@ -98,8 +103,10 @@ export async function bufferedTransaction<T>(work: () => Promise<T>): Promise<T>
   const queue: { event: LogEvent; fields: LogFields }[] = [];
   const started = performance.now();
   const result = await buffers.run(queue, work);
-  for (const item of queue)
+  for (const item of queue) {
+    observeLogEvent(item.event, item.fields);
     logger.emit(item.event, { durationMs: performance.now() - started, ...item.fields });
+  }
   return result;
 }
 

@@ -185,3 +185,7 @@ Jest --runInBand. `pnpm test:functional` запускает все PostgreSQL in
 WMS-304: GET /health/startup, /health/ready, /health/live разделяют init, доступность
 PostgreSQL/drain и ответ event loop. API drain20s, default transaction10s, Kubernetes
 grace30s. [Подробный flow](../../docs/flows/lifecycle.md), [реализация](src/infrastructure/lifecycle/README.md).
+
+WMS-402: opt-in internal metrics listener и локальный monitoring profile.
+[Metrics](src/infrastructure/metrics/README.md), [stack и команды](../../infra/observability/README.md).
+Обычный app:up не требует нового env; warehouse API/auth policy сохраняются.

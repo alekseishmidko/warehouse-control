@@ -211,7 +211,8 @@ Worker budget/backoff использует attempts-retry_attempt_base, total at
 обычный failure/claim его не меняет. Config maxAttempts остаётся bounded попытками одного budget.
 [Полный recovery flow](../../../../../docs/flows/outbox-recovery.md),
 [команды](../../../../../docs/runbooks/event-recovery.md). Это локальная диагностика,
-Loki/Tempo collection и внешние alert channels ещё не реализованы; Pino/OTel runtime подключён.
+Локальная Loki/Tempo collection и local HTTP alert receiver реализованы WMS-402;
+внешние alert channels не настраиваются. [Flow](../../../../../docs/flows/observability.md).
 
 WMS-203: InventoryModule добавляет execution providers и OutboxModule, но HTTP/identity composition
 остаётся отдельным InventoryHttpModule API graph. Worker не требует human AUTH policy.

@@ -21,7 +21,7 @@
 | Контейнеры       | Docker, Compose                                              | PostgreSQL + non-root API/worker image и Compose готовы WMS-112         |
 | Оркестрация      | kind, Kubernetes, Helm                                       | Реализовано WMS-301/302                                                 |
 | Внешний HTTP     | NGINX Gateway Fabric + Gateway API                           | Проверено на local kind WMS-303                                         |
-| Телеметрия       | Pino, OpenTelemetry, Prometheus, Grafana, Loki, Tempo        | Pino/OTel WMS-401; collection WMS-402                                   |
+| Телеметрия       | Pino, OpenTelemetry, Prometheus, Grafana, Loki, Tempo        | Pino/OTel WMS-401; local collection WMS-402 реализована                 |
 | Проверки         | Jest, Supertest, Testcontainers, k6                          | WMS-102: первые три готовы, k6 запланирован                             |
 | Поставка         | GitHub Actions, GHCR, Argo CD                                | После проверки репозитория и окружения                                  |
 
@@ -232,4 +232,4 @@ cursor protocol — shared. Audit scope читает retained FK связи бе
 Operational logging WMS-401: shared хранит контракт, infrastructure — единый Pino sink
 и OTel SDK процесса. Deferred handler использует root trace с producer link, business
 success буферизуется до COMMIT. [ADR-0030](adr/0030-operational-observability.md),
-[flow](flows/logging.md). Collector/metrics storage остаются WMS-402.
+[flow](flows/logging.md). Local collector/metrics storage реализованы WMS-402: [ADR-0031](adr/0031-local-observability.md).
