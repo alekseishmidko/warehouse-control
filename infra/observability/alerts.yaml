@@ -1,0 +1,25 @@
+# Начальные dev thresholds; не production SLO. Окно ошибок очищается после прекращения отказов.
+groups:
+  - name: warehouse
+    rules:
+      - alert: WmsDeadDelivery
+        expr: max(wms_outbox_deliveries{status="dead"}) > 0
+        for: 5s
+        labels: { severity: warning }
+        annotations: { summary: 'Dead delivery blocks its stream' }
+      - alert: WmsOldestDelivery
+        expr: max(wms_outbox_oldest_age_seconds{status=~"pending|retry|processing"}) > 60
+        for: 5s
+        labels: { severity: warning }
+        annotations: { summary: 'Active delivery age exceeds dev budget' }
+      - alert: WmsProcessingErrors
+        # Durable failure state покрывает ошибку до первого scrape нового worker; increase один её не видит.
+        expr: (sum(increase(wms_events_total{event=~"delivery.retry|delivery.dead|delivery.persistence_failed|worker.poll_failed"}[1m])) > 0) or (max(wms_outbox_deliveries{status=~"dead|retry"}) > 0)
+        for: 5s
+        labels: { severity: warning }
+        annotations: { summary: 'Worker processing errors observed' }
+      - alert: WmsScrapeUnavailable
+        expr: (up{job=~"api|worker|collector"} == 0) or (wms_outbox_scrape_success == 0)
+        for: 15s
+        labels: { severity: warning }
+        annotations: { summary: 'Application or collector scrape unavailable' }

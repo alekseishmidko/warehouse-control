@@ -85,7 +85,8 @@ migration Job, Secret/configuration. Готово, когда кластер п�
 ## 4. Наблюдаемость и нагрузка
 
 WMS-401 выполнена: Pino/OTel runtime и HTTP → outbox → linked handler.
-[Evidence и ограничения](reports/wms-401.md). WMS-402–404: Prometheus/Grafana, Loki/Tempo, k6 и recovery drill.
+[Evidence и ограничения](reports/wms-401.md). WMS-402 реализована: Alloy/Prometheus/Grafana/Loki/Tempo и local alerts.
+WMS-403/404: k6 baseline и recovery drill.
 Этап готов, когда виден путь команды до обработчика, есть alert на dead/backlog,
 измерены baseline и ограничения стенда.
 

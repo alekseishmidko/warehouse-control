@@ -172,7 +172,7 @@ Testcontainers PostgreSQL той же версии, что Compose. Покрыт
 Fault triggers/direct SQL нужны только для проверки constraints/сбоя и живут в
 disposable DB. Reset отключает retention triggers только в admin test cleanup.
 Worker redelivery, crash после claim и конкуренция проверяются WMS-109
-в worker.spec.ts/worker-process.spec.ts, см. [worker](../worker/README.md). WMS-111 добавляет локальные JSON diagnostics/inspect/retry/signal; Pino/OTel runtime WMS-401 подключён, collection/metrics WMS-402 ещё впереди.
+в worker.spec.ts/worker-process.spec.ts, см. [worker](../worker/README.md). WMS-111 добавляет локальные JSON diagnostics/inspect/retry/signal; Pino/OTel runtime WMS-401 подключён, локальная collection/metrics WMS-402 реализована: [flow](../../../../../docs/flows/observability.md).
 
 Связанные документы: [ADR-0012](../../../../../docs/adr/0012-outbox-writer.md),
 [outbox protocol](../../../../../docs/outbox.md),

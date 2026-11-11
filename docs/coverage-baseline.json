@@ -1252,5 +1252,11 @@
     "statements": 96,
     "functions": 66.66,
     "branches": 91.07
+  },
+  "src/infrastructure/metrics/runtime-metrics.ts": {
+    "lines": 96.36,
+    "statements": 96.36,
+    "functions": 100,
+    "branches": 94.33
   }
 }

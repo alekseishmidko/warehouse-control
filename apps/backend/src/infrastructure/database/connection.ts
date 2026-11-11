@@ -1,4 +1,5 @@
 /** @file Единая фабрика pg Pool/Drizzle для Nest и CLI; владелец обязан вызвать pool.end(). */
+import { registerMetricsPool } from '../metrics/runtime-metrics';
 import { logEvent } from '../logging/runtime-logger';
 import { AsyncResource } from 'node:async_hooks';
 import { Pool } from 'pg';
@@ -32,5 +33,6 @@ export function createDatabaseConnection(databaseUrl: string) {
     client.on('error', logConnectionFailure);
   });
   pool.on('error', logConnectionFailure);
+  registerMetricsPool(pool);
   return { pool, db: drizzle(pool, { schema }) };
 }

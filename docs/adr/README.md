@@ -54,3 +54,5 @@ same-origin transport и явное восстановление сохранё�
 
 [0030. Operational observability](0030-operational-observability.md) — WMS-401:
 общий Pino JSONL stderr, безопасные ручные OTel spans, deferred consumer links и commit buffer.
+
+[0031. Local observability](0031-local-observability.md) — Alloy, pull metrics, bounded delivery и локальные alerts WMS-402.

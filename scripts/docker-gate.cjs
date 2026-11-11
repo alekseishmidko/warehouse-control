@@ -23,7 +23,7 @@ function run(args, label, timeout = 60000, input) {
     const env = Object.fromEntries(
       Object.entries(process.env).filter(
         ([key]) =>
-          !/^(POSTGRES_|CONTAINER_DATABASE_URL$|CONTAINER_AUTH_ORIGIN$|API_PORT$|BACKEND_IMAGE$|WORKER_|COMPOSE_|AUTH_|IDENTITY_BOOTSTRAP_)/.test(
+          !/^(POSTGRES_|WMS_|CONTAINER_DATABASE_URL$|CONTAINER_AUTH_ORIGIN$|API_PORT$|BACKEND_IMAGE$|WORKER_|COMPOSE_|AUTH_|IDENTITY_BOOTSTRAP_)/.test(
             key,
           ),
       ),
@@ -67,12 +67,12 @@ function run(args, label, timeout = 60000, input) {
  * @param predicate Условие успеха для полученного результата.
  * @returns Первый подходящий результат; превышение срока — ошибка, а не skip. */
 async function until(read, predicate) {
-  const deadline = Date.now() + 30000;
+  const deadline = performance.now() + 30000;
   do {
     const result = await read();
     if (predicate(result)) return result;
     await new Promise((r) => setTimeout(r, 250));
-  } while (Date.now() < deadline);
+  } while (performance.now() < deadline);
   throw new Error('completion deadline exceeded');
 }
 /** Владеет временной средой, Compose-проектом и volume с новым UUID.
@@ -89,6 +89,7 @@ async function main() {
     `POSTGRES_USER=warehouse\nPOSTGRES_PASSWORD=${password}\nPOSTGRES_DB=warehouse\nPOSTGRES_PORT=0\nAPI_PORT=0\nCONTAINER_DATABASE_URL=postgresql://warehouse:${password}@postgres:5432/warehouse\nBACKEND_IMAGE=warehouse-backend:local\nAUTH_ORIGIN=http://127.0.0.1:5173\nAUTH_SESSION_ABSOLUTE_SECONDS=600\nAUTH_SESSION_IDLE_SECONDS=300\n`,
     { mode: 0o600 },
   );
+  const withObservability = process.env.WMS_OBSERVABILITY === '1';
   const common = [
     'compose',
     '--project-name',
@@ -99,6 +100,7 @@ async function main() {
     'infra/compose/compose.yaml',
     '-f',
     'infra/compose/compose.app.yaml',
+    ...(withObservability ? ['-f', 'infra/observability/compose.application.yaml'] : []),
   ];
   /** Формирует Compose-вызов только из известных файлов; gate=true задаёт loopback auth origin
    * исключительно для loopback API. Common всегда содержит отдельные project-name и env-file. */
@@ -148,8 +150,19 @@ async function main() {
       await run(['inspect', '--format', '{{json .State}}', id], 'container state failed'),
     );
   };
+  const observability = withObservability
+    ? require('./observability/gate.cjs').createObservabilityGate({
+        project,
+        envFile,
+        run,
+        compose,
+        sql,
+        http,
+      })
+    : undefined;
   let receiptId;
   try {
+    await observability?.start();
     // Один env-file обслуживает host dev и production Compose без смены browser origin.
     // Проверяем effective config до сборки; credentials из config не печатаются.
     const config = JSON.parse(await compose(['config', '--format', 'json']));
@@ -314,6 +327,7 @@ async function main() {
     console.log(
       'PASS PostgreSQL restart preserves named volume + posting; repeat migration succeeds',
     );
+    await observability?.recover(receiptId);
     await compose(['up', '-d', '--no-build', '--no-deps', 'worker']);
     const complete = await until(observe, (result) => result.delivery === 'completed');
     assert.deepEqual(complete, { ...pending, delivery: 'completed', tasks: 1, markers: 1 });
@@ -439,6 +453,7 @@ async function main() {
       reserved: 0,
     });
     console.log(`PASS WMS-204 order/reserve/replay/release/cancel: ${JSON.stringify(ledger)}`);
+    await observability?.verify(receiptId, fixture);
     await compose(['stop', 'worker', 'api']);
     assert.equal((await state('worker')).ExitCode, 0);
     // После shutdown hooks Nest/Node может вернуть 0 или завершиться сигналом SIGTERM (143).
@@ -475,7 +490,12 @@ async function main() {
     try {
       await compose(['down', '--volumes', '--remove-orphans'], true, 60000);
     } finally {
-      await rm(temp, { recursive: true, force: true });
+      try {
+        await observability?.close();
+      } finally {
+        // Отказ Docker cleanup не должен сохранить tempfile credentials.
+        await rm(temp, { recursive: true, force: true });
+      }
     }
   }
 }

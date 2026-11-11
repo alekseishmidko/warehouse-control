@@ -1,0 +1,76 @@
+// Collector выбирает только явно opt-in контейнеры своего app project. Socket даёт доступ к daemon;
+// read-only mount НЕ является Docker API RBAC. Профиль допустим только на доверенной локальной машине.
+discovery.docker "application" {
+  host = "unix:///var/run/docker.sock"
+  refresh_interval = "2s"
+  filter {
+    name = "label"
+    values = ["com.docker.compose.project=" + sys.env("WMS_APP_PROJECT"), "wms.logs=true"]
+  }
+}
+discovery.relabel "metadata" {
+  targets = discovery.docker.application.targets
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label = "namespace"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label = "container"
+  }
+}
+loki.source.docker "application" {
+  // Source имеет собственный sync interval помимо discovery; default60s пропускает короткий CLI.
+  refresh_interval = "2s"
+  host = "unix:///var/run/docker.sock"
+  targets = discovery.relabel.metadata.output
+  forward_to = [loki.process.application.receiver]
+}
+loki.process "application" {
+  // CLI stdout результата не содержит operational schema и удаляется. Raw/не-JSON строки тоже удаляются.
+  stage.json {
+    expressions = { service = "service", environment = "environment", process = "process", module = "module", timestamp = "timestamp" }
+    drop_malformed = true
+  }
+  stage.labels { values = {service = "", environment = "", process = "", module = ""} }
+  stage.match {
+    selector = "{service!=\"warehouse-backend\"}"
+    action = "drop"
+  }
+  stage.match {
+    selector = "{process!~\"api|worker|cli\"}"
+    action = "drop"
+  }
+  stage.match {
+    selector = "{environment!~\"development|test|production|unknown\"}"
+    action = "drop"
+  }
+  stage.match {
+    selector = "{module!~\"http|worker|transaction|bootstrap|cli|receiving|inventory|fulfillment|identity|outbox|audit\"}"
+    action = "drop"
+  }
+  stage.timestamp { source = "timestamp"
+    format = "RFC3339Nano"
+    action_on_failure = "skip" }
+  // Временно упаковываем Docker metadata, затем переносим их в structured metadata и восстанавливаем строку.
+  // Kubernetes pod в Compose отсутствует: pod не выдумывается. Namespace здесь равен Compose project.
+  stage.pack { labels = ["namespace", "container"]
+    ingest_timestamp = false }
+  stage.json { expressions = { namespace = "namespace", container = "container", original = "_entry" } }
+  stage.structured_metadata { values = { namespace = "", container = "" } }
+  stage.output { source = "original" }
+  stage.label_keep { values = ["service", "environment", "process", "module"] }
+  forward_to = [loki.write.local.receiver]
+}
+loki.write "local" {
+  // Нет бесконечных retries/WAL: после ограниченного backoff batch теряется с diagnostic collector.
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+    batch_wait = "1s"
+    batch_size = "256KiB"
+    remote_timeout = "2s"
+    min_backoff_period = "500ms"
+    max_backoff_period = "2s"
+    max_backoff_retries = 3
+  }
+}

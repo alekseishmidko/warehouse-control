@@ -1,0 +1,8 @@
+# Файлы dashboards версионируются в репозитории, UI изменения не заменяют source.
+apiVersion: 1
+providers:
+  - name: warehouse
+    folder: Warehouse
+    type: file
+    options:
+      path: /etc/grafana/dashboards

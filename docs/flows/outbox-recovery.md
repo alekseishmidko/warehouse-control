@@ -161,7 +161,7 @@ Signal одним SQL statement считает dead, backlog (pending/retry/proc
 отдельно от active backlog. Alert если dead≥deadLimit, backlog≥backlogLimit либо active backlog
 старше maxAgeSeconds. Defaults: 1 / 100 / 60s. Это наблюдение, не автоматический retry.
 Node exit 0 healthy / 2 alert / 1 denial/failure; stdout JSON, уведомлений наружу нет.
-Pino/OTel runtime WMS-401 подключён; collection/metrics/notifications WMS-402 ещё не реализованы.
+Pino/OTel runtime WMS-401 подключён; локальная collection/metrics/notifications WMS-402 реализована, [flow](observability.md).
 
 ## Evidence и ограничения
 

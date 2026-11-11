@@ -1,0 +1,31 @@
+# Overlay поверх infra/compose/compose.yaml + compose.app.yaml. Stack observability запущен отдельно.
+# Сеть выбирается явно: имя проекта наблюдаемости задаёт только локальный оператор.
+services:
+  api:
+    labels: { wms.logs: 'true' }
+    environment:
+      LOG_COLLECTOR_ENABLED: 'true'
+      WMS_METRICS_PORT: '9464'
+      WMS_METRICS_HOST: 0.0.0.0
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://tempo:4318/v1/traces
+    networks: [default, observability]
+    logging: &bounded-logs
+      driver: json-file
+      options: { max-size: 10m, max-file: '3', mode: non-blocking, max-buffer-size: 1m }
+  worker:
+    labels: { wms.logs: 'true' }
+    environment:
+      LOG_COLLECTOR_ENABLED: 'true'
+      WMS_METRICS_PORT: '9464'
+      WMS_METRICS_HOST: 0.0.0.0
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://tempo:4318/v1/traces
+    networks: [default, observability]
+    logging: *bounded-logs
+  migrate:
+    labels: { wms.logs: 'true' }
+    environment: { LOG_COLLECTOR_ENABLED: 'true' }
+    logging: *bounded-logs
+networks:
+  observability:
+    external: true
+    name: ${WMS_OBSERVABILITY_PROJECT:-wms-observability}_default
