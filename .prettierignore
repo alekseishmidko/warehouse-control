@@ -32,3 +32,7 @@ apps/web/src/api/generated/**
 
 # Helm Go templates проверяет helm lint/template, это не обычный YAML.
 infra/helm/**/templates/**
+# Измеренные JSON создаёт load driver; исходные числа/структура сохраняются без ручного форматирования.
+docs/reports/wms-403-baseline.json
+docs/reports/wms-403-probe-25rps.json
+artifacts/**

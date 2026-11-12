@@ -42,6 +42,10 @@ forceExit не включены. Без успешного integration прог�
 
 ## Что выполняется
 
+Native `pnpm test:load` входит в gate и проверяет guardrails/измерения нагрузочного
+driver. Реальный `pnpm load:baseline` выполняется отдельно на чистых локальных
+стендах, без параллельного coverage: [команды и бюджет](../load/README.md).
+
 ```mermaid
 flowchart TD
   A[pnpm check:pr] --> B[Prettier check без изменения файлов]

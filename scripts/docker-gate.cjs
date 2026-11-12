@@ -499,7 +499,11 @@ async function main() {
     }
   }
 }
-main().catch((error) => {
-  console.error(`Docker gate failed: ${error.message}`);
-  process.exitCode = 1;
-});
+// Load driver использует тот же ограниченный Docker transport. Импорт не запускает business gate.
+module.exports = { run, until };
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(`Docker gate failed: ${error.message}`);
+    process.exitCode = 1;
+  });
+}

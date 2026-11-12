@@ -50,5 +50,31 @@ function createReceiver() {
     });
   });
 }
-module.exports = { createReceiver };
-if (require.main === module) createReceiver().listen(8080, '0.0.0.0');
+/** Запускает standalone receiver с bounded SIGTERM/SIGINT. Как PID 1 Node не должен
+ * полагаться на default signal action: без обработчика Docker завершал его SIGKILL (137).
+ * Перестаём принимать запросы, ждём текущие до 2 s, затем закрываем зависшие HTTP connections.
+ * Порт 0 используется native child-process тестом; Compose по-прежнему слушает 8080. */
+function startReceiver(port = 8080) {
+  const server = createReceiver();
+  let stopping = false;
+  let timer;
+  const stop = () => {
+    if (stopping) return;
+    stopping = true;
+    server.close();
+    // Незавершённый POST не может удерживать cleanup до server.requestTimeout (по умолчанию минуты).
+    timer = setTimeout(() => server.closeAllConnections(), 2000);
+    timer.unref();
+  };
+  server.once('close', () => {
+    clearTimeout(timer);
+    process.off('SIGTERM', stop);
+    process.off('SIGINT', stop);
+  });
+  process.once('SIGTERM', stop);
+  process.once('SIGINT', stop);
+  server.listen(port, '0.0.0.0');
+  return server;
+}
+module.exports = { createReceiver, startReceiver };
+if (require.main === module) startReceiver();

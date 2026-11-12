@@ -5,6 +5,11 @@ Compose-стенд WMS-101 содержит только PostgreSQL, а API за
 named volume, healthcheck и host binding только `127.0.0.1:15432` по умолчанию.
 Это локальный стенд, не production/HA-инсталляция.
 
+`compose.load.yaml` — отдельный ресурсный overlay только для disposable WMS-403.
+Его подключает `pnpm load:baseline` вместе с gate/observability overlays. Driver
+создаёт новый project/env/volume; рабочая `.env` и этот PostgreSQL volume не используются.
+[Команды нагрузки](../../load/README.md), [полный flow и cleanup](../../docs/flows/load-testing.md).
+
 ## Запуск из корня репозитория
 
 Для всего проекта в dev-режиме использовать `pnpm dev:all`: PostgreSQL запускается

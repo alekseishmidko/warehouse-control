@@ -6,6 +6,8 @@ services:
     user: node
     command: [node, /app/receiver.cjs]
     read_only: true
+    # Receiver прекращает приём по SIGTERM и ограниченно ждёт HTTP до 2 s; затем Compose даёт ещё запас.
+    stop_grace_period: 5s
     volumes: ['./receiver.cjs:/app/receiver.cjs:ro']
     ports: ['127.0.0.1:${WMS_RECEIVER_PORT:-9080}:8080']
     mem_limit: 64m
