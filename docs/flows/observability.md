@@ -110,4 +110,9 @@ Alloy читает Docker socket: mount ro не означает read-only API p
 требует RBAC/proxy, TLS/auth, storage quotas, backup/restore и secret management.
 Receiver journal RAM ограничен и теряется при restart; он доказывает локальную доставку,
 а не является долговечным журналом инцидентов. Retention/очистка — README профиля.
+Standalone receiver регистрирует SIGTERM/SIGINT, закрывает HTTP listener и ждёт
+текущие requests до 2 s. Затем закрывает оставшиеся HTTP connections. Compose даёт
+5 s grace. Это предотвращает default PID 1 поведение с последующим SIGKILL/137;
+обычный stop даёт exit 0. Прерывание недоставленного webhook не создаёт durable ack:
+Alertmanager использует свой retry, RAM journal не становится надёжным storage.
 Не использовать глобальный Docker prune или down --volumes существующего app project.

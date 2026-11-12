@@ -5,6 +5,12 @@
 rotation. PostgreSQL/приложение не устанавливаются этим monitoring profile.
 [Подробный flow](../../docs/flows/observability.md), [AC/evidence](../../docs/reports/wms-402.md).
 
+Receiver обрабатывает SIGTERM/SIGINT явно: прекращает новые HTTP requests и ждёт
+текущие до 2 s, затем закрывает зависшие соединения. Compose grace period 5 s.
+Обычный stop завершается exit 0, включая работу Node как PID 1. Lifecycle исправлен
+по реальному cleanup fault WMS-403; regression — незавершённый POST в child process
+и Docker stop. [Результат WMS-403](../../docs/reports/wms-403.md).
+
 ## Установка и реальные команды
 
 Нужны Docker, pnpm/Node из root manifest и свободные loopback порты. Лимиты памяти

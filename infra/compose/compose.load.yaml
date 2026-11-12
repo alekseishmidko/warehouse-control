@@ -1,0 +1,18 @@
+# WMS-403: последний overlay только для disposable load driver, после compose.gate.yaml.
+# Порядок: новая БД → миграции → API/worker → fixtures → k6 → SQL-сверка → удаление своего проекта.
+# Лимиты фиксируют бюджет приложения, но не резервируют CPU на общей Docker VM.
+# Нельзя добавлять этот файл к рабочему app:up: driver отдельно владеет project/env/volumes.
+services:
+  postgres:
+    cpus: 2
+    mem_limit: 512m
+  api:
+    cpus: 2
+    mem_limit: 512m
+  worker:
+    cpus: 1
+    mem_limit: 256m
+    environment:
+      # Один poll выбирает до четырёх доставок. Ускоренный dev poll входит в параметры baseline.
+      WORKER_POLL_INTERVAL_MS: '100'
+      WORKER_BATCH_SIZE: '4'

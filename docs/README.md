@@ -206,4 +206,6 @@ EXPLAIN/проверки. [Отчёт](reports/wms-207.md). WMS-208 UI и WMS-30
 
 WMS-402 реализована: [отдельный локальный observability profile](../infra/observability/README.md),
 Alloy JSONL collection, bounded HTTP/DB/outbox metrics, dashboards и local alerts.
-[Проверки и ограничения](reports/wms-402.md); WMS-403/404 не выполнены.
+[Проверки и ограничения](reports/wms-402.md). WMS-403 реализована:
+[нагрузочные команды](../load/README.md), [flow и инварианты](flows/load-testing.md),
+[AC и evidence](reports/wms-403.md). WMS-404 не выполнена.

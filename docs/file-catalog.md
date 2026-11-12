@@ -8,6 +8,31 @@
 Зависимости, build output, IDE/cache, секреты и внутренние файлы Git не включаются.
 Lockfile генерируется pnpm; исходные схемы и примеры редактируются вручную.
 
+## Нагрузка WMS-403
+
+| Файл                                                                      | Назначение                                                                                    |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| [load/README.md](../load/README.md)                                       | Пользовательские команды и карта k6 entrypoints.                                              |
+| [load/k6/common.js](../load/k6/common.js)                                 | Session/CSRF, command keys, bounded metric tags, thresholds и безопасный summary.             |
+| [load/k6/throughput.js](../load/k6/throughput.js)                         | Заданный поток create/post receipt, до четырёх VU.                                            |
+| [load/k6/sku.js](../load/k6/sku.js)                                       | Конкурирующие резервы одной штуки.                                                            |
+| [load/k6/backlog.js](../load/k6/backlog.js)                               | Сто приёмок при остановленном worker.                                                         |
+| [scripts/load/README.md](../scripts/load/README.md)                       | Граница доверия, модули driver и проверки.                                                    |
+| [scripts/load/config.cjs](../scripts/load/config.cjs)                     | Фиксированный бюджет, k6 digest и закрытый CLI input.                                         |
+| [scripts/load/dataset.cjs](../scripts/load/dataset.cjs)                   | Production fixtures owners, identity bootstrap/grants/sessions, SKU setup.                    |
+| [scripts/load/observe.cjs](../scripts/load/observe.cjs)                   | Последовательный SQL sampling, deadlines и contention summary.                                |
+| [scripts/load/reconcile.cjs](../scripts/load/reconcile.cjs)               | Read-only balances/allocations/ledger/effects сверка.                                         |
+| [scripts/load/results.cjs](../scripts/load/results.cjs)                   | Полнота k6 результата и запрет capabilities в artifact.                                       |
+| [scripts/load/run.cjs](../scripts/load/run.cjs)                           | Изолированные проекты, lock barrier, drain, provenance, cleanup и atomic report.              |
+| [scripts/load/load.test.cjs](../scripts/load/load.test.cjs)               | Native regression tests guardrails/observer/cleanup/evidence.                                 |
+| [infra/compose/compose.load.yaml](../infra/compose/compose.load.yaml)     | Ресурсный профиль только disposable load driver.                                              |
+| [docs/flows/load-testing.md](flows/load-testing.md)                       | Владелец подробного load flow, SQL, отказов, формата данных и ограничений.                    |
+| [docs/reports/wms-403.md](reports/wms-403.md)                             | AC, измерения, ревью и фактические проверки WMS-403.                                          |
+| [docs/reports/wms-403-baseline.json](reports/wms-403-baseline.json)       | Generated evidence от `pnpm load:baseline`; вручную не редактируется.                         |
+| [docs/reports/wms-403-probe-25rps.json](reports/wms-403-probe-25rps.json) | Сохранённый failed probe 25 приёмок/с с dropped iterations и SQL facts; не accepted baseline. |
+
+## Основной каталог
+
 | Файл                                                                                                                                                                        | Назначение                                                                                                                                                            |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [.gitignore](../.gitignore)                                                                                                                                                 | Исключения зависимостей, сборки, секретов и IDE-файлов из Git.                                                                                                        |
@@ -785,7 +810,7 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | [infra/observability/loki.yaml](../infra/observability/loki.yaml)                                                                     | Filesystem TSDB и retention compactor.             |
 | [infra/observability/tempo.yaml](../infra/observability/tempo.yaml)                                                                   | OTLP HTTP и local trace blocks.                    |
 | [infra/observability/grafana/provisioning/datasources/local.yaml](../infra/observability/grafana/provisioning/datasources/local.yaml) | Datasource UID и trace/log ссылки.                 |
-| [docs/reports/wms-402.md](../docs/reports/wms-402.md)                                                                                 | Матрица открытых AC и evidence.                    |
+| [docs/reports/wms-402.md](../docs/reports/wms-402.md)                                                                                 | AC и evidence WMS-402.                             |
 
 | Файл                                                                                                                                | Назначение                                                              |
 | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
@@ -798,7 +823,7 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | [infra/observability/alerts.yaml](../infra/observability/alerts.yaml)                                                               | Начальные dev conditions для age/dead/errors/unknown.                   |
 | [infra/observability/alertmanager.yaml](../infra/observability/alertmanager.yaml)                                                   | Только локальный webhook receiver.                                      |
 | [infra/observability/receiver.cjs](../infra/observability/receiver.cjs)                                                             | Bounded локальный RAM journal уведомлений.                              |
-| [scripts/observability/receiver.test.cjs](../scripts/observability/receiver.test.cjs)                                               | Реальный HTTP receiver и clock-jump readiness regression.               |
+| [scripts/observability/receiver.test.cjs](../scripts/observability/receiver.test.cjs)                                               | HTTP receiver, clock-jump readiness и bounded SIGTERM regression.       |
 | [scripts/observability/gate.cjs](../scripts/observability/gate.cjs)                                                                 | Hooks общего business gate: Loki/collector faults и recovery.           |
 | [docs/adr/0031-local-observability.md](../docs/adr/0031-local-observability.md)                                                     | Выбор collector, metrics и local alert delivery.                        |
 | [docs/flows/observability.md](../docs/flows/observability.md)                                                                       | Полный trust/data/failure flow WMS-402.                                 |
