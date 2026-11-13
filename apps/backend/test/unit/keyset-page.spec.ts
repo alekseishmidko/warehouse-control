@@ -47,3 +47,26 @@ test.each([
     ),
   ).toThrow('VALIDATION_FAILED');
 });
+
+test('optional filters preserve existing cursor scope without mutating caller data', () => {
+  const input = Object.freeze({ ...filters, productId: undefined });
+  const original = preparePageRequest('receipts', filters);
+  const cursor = encodePageCursor(original, { id: randomUUID() });
+  expect(preparePageRequest('receipts', input, '50', cursor).scope).toBe(original.scope);
+  expect(input).toEqual({ ...filters, productId: undefined });
+  // Пустая строка не равна отсутствующему фильтру: только undefined исключён из scope.
+  expect(preparePageRequest('receipts', { ...filters, productId: '' }).scope).not.toBe(
+    original.scope,
+  );
+});
+
+test.each([{ extra: 'ignored?' }, { time: 123 }, { time: null }, { id: 'bad' }])(
+  'valid scope does not bypass cursor structure validation: %j',
+  (override) => {
+    const page = preparePageRequest('receipts', filters);
+    const cursor = raw({ v: 1, scope: page.scope, id: randomUUID(), ...override });
+    expect(() => preparePageRequest('receipts', filters, '20', cursor)).toThrow(
+      'VALIDATION_FAILED',
+    );
+  },
+);

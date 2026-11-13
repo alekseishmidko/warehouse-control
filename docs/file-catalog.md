@@ -854,3 +854,19 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | [scripts/load/cancellation.cjs](../scripts/load/cancellation.cjs)                     | Отмена preparation и settle без новых операций.                 |
 | [docs/reports/review-fixes-2026-11-13.md](../docs/reports/review-fixes-2026-11-13.md) | AC и повторное review.                                          |
 | [docs/reports/canonical-json-review.md](../docs/reports/canonical-json-review.md)     | Ревью безопасности, контракта и раннего byte budget serializer. |
+
+## Kafka WMS-501
+
+| Файл                                | Назначение                                            |
+| ----------------------------------- | ----------------------------------------------------- |
+| infra/kafka/dev.yaml                | Dev Kafka/NodePool/topic/users без committed secrets. |
+| infra/kafka/README.md               | Топология, credentials, storage, запуск и cleanup.    |
+| scripts/kafka-gate.cjs              | Disposable kind publish/read/restart smoke.           |
+| docs/reports/wms-501.md             | AC и фактическое evidence WMS-501.                    |
+| docs/adr/0032-dev-kafka-topology.md | Решение dev topology без cutover приложения.          |
+
+## Рефактор чтения
+
+| Файл                                                                    | Назначение                                           |
+| ----------------------------------------------------------------------- | ---------------------------------------------------- |
+| [docs/reports/readability-refactor.md](reports/readability-refactor.md) | Границы, AC, review и проверки общего read refactor. |

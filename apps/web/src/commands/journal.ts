@@ -10,13 +10,21 @@ import {
 } from '../api/client';
 /** Снимок намерения, не proof commit. UUID user/склада нужны для scope; доверие actor по-прежнему задаёт сервер. */
 export interface PendingCommand {
+  /** Формат локальной записи; неизвестная версия не допускается к replay. */
   version: 1;
+  /** Владелец storage scope. Сервер всё равно выбирает actor из session. */
   userId: string;
+  /** Исходный склад намерения; смена выбранного склада не меняет эту команду. */
   warehouseId: string;
+  /** Исходный idempotency key сохраняется после потери ответа. */
   key: string;
+  /** Связь с диагностикой, не идентификатор бизнес-эффекта или замена key. */
   correlationId: string;
+  /** Только относительный route из allowlist складских команд. */
   url: string;
+  /** Исходный JSON body без credentials; при replay не пересобирается. */
   body: string;
+  /** Краткая подпись для человека, не содержимое HTTP response. */
   label: string;
 }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -42,36 +50,7 @@ export class CommandJournal {
     try {
       const text = this.getStorage().getItem(this.storageKey(userId));
       if (!text) return null;
-      const p: unknown = JSON.parse(text);
-      if (!p || typeof p !== 'object') return null;
-      const x = p as Partial<PendingCommand>;
-      if (
-        x.version !== 1 ||
-        x.userId !== userId ||
-        !x.warehouseId ||
-        !uuid.test(x.warehouseId) ||
-        !x.key ||
-        !uuid.test(x.key) ||
-        !x.correlationId ||
-        !uuid.test(x.correlationId) ||
-        typeof x.url !== 'string' ||
-        !commandUrl.test(x.url) ||
-        typeof x.body !== 'string' ||
-        new TextEncoder().encode(x.body).length > 262144 ||
-        typeof x.label !== 'string' ||
-        x.label.length > 120
-      )
-        return null;
-      const body: unknown = JSON.parse(x.body);
-      if (
-        !body ||
-        typeof body !== 'object' ||
-        Array.isArray(body) ||
-        'password' in body ||
-        'csrfToken' in body
-      )
-        return null;
-      return x as PendingCommand;
+      return parsePendingCommand(text, userId);
     } catch {
       return null;
     }
@@ -144,4 +123,30 @@ export class CommandJournal {
       this.changed();
     }
   }
+}
+
+/** JSON из sessionStorage не имеет доверенного TS-типа. Никакого приведения к DTO до validation. */
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+/** Regex сам приводит массив/объект к строке; отдельная проверка типа исключает такой replay. */
+function isUuidText(value: unknown): value is string {
+  return typeof value === 'string' && uuid.test(value);
+}
+/** Проверяет сохранённое намерение без I/O. Parser errors обрабатывает read вместе с ошибками storage.
+ * Сначала scope/identifiers, затем transport/body; ошибочная запись не отправляется и не удаляется.
+ */
+function parsePendingCommand(text: string, expectedUserId: string): PendingCommand | null {
+  const value: unknown = JSON.parse(text);
+  if (!isJsonObject(value)) return null;
+  const { version, userId, warehouseId, key, correlationId, url, body, label } = value;
+  if (version !== 1 || userId !== expectedUserId) return null;
+  if (!isUuidText(warehouseId) || !isUuidText(key) || !isUuidText(correlationId)) return null;
+  if (typeof url !== 'string' || !commandUrl.test(url)) return null;
+  if (typeof body !== 'string' || new TextEncoder().encode(body).length > 262144) return null;
+  if (typeof label !== 'string' || label.length > 120) return null;
+  // Журнал не является хранилищем credentials. Body должен быть JSON object команды.
+  const payload: unknown = JSON.parse(body);
+  if (!isJsonObject(payload) || 'password' in payload || 'csrfToken' in payload) return null;
+  return { version, userId, warehouseId, key, correlationId, url, body, label };
 }

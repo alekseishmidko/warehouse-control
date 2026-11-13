@@ -535,11 +535,13 @@ Gate 4: разработчик находит причину задержки, �
 
 ### WMS-501. Kafka и топология
 
-- [ ] **WMS-501.1** — Поднять dev Kafka через Strimzi; описать storage, listener, credentials и ограничения числа brokers.
-- [ ] **WMS-501.2** — Определить topics по потокам, partitions, replication/min ISR для выбранного стенда и retention.
-- [ ] **WMS-501.3** — Закрепить aggregateId как key; описать последствия смены числа partitions для порядка и процедуру такого изменения.
-- [ ] **WMS-501.4** — Определить stable logical consumer names/groups и доступы producer/consumer.
-- [ ] **WMS-501.5** — Проверить publish/read и рестарт broker; dev single-broker не считать тестом HA.
+Реализация и фактические проверки: [отчёт](reports/wms-501.md), [platform README](../infra/kafka/README.md).
+
+- [x] **WMS-501.1** — Поднять dev Kafka через Strimzi; описать storage, listener, credentials и ограничения числа brokers.
+- [x] **WMS-501.2** — Определить topics по потокам, partitions, replication/min ISR для выбранного стенда и retention.
+- [x] **WMS-501.3** — Закрепить aggregateId как key; описать последствия смены числа partitions для порядка и процедуру такого изменения.
+- [x] **WMS-501.4** — Определить stable logical consumer names/groups и доступы producer/consumer.
+- [x] **WMS-501.5** — Проверить publish/read и рестарт broker; dev single-broker не считать тестом HA.
 
 ### WMS-502. Контракты Kafka и Registry
 
@@ -721,3 +723,7 @@ Docker и установленный Playwright Chromium обязательны.
 но не заменяет gate. [Порядок и ограничения](pr-checks.md).
 [Покрытие текущего WMS-206 diff](reports/wms-206.md#соответствие-diff-документации-и-тестов).
 Внешняя CI-автоматизация roadmap не считается завершённой наличием локальной команды.
+
+## Поддерживаемость чтения
+
+Рефактор read services и cursor protocol без смены бизнес-правил: [границы и evidence](reports/readability-refactor.md). Это работа по качеству, не закрытие следующего WMS-этапа.

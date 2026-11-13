@@ -6,7 +6,11 @@ import { FulfillmentReadRepository } from '../repositories/fulfillment-read.repo
 import { OrderSummaryQueryDto } from '../dto/orders-query.dto';
 import { PickingSummaryQueryDto } from '../dto/picking-tasks-query.dto';
 import { ShipmentSummaryQueryDto } from '../dto/shipments-query.dto';
-/** Экспортируется только сервис; HTTP adapter проверяет session/warehouse policy до его вызова. */
+/** HTTP adapter проверяет session/warehouse policy в том же transaction context.
+ * Методы нормализуют копию DTO, затем явно перечисляют фильтры cursor scope.
+ * SQL получает те же UUID; limit/cursor не входят в scope. Отсутствующие фильтры
+ * обрабатывает общий preparePageRequest, а whitelist остаётся у владельца списка.
+ */
 @Injectable()
 export class FulfillmentReadService {
   /** Repository остаётся private provider владельца данных. */
@@ -15,14 +19,14 @@ export class FulfillmentReadService {
    * @throws VALIDATION_FAILED для malformed/cross-filter cursor; SQL ошибка откатывает read run.
    */
   listOrders(context: TransactionContext, warehouseId: string, query: OrderSummaryQueryDto) {
-    const q = { ...query };
-    const filters: Record<string, string> = { warehouseId: warehouseId.toLowerCase() };
-    if (q.status !== undefined) {
-      q.status = q.status;
-      filters.status = q.status!;
-    }
-    const page = preparePageRequest('orders', filters, q.limit, q.cursor);
-    return this.repository.listOrders(context, filters.warehouseId, q, page);
+    const normalizedWarehouseId = warehouseId.toLowerCase();
+    const page = preparePageRequest(
+      'orders',
+      { warehouseId: normalizedWarehouseId, status: query.status },
+      query.limit,
+      query.cursor,
+    );
+    return this.repository.listOrders(context, normalizedWarehouseId, query, page);
   }
   /** Возвращает bounded picking-tasks snapshot; вход валидирован HTTP DTO, склад проверен caller в том же context.
    * @throws VALIDATION_FAILED для malformed/cross-filter cursor; SQL ошибка откатывает read run.
@@ -32,38 +36,44 @@ export class FulfillmentReadService {
     warehouseId: string,
     query: PickingSummaryQueryDto,
   ) {
-    const q = { ...query };
-    const filters: Record<string, string> = { warehouseId: warehouseId.toLowerCase() };
-    if (q.status !== undefined) {
-      q.status = q.status;
-      filters.status = q.status!;
-    }
-    if (q.orderId !== undefined) {
-      q.orderId = q.orderId.toLowerCase();
-      filters.orderId = q.orderId!;
-    }
-    if (q.assigneeId !== undefined) {
-      q.assigneeId = q.assigneeId.toLowerCase();
-      filters.assigneeId = q.assigneeId!;
-    }
-    const page = preparePageRequest('picking-tasks', filters, q.limit, q.cursor);
-    return this.repository.listPickingTasks(context, filters.warehouseId, q, page);
+    const normalizedWarehouseId = warehouseId.toLowerCase();
+    const normalizedQuery = {
+      ...query,
+      orderId: query.orderId?.toLowerCase(),
+      assigneeId: query.assigneeId?.toLowerCase(),
+    };
+    const page = preparePageRequest(
+      'picking-tasks',
+      {
+        warehouseId: normalizedWarehouseId,
+        status: normalizedQuery.status,
+        orderId: normalizedQuery.orderId,
+        assigneeId: normalizedQuery.assigneeId,
+      },
+      normalizedQuery.limit,
+      normalizedQuery.cursor,
+    );
+    return this.repository.listPickingTasks(context, normalizedWarehouseId, normalizedQuery, page);
   }
   /** Возвращает bounded shipments snapshot; вход валидирован HTTP DTO, склад проверен caller в том же context.
    * @throws VALIDATION_FAILED для malformed/cross-filter cursor; SQL ошибка откатывает read run.
    */
   listShipments(context: TransactionContext, warehouseId: string, query: ShipmentSummaryQueryDto) {
-    const q = { ...query };
-    const filters: Record<string, string> = { warehouseId: warehouseId.toLowerCase() };
-    if (q.status !== undefined) {
-      q.status = q.status;
-      filters.status = q.status!;
-    }
-    if (q.orderId !== undefined) {
-      q.orderId = q.orderId.toLowerCase();
-      filters.orderId = q.orderId!;
-    }
-    const page = preparePageRequest('shipments', filters, q.limit, q.cursor);
-    return this.repository.listShipments(context, filters.warehouseId, q, page);
+    const normalizedWarehouseId = warehouseId.toLowerCase();
+    const normalizedQuery = {
+      ...query,
+      orderId: query.orderId?.toLowerCase(),
+    };
+    const page = preparePageRequest(
+      'shipments',
+      {
+        warehouseId: normalizedWarehouseId,
+        status: normalizedQuery.status,
+        orderId: normalizedQuery.orderId,
+      },
+      normalizedQuery.limit,
+      normalizedQuery.cursor,
+    );
+    return this.repository.listShipments(context, normalizedWarehouseId, normalizedQuery, page);
   }
 }

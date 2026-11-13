@@ -198,3 +198,62 @@ it('HTTP 408 preserves the original command and explicit replay keeps its key an
   expect(calls[1].headers).toMatchObject({ 'Idempotency-Key': saved.key });
   expect(journal.read(user)).toBeNull();
 });
+
+it.each(['warehouseId', 'key', 'correlationId'] as const)(
+  'storage UUID %s must be a string; array coercion never reaches fetch',
+  async (field) => {
+    const pending = {
+      version: 1,
+      userId: user,
+      warehouseId: warehouse,
+      key: crypto.randomUUID(),
+      correlationId: crypto.randomUUID(),
+      url: '/api/v1/orders',
+      body: JSON.stringify(body),
+      label: 'Заказ',
+    };
+    const text = JSON.stringify({ ...pending, [field]: [pending[field]] });
+    sessionStorage.setItem(`wms-pending-v1:${user}`, text);
+    const transport = vi.fn(async () => new Response('{}'));
+    const journal = new CommandJournal(sessionStorage, new ApiClient(() => {}, transport));
+    expect(journal.read(user)).toBeNull();
+    await expect(journal.send(user, 'current-csrf')).rejects.toThrow('Команда недоступна.');
+    expect(transport).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(`wms-pending-v1:${user}`)).toBe(text);
+  },
+);
+
+it.each([
+  { body: null },
+  { body: JSON.stringify({ padding: 'x'.repeat(262144) }) },
+  { label: null },
+  { label: 'x'.repeat(121) },
+  { body: 'null' },
+  { body: '[]' },
+  { body: '{"password":"synthetic-secret"}' },
+  { body: '{"csrfToken":"synthetic-secret"}' },
+  { version: 2 },
+  { userId: crypto.randomUUID() },
+])(
+  'malformed or credential-bearing storage entry cannot be replayed: case %#',
+  async (override) => {
+    const text = JSON.stringify({
+      version: 1,
+      userId: user,
+      warehouseId: warehouse,
+      key: crypto.randomUUID(),
+      correlationId: crypto.randomUUID(),
+      url: '/api/v1/orders',
+      body: JSON.stringify(body),
+      label: 'Заказ',
+      ...override,
+    });
+    sessionStorage.setItem(`wms-pending-v1:${user}`, text);
+    const transport = vi.fn(async () => new Response('{}'));
+    const journal = new CommandJournal(sessionStorage, new ApiClient(() => {}, transport));
+    expect(journal.read(user)).toBeNull();
+    await expect(journal.send(user, 'csrf')).rejects.toThrow('Команда недоступна.');
+    expect(transport).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(`wms-pending-v1:${user}`)).toBe(text);
+  },
+);

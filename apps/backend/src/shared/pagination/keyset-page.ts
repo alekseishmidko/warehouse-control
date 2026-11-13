@@ -25,43 +25,58 @@ export interface PageRequest {
 /** Создаёт bounded request из уже валидированного DTO; malformed/cross-filter cursor отклоняется безопасно. */
 export function preparePageRequest(
   resource: string,
-  filters: Record<string, string>,
+  filters: Readonly<Record<string, string | undefined>>,
   limit = DEFAULT_PAGE_LIMIT,
   cursor?: string,
 ): PageRequest {
+  // Только заданные фильтры входят в scope. Это сохраняет прежние cursors,
+  // когда caller передаёт optional поля явно вместо набора одинаковых if-блоков.
+  const entries = Object.entries(filters).filter(([, value]) => value !== undefined);
   const scope = createHash('sha256')
-    .update(JSON.stringify([resource, Object.entries(filters).sort()]))
+    .update(JSON.stringify([resource, entries.sort()]))
     .digest('hex');
-  let position: PagePosition | undefined;
-  if (cursor !== undefined) {
-    try {
-      if (cursor.length > 512 || !/^[A-Za-z0-9_-]+$/.test(cursor)) throw new Error();
-      const value = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
-      if (
-        !value ||
-        value.v !== 1 ||
-        value.scope !== scope ||
-        !isUuid(value.id) ||
-        Object.keys(value).some((k) => !['v', 'scope', 'id', 'time'].includes(k)) ||
-        (value.time !== undefined &&
-          (typeof value.time !== 'string' ||
-            !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{6}Z$/.test(value.time) ||
-            // PostgreSQL не принимает год 0000; JS Date принимает. Отказ должен быть 400 до SQL.
-            value.time.startsWith('0000-') ||
-            !Number.isFinite(Date.parse(value.time)) ||
-            new Date(value.time).toISOString() !== value.time.slice(0, 23) + 'Z'))
-      )
-        throw new Error();
-      position = {
-        id: value.id.toLowerCase(),
-        ...(value.time === undefined ? {} : { time: value.time }),
-      };
-    } catch {
-      throw new CommandError('VALIDATION_FAILED');
-    }
-  }
+  const position = cursor === undefined ? undefined : decodePagePosition(cursor, scope);
   if (!PAGE_LIMIT_PATTERN.test(limit)) throw new CommandError('VALIDATION_FAILED');
   return { limit: Number(limit), scope, position };
+}
+/** Недоверенный cursor проверяется до SQL. Ни его scope, ни UUID не заменяют warehouse ACL.
+ * Все ошибки decoding/структуры сводятся к одному безопасному коду без входных данных.
+ */
+function decodePagePosition(cursor: string, scope: string): PagePosition {
+  try {
+    if (cursor.length > 512 || !/^[A-Za-z0-9_-]+$/.test(cursor)) throw new Error();
+    const value: unknown = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error();
+    if (
+      !('v' in value) ||
+      value.v !== 1 ||
+      !('scope' in value) ||
+      value.scope !== scope ||
+      !('id' in value) ||
+      !isUuid(value.id)
+    )
+      throw new Error();
+    if (Object.keys(value).some((key) => !['v', 'scope', 'id', 'time'].includes(key)))
+      throw new Error();
+    const time = 'time' in value ? value.time : undefined;
+    if (time !== undefined && !isCursorTimestamp(time)) throw new Error();
+    return { id: value.id.toLowerCase(), ...(typeof time === 'string' ? { time } : {}) };
+  } catch {
+    throw new CommandError('VALIDATION_FAILED');
+  }
+}
+/** Проверяет календарное время, сохраняя исходные шесть знаков для SQL cursor.
+ * Date используется только для проверки: возвращать округлённый Date в position нельзя.
+ * Год 0000 запрещён PostgreSQL, а нормализованная JS дата не должна скрывать 30 февраля.
+ */
+function isCursorTimestamp(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{6}Z$/.test(value) &&
+    !value.startsWith('0000-') &&
+    Number.isFinite(Date.parse(value)) &&
+    new Date(value).toISOString() === value.slice(0, 23) + 'Z'
+  );
 }
 /** Сериализует только последний выданный ключ. Это навигация, не capability авторизации и не подпись данных. */
 export function encodePageCursor(request: PageRequest, position: PagePosition): string {

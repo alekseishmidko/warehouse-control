@@ -215,3 +215,8 @@ flowchart LR
 Тесты: warehouse-reads.spec.ts, warehouse-read-plans.spec.ts, keyset-page.spec.ts.
 Чтение не создаёт audit, event или HTTP idempotency запись. SQL timeout/ошибка
 откатывает read run; публичный ответ не содержит SQL, credentials и ORM-модели.
+
+Read service сохраняет явный whitelist фильтров и передаёт одинаковые нормализованные
+UUID в SQL и cursor scope. Optional filters и cursor protocol обрабатывает
+[shared pagination](../../shared/pagination/README.md); подробный владелец шагов чтения —
+[warehouse reads](../../../../../docs/flows/warehouse-reads.md).
