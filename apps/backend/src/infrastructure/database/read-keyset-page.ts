@@ -31,17 +31,24 @@ export async function readKeysetPage<T>(
   if (position && Boolean(query.time) !== (position.time !== undefined))
     throw new CommandError('VALIDATION_FAILED');
   // История идёт от нового к старому. У таблиц без времени используется UUID ASC, без выдуманной хронологии.
-  const continuation = !position
-    ? sql`true`
-    : query.time
+  let continuation = sql`true`;
+  if (position) {
+    // Сравнение идёт по полному tuple: одинаковое время не теряет соседние UUID.
+    continuation = query.time
       ? sql`(${query.time},${query.id}) < (${position.time}::timestamptz,${position.id}::uuid)`
       : sql`${query.id} > ${position.id}::uuid`;
+  }
+  // Cursor хранит PostgreSQL microseconds; JS Date не участвует в SQL projection.
+  const timeProjection = query.time
+    ? sql`,to_char(${query.time} at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as "_pageTime"`
+    : sql``;
+  const ordering = query.time ? sql`${query.time} desc,${query.id} desc` : sql`${query.id} asc`;
   const rows = (
     await transactionClient(context).execute<Record<string, unknown>>(sql`
     select ${query.projection}, ${query.id} as "_pageId"
-      ${query.time ? sql`,to_char(${query.time} at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as "_pageTime"` : sql``}
+      ${timeProjection}
     from ${query.from} where ${query.where} and ${continuation}
-    order by ${query.time ? sql`${query.time} desc,${query.id} desc` : sql`${query.id} asc`}
+    order by ${ordering}
     limit ${request.limit + 1}`)
   ).rows;
   const selected = rows.slice(0, request.limit);

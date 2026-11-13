@@ -219,3 +219,12 @@ Audit scope может проверить несколько retained табли
 
 [Результаты, review и команды](../reports/wms-207.md). Все тесты — синтетические;
 PostgreSQL работает в disposable Testcontainers, dev volume не меняется.
+
+## Нормализация фильтров и чтение cursor
+
+Read services явно перечисляют фильтры своего списка после нормализации UUID.
+Shared pagination исключает undefined один раз до scope hash, поэтому прежний cursor
+совместим с DTO, где optional поля присутствуют с undefined. Decoder отдельно проверяет
+формат/структуру/scope и timestamp. ACL всё ещё проверяет HTTP caller перед repository,
+а SQL adapter сохраняет исходные microseconds при сравнении tuple. Подробности общих
+структур — [shared pagination](../../apps/backend/src/shared/pagination/README.md).

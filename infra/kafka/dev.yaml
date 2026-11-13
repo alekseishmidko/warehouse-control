@@ -1,0 +1,102 @@
+# WMS-501: platform dependency в отдельном namespace; application chart не владеет Kafka/PVC.
+# Один combined broker/controller намеренно не предоставляет HA или rolling availability.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: dual
+  labels:
+    strimzi.io/cluster: warehouse
+spec:
+  replicas: 1
+  roles: [controller, broker]
+  # PVC сохраняется при удалении Kafka CR. Удаление kind всё равно уничтожит local disk.
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: 2Gi
+        deleteClaim: false
+        kraftMetadata: shared
+  resources:
+    requests: { cpu: 250m, memory: 768Mi }
+    limits: { cpu: '2', memory: 1536Mi }
+  jvmOptions:
+    '-Xms': 384m
+    '-Xmx': 384m
+---
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: warehouse
+spec:
+  kafka:
+    version: 4.3.2
+    metadataVersion: 4.3-IV0
+    # Только cluster-internal TLS + mTLS. Plain/NodePort/LoadBalancer listener отсутствуют.
+    listeners:
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+        authentication: { type: tls }
+    authorization: { type: simple }
+    config:
+      # RF=ISR=1 позволяет dev запуск, но потеря диска означает потерю Kafka log.
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+      auto.create.topics.enable: false
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}
+---
+# Топик потока receipt, а не версии schema/event: все aggregateVersion идут сюда.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: warehouse.receiving.events
+  labels: { strimzi.io/cluster: warehouse }
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    min.insync.replicas: 1
+    cleanup.policy: delete
+    retention.ms: 604800000 # 7 дней для dev replay; PostgreSQL outbox не удаляется.
+    retention.bytes: 268435456 # 256 MiB на partition, приблизительно 768 MiB на topic.
+    segment.bytes: 16777216 # Retention применяется по segments, это не точный disk quota.
+---
+# User Operator создаёт TLS Secret; private keys не хранятся в Git/rendered YAML.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: outbox-publisher
+  labels: { strimzi.io/cluster: warehouse }
+spec:
+  authentication: { type: tls }
+  authorization:
+    type: simple
+    acls:
+      - resource: { type: topic, name: warehouse.receiving.events, patternType: literal }
+        operations: [Write, Describe]
+      - resource: { type: cluster }
+        operations: [IdempotentWrite]
+---
+# Logical consumer совпадает с текущим DB marker owner; transport не меняет dedup identity.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: inventory-putaway
+  labels: { strimzi.io/cluster: warehouse }
+spec:
+  authentication: { type: tls }
+  authorization:
+    type: simple
+    acls:
+      - resource: { type: topic, name: warehouse.receiving.events, patternType: literal }
+        operations: [Read, Describe]
+      - resource: { type: group, name: inventory.putaway, patternType: literal }
+        operations: [Read]

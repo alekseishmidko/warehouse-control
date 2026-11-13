@@ -154,3 +154,8 @@ flowchart LR
 откатывает read run; публичный ответ не содержит SQL, credentials и ORM-модели.
 
 Order/shipping snapshots используют пакетное чтение allocations через InventoryService: N+1 по строкам исключён. История по действующему DTO сохраняется полностью.
+
+Read service сохраняет явный whitelist фильтров и передаёт одинаковые нормализованные
+UUID в SQL и cursor scope. Optional filters и cursor protocol обрабатывает
+[shared pagination](../../shared/pagination/README.md); подробный владелец шагов чтения —
+[warehouse reads](../../../../../docs/flows/warehouse-reads.md).

@@ -319,3 +319,8 @@ flowchart LR
 откатывает read run; публичный ответ не содержит SQL, credentials и ORM-модели.
 
 Batch allocationsForLines читает историю набора строк одним SQL через свой repository; DTO и immutable история не обрезаются. Regression: reservations.spec.ts — batch order snapshot.
+
+Read service сохраняет явный whitelist фильтров и передаёт одинаковые нормализованные
+UUID в SQL и cursor scope. Optional filters и cursor protocol обрабатывает
+[shared pagination](../../shared/pagination/README.md); подробный владелец шагов чтения —
+[warehouse reads](../../../../../docs/flows/warehouse-reads.md).

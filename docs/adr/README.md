@@ -56,3 +56,5 @@ same-origin transport и явное восстановление сохранё�
 общий Pino JSONL stderr, безопасные ручные OTel spans, deferred consumer links и commit buffer.
 
 [0031. Local observability](0031-local-observability.md) — Alloy, pull metrics, bounded delivery и локальные alerts WMS-402.
+
+[0032. Dev Kafka topology](0032-dev-kafka-topology.md) — WMS-501: отдельный Strimzi, mTLS/ACL, стабильные key/topic/group; outbox сохраняется.

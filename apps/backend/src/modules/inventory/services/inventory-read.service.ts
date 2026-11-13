@@ -6,7 +6,11 @@ import { InventoryReadRepository } from '../repositories/inventory-read.reposito
 import { BalanceQueryDto } from '../dto/balances-query.dto';
 import { MovementQueryDto } from '../dto/movements-query.dto';
 import { PutawaySummaryQueryDto } from '../dto/putaway-tasks-query.dto';
-/** Экспортируется только сервис; HTTP adapter проверяет session/warehouse policy до его вызова. */
+/** HTTP adapter проверяет session/warehouse policy в том же transaction context.
+ * Методы нормализуют копию DTO, затем явно перечисляют фильтры cursor scope.
+ * SQL получает те же UUID; limit/cursor не входят в scope. Отсутствующие фильтры
+ * обрабатывает общий preparePageRequest, а whitelist остаётся у владельца списка.
+ */
 @Injectable()
 export class InventoryReadService {
   /** Repository остаётся private provider владельца данных. */
@@ -15,44 +19,49 @@ export class InventoryReadService {
    * @throws VALIDATION_FAILED для malformed/cross-filter cursor; SQL ошибка откатывает read run.
    */
   listBalances(context: TransactionContext, warehouseId: string, query: BalanceQueryDto) {
-    const q = { ...query };
-    const filters: Record<string, string> = { warehouseId: warehouseId.toLowerCase() };
-    if (q.productId !== undefined) {
-      q.productId = q.productId.toLowerCase();
-      filters.productId = q.productId!;
-    }
-    if (q.locationId !== undefined) {
-      q.locationId = q.locationId.toLowerCase();
-      filters.locationId = q.locationId!;
-    }
-    if (q.locationKind !== undefined) filters.locationKind = q.locationKind;
-    const page = preparePageRequest('balances', filters, q.limit, q.cursor);
-    return this.repository.listBalances(context, filters.warehouseId, q, page);
+    const normalizedWarehouseId = warehouseId.toLowerCase();
+    const normalizedQuery = {
+      ...query,
+      productId: query.productId?.toLowerCase(),
+      locationId: query.locationId?.toLowerCase(),
+    };
+    const page = preparePageRequest(
+      'balances',
+      {
+        warehouseId: normalizedWarehouseId,
+        productId: normalizedQuery.productId,
+        locationId: normalizedQuery.locationId,
+        locationKind: normalizedQuery.locationKind,
+      },
+      normalizedQuery.limit,
+      normalizedQuery.cursor,
+    );
+    return this.repository.listBalances(context, normalizedWarehouseId, normalizedQuery, page);
   }
   /** Возвращает bounded movements snapshot; вход валидирован HTTP DTO, склад проверен caller в том же context.
    * @throws VALIDATION_FAILED для malformed/cross-filter cursor; SQL ошибка откатывает read run.
    */
   listMovements(context: TransactionContext, warehouseId: string, query: MovementQueryDto) {
-    const q = { ...query };
-    const filters: Record<string, string> = { warehouseId: warehouseId.toLowerCase() };
-    if (q.productId !== undefined) {
-      q.productId = q.productId.toLowerCase();
-      filters.productId = q.productId!;
-    }
-    if (q.locationId !== undefined) {
-      q.locationId = q.locationId.toLowerCase();
-      filters.locationId = q.locationId!;
-    }
-    if (q.kind !== undefined) {
-      q.kind = q.kind;
-      filters.kind = q.kind!;
-    }
-    if (q.auditId !== undefined) {
-      q.auditId = q.auditId.toLowerCase();
-      filters.auditId = q.auditId!;
-    }
-    const page = preparePageRequest('movements', filters, q.limit, q.cursor);
-    return this.repository.listMovements(context, filters.warehouseId, q, page);
+    const normalizedWarehouseId = warehouseId.toLowerCase();
+    const normalizedQuery = {
+      ...query,
+      productId: query.productId?.toLowerCase(),
+      locationId: query.locationId?.toLowerCase(),
+      auditId: query.auditId?.toLowerCase(),
+    };
+    const page = preparePageRequest(
+      'movements',
+      {
+        warehouseId: normalizedWarehouseId,
+        productId: normalizedQuery.productId,
+        locationId: normalizedQuery.locationId,
+        kind: normalizedQuery.kind,
+        auditId: normalizedQuery.auditId,
+      },
+      normalizedQuery.limit,
+      normalizedQuery.cursor,
+    );
+    return this.repository.listMovements(context, normalizedWarehouseId, normalizedQuery, page);
   }
   /** Возвращает bounded putaway-tasks snapshot; вход валидирован HTTP DTO, склад проверен caller в том же context.
    * @throws VALIDATION_FAILED для malformed/cross-filter cursor; SQL ошибка откатывает read run.
@@ -62,21 +71,23 @@ export class InventoryReadService {
     warehouseId: string,
     query: PutawaySummaryQueryDto,
   ) {
-    const q = { ...query };
-    const filters: Record<string, string> = { warehouseId: warehouseId.toLowerCase() };
-    if (q.productId !== undefined) {
-      q.productId = q.productId.toLowerCase();
-      filters.productId = q.productId!;
-    }
-    if (q.status !== undefined) {
-      q.status = q.status;
-      filters.status = q.status!;
-    }
-    if (q.sourceReceiptId !== undefined) {
-      q.sourceReceiptId = q.sourceReceiptId.toLowerCase();
-      filters.sourceReceiptId = q.sourceReceiptId!;
-    }
-    const page = preparePageRequest('putaway-tasks', filters, q.limit, q.cursor);
-    return this.repository.listPutawayTasks(context, filters.warehouseId, q, page);
+    const normalizedWarehouseId = warehouseId.toLowerCase();
+    const normalizedQuery = {
+      ...query,
+      productId: query.productId?.toLowerCase(),
+      sourceReceiptId: query.sourceReceiptId?.toLowerCase(),
+    };
+    const page = preparePageRequest(
+      'putaway-tasks',
+      {
+        warehouseId: normalizedWarehouseId,
+        productId: normalizedQuery.productId,
+        status: normalizedQuery.status,
+        sourceReceiptId: normalizedQuery.sourceReceiptId,
+      },
+      normalizedQuery.limit,
+      normalizedQuery.cursor,
+    );
+    return this.repository.listPutawayTasks(context, normalizedWarehouseId, normalizedQuery, page);
   }
 }

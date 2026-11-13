@@ -166,3 +166,8 @@ SessionProvider меняет локальную session epoch при clear/logou
 Login/logout выполняются последовательно: браузер применяет Set-Cookie до следующей
 операции с credentials. Ошибка входа не блокирует следующую попытку. Складские команды
 не входят в эту очередь и не повторяются автоматически.
+
+Проверка сохранённого намерения отделена от I/O sessionStorage. Parser получает unknown
+JSON, проверяет scope, строковые UUID, route/body и возвращает явную PendingCommand.
+Array-to-string coercion UUID не допускается. Read не отправляет и не удаляет запись;
+ошибки storage/parser безопасно дают null. [Ревью и проверки](../../docs/reports/readability-refactor.md).

@@ -207,3 +207,8 @@ flowchart LR
 `receiving.posted` содержит только безопасные ID документа/события и request context.
 Runner буферизует запись до подтверждения COMMIT; rollback не выводит ложный success.
 Replay не создаёт повторный business fact. [Подробный logging flow](../../../../../docs/flows/logging.md).
+
+Read service сохраняет явный whitelist фильтров и передаёт одинаковые нормализованные
+UUID в SQL и cursor scope. Optional filters и cursor protocol обрабатывает
+[shared pagination](../../shared/pagination/README.md); подробный владелец шагов чтения —
+[warehouse reads](../../../../../docs/flows/warehouse-reads.md).

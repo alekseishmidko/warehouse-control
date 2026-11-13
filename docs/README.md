@@ -71,6 +71,8 @@ replay/retry и rollback проверены. Collection/dashboards/alerts — о
 Исправления гонки session, evidence, отмены нагрузки и чтения allocations:
 [повторное ревью 2026-11-13](reports/review-fixes-2026-11-13.md).
 
+Рефактор общей pagination и frontend-журнала: [изменения, review и проверки](reports/readability-refactor.md).
+
 ## Подход к коду
 
 По умолчанию NestJS controller → service → repository; более сложную структуру
@@ -78,6 +80,9 @@ replay/retry и rollback проверены. Collection/dashboards/alerts — о
 транзакции/маскирование/права сохраняются. Сервисы, repositories и DTO
 размещаются в services/, repositories/ и dto/. README модулей включает схему
 взаимодействия и подробное движение данных с примерами. См. [ADR-0009](adr/0009-nest-service-repository-default.md).
+
+WMS-501 реализована и проверена: отдельный Kafka dev profile и topology; [статус проверок](reports/wms-501.md),
+[запуск/storage/ACL](../infra/kafka/README.md). Приложение пока использует PostgreSQL outbox.
 
 ## Фактический статус
 

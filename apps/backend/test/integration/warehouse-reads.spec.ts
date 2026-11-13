@@ -1,6 +1,7 @@
 /** @file WMS-207: реальные миграции, session/ACL, неизменные ключи и безопасные проекции складских списков. */
 import request from 'supertest';
 import { randomUUID } from 'node:crypto';
+import { preparePageRequest, encodePageCursor } from '@backend/shared/pagination/keyset-page';
 import type { INestApplication, INestApplicationContext } from '@nestjs/common';
 import { useDatabaseSuite } from '../support/database-harness';
 import { postedReceiptFixture } from '../support/posted-receipt.fixture';
@@ -359,4 +360,23 @@ test('shipment/picking lists and existing detail API enforce warehouse ACL', asy
       ).body,
     ).toEqual({ items: [], nextCursor: null });
   }
+});
+
+test('valid cursor scope cannot substitute UUID-only and timestamp SQL key kinds', async () => {
+  const { fixture, document } = await postedReceiptFixture(app);
+  const actor = await identityFixture(app, { warehouseId: fixture.warehouse.id, role: 'viewer' });
+  const scope = { warehouseId: fixture.warehouse.id };
+  // Scope и UUID корректны: отказ должен дать именно SQL key contract, а не decoder.
+  const receiptCursor = encodePageCursor(preparePageRequest('receipts', scope), {
+    id: document.id,
+  });
+  const productCursor = encodePageCursor(preparePageRequest('products', scope), {
+    id: fixture.product.id,
+    time: '2026-11-04T10:00:00.123456Z',
+  });
+  await list(fixture.warehouse.id, 'receipts', actor, { cursor: receiptCursor }).expect(400);
+  await list(fixture.warehouse.id, 'products', actor, { cursor: productCursor }).expect(400);
+  // Ошибочный cursor не повреждает последующее чтение или session scope.
+  const result = await list(fixture.warehouse.id, 'receipts', actor).expect(200);
+  expect(result.body.items.map((item: { id: string }) => item.id)).toEqual([document.id]);
 });
