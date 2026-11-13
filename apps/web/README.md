@@ -161,3 +161,8 @@ Gateway/TLS проверены в WMS-303. Vite proxy используется �
 
 Static web origin/image WMS-303: [контракт сервера](server/README.md),
 [Gateway/TLS flow](../../docs/flows/gateway-tls.md).
+
+SessionProvider меняет локальную session epoch при clear/logout. Поздний 401 и profile прежней epoch не сбрасывают и не восстанавливают нового пользователя; журнал исходной команды сохраняется.
+Login/logout выполняются последовательно: браузер применяет Set-Cookie до следующей
+операции с credentials. Ошибка входа не блокирует следующую попытку. Складские команды
+не входят в эту очередь и не повторяются автоматически.

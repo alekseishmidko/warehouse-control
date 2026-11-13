@@ -317,3 +317,5 @@ flowchart LR
 Тесты: warehouse-reads.spec.ts, warehouse-read-plans.spec.ts, keyset-page.spec.ts.
 Чтение не создаёт audit, event или HTTP idempotency запись. SQL timeout/ошибка
 откатывает read run; публичный ответ не содержит SQL, credentials и ORM-модели.
+
+Batch allocationsForLines читает историю набора строк одним SQL через свой repository; DTO и immutable история не обрезаются. Regression: reservations.spec.ts — batch order snapshot.

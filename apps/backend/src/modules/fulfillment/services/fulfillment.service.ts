@@ -38,8 +38,13 @@ export class FulfillmentService {
     const order = await this.repository.get(c, id, lock);
     if (!order) throw new CommandError('ORDER_NOT_FOUND');
     const lines = [];
-    for (const line of await this.repository.lines(c, id)) {
-      const allocations = await this.inventory.allocations(c, line.id);
+    const sourceLines = await this.repository.lines(c, id);
+    const grouped = await this.inventory.allocationsForLines(
+      c,
+      sourceLines.map((l) => l.id),
+    );
+    for (const line of sourceLines) {
+      const allocations = grouped.get(line.id) ?? [];
       const active = allocations.reduce((n, a) => n + a.active, 0);
       const shipped = allocations.reduce((n, a) => n + a.consumed, 0);
       const closed = ['cancelled', 'closed_mixed'].includes(order.status);

@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-11-13T05:47:13.735Z",
+  "sloApproval": "user-approved-dev-only",
+  "tests": [
+    {
+      "name": "SIGTERM hard=false stops claim, drains or exits boundedly, closes DB resources",
+      "status": "passed",
+      "durationMs": 464
+    },
+    {
+      "name": "SIGTERM hard=true stops claim, drains or exits boundedly, closes DB resources",
+      "status": "passed",
+      "durationMs": 1956
+    },
+    {
+      "name": "production putaway SIGKILL before commit preserves one task and receipt stock",
+      "status": "passed",
+      "durationMs": 527
+    },
+    {
+      "name": "production putaway SIGKILL after commit preserves one task and receipt stock",
+      "status": "passed",
+      "durationMs": 442
+    },
+    {
+      "name": "SIGKILL before commit recovers expired lease; SIGKILL after commit does not repeat effect",
+      "status": "passed",
+      "durationMs": 830
+    },
+    {
+      "name": "verified runbook: fault → dead/signal → inspect → CLI retry with operator/reason → one task and unchanged stock",
+      "status": "passed",
+      "durationMs": 2616
+    },
+    {
+      "name": "retry renews budget after maxAttempts without decreasing total attempts or erasing previous error history",
+      "status": "passed",
+      "durationMs": 70
+    },
+    {
+      "name": "int4 attempt limit rejects retry rather than creating an endlessly overflowing claim",
+      "status": "passed",
+      "durationMs": 51
+    },
+    {
+      "name": "active lease, pending/processing/completed, marker and predecessor bypass cannot be administratively retried",
+      "status": "passed",
+      "durationMs": 69
+    },
+    {
+      "name": "active row lock is refused NOWAIT even when lease expired; no audit/history is written",
+      "status": "passed",
+      "durationMs": 53
+    },
+    {
+      "name": "two operators cannot both retry same dead delivery; only one immutable administrative record remains",
+      "status": "passed",
+      "durationMs": 75
+    },
+    {
+      "name": "SQL fault after audit_entries rolls back retry/history/audit",
+      "status": "passed",
+      "durationMs": 60
+    },
+    {
+      "name": "SQL fault after outbox_recovery_actions rolls back retry/history/audit",
+      "status": "passed",
+      "durationMs": 53
+    },
+    {
+      "name": "SQL fault after outbox_deliveries rolls back retry/history/audit",
+      "status": "passed",
+      "durationMs": 61
+    },
+    {
+      "name": "SQL fault after delivery_streams rolls back retry/history/audit",
+      "status": "passed",
+      "durationMs": 67
+    },
+    {
+      "name": "restricted runtime role cannot administer; admin group can recover without domain table grants",
+      "status": "passed",
+      "durationMs": 68
+    },
+    {
+      "name": "safe payload opt-in drops unknown fields, masks injected errors and invalid contract; signal catches age/backlog",
+      "status": "passed",
+      "durationMs": 44
+    },
+    {
+      "name": "CLI denies mode {\"NODE_ENV\":\"production\"} before DB and rejects unsafe flags",
+      "status": "passed",
+      "durationMs": 741
+    },
+    {
+      "name": "CLI denies mode {\"OUTBOX_ADMIN_ENABLED\":\"false\"} before DB and rejects unsafe flags",
+      "status": "passed",
+      "durationMs": 705
+    },
+    {
+      "name": "two workers claim different streams and only next version; processing advances both cursors atomically",
+      "status": "passed",
+      "durationMs": 112
+    },
+    {
+      "name": "SKIP LOCKED passes a locked stream and processes independent aggregate",
+      "status": "passed",
+      "durationMs": 54
+    },
+    {
+      "name": "expired claim rotates token; stale worker cannot apply, complete or record failure for new owner",
+      "status": "passed",
+      "durationMs": 76
+    },
+    {
+      "name": "active processing row locks fence reclaim even after expiry and block only that aggregate",
+      "status": "passed",
+      "durationMs": 74
+    },
+    {
+      "name": "durable marker prevents effect on controlled redelivery while transport cursor catches up",
+      "status": "passed",
+      "durationMs": 54
+    },
+    {
+      "name": "two concurrent processors with the same claim recheck state after waiting on row locks",
+      "status": "passed",
+      "durationMs": 74
+    },
+    {
+      "name": "fault after application_metadata rolls back effect/marker/cursors/completion and retries the same event",
+      "status": "passed",
+      "durationMs": 75
+    },
+    {
+      "name": "fault after processed_events rolls back effect/marker/cursors/completion and retries the same event",
+      "status": "passed",
+      "durationMs": 57
+    },
+    {
+      "name": "fault after consumer_streams rolls back effect/marker/cursors/completion and retries the same event",
+      "status": "passed",
+      "durationMs": 60
+    },
+    {
+      "name": "fault after outbox_deliveries rolls back effect/marker/cursors/completion and retries the same event",
+      "status": "passed",
+      "durationMs": 72
+    },
+    {
+      "name": "fault after delivery_streams rolls back effect/marker/cursors/completion and retries the same event",
+      "status": "passed",
+      "durationMs": 58
+    },
+    {
+      "name": "permanent rejection is durable dead, blocks next version but independent streams continue",
+      "status": "passed",
+      "durationMs": 54
+    },
+    {
+      "name": "transient retry stores only safe code, respects available_at, max attempts and crash budget",
+      "status": "passed",
+      "durationMs": 65
+    },
+    {
+      "name": "unsupported contract never calls handler or creates success marker",
+      "status": "passed",
+      "durationMs": 43
+    },
+    {
+      "name": "connection crash during handler rolls back effect before retry by a new worker",
+      "status": "passed",
+      "durationMs": 70
+    },
+    {
+      "name": "consumer gap is dead; runtime role can process and cannot erase markers or move cursor backwards",
+      "status": "passed",
+      "durationMs": 69
+    },
+    {
+      "name": "explicitly empty registry leaves delivery pending and starts no implicit no-op",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "name": "AC-304-04: claim expired during unchanged row lock wait cannot start a handler",
+      "status": "passed",
+      "durationMs": 1065
+    },
+    {
+      "name": "AC-404-01/02: DB unavailable preserves confirmed receipt and recovers one handler effect",
+      "status": "passed",
+      "durationMs": 144
+    }
+  ],
+  "status": "passed",
+  "finishedAt": "2026-11-13T05:52:12.493Z"
+}

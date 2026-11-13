@@ -35,7 +35,8 @@ target/path params в request; idempotency/correlation headers туда не в�
 В таблице не сохраняется исходный request, только hash и allowlisted success response.
 
 normalizedRequest/result — plain JSON без class instances/toJSON/getters, undefined,
-BigInt, циклов, не finite numbers; depth<=64 и JSON UTF-8<=256 КиБ. DTO instance нужно
+BigInt, циклов, не finite numbers; depth<=64. Для normalizedRequest JSON UTF-8<=256 КиБ;
+server result использует отдельный snapshot encoder без request byte budget. DTO instance нужно
 преобразовать явной сборкой plain полей. Нормализация смысла данных принадлежит
 бизнес-модулю, canonical serializer решает только порядок JSON keys.
 
@@ -136,3 +137,8 @@ Auth/credential admin controllers не кешируют password inputs в эт�
 Контекст, ручные OTel spans, commit outcome и безопасный Pino stderr описаны у
 [владельца logging flow](../../../../../docs/flows/logging.md). Raw HTTP/event/SQL payload
 и driver errors не выводятся. Диагностика не заменяет транзакционный AuditService.
+
+Server result копируется через canonicalSnapshotJson, а не через request serializer:
+история allocations может превышать 256 КиБ при небольшом входном запросе. JSON safety
+сохраняется; request/fingerprint по-прежнему ограничены 256 КиБ. Regression проверяет
+реальный commit/replay большого JSONB snapshot без повторного callback.

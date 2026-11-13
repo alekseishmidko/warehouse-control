@@ -4,7 +4,7 @@ import { LOG_MODULES, type LogFields } from '../../../shared/logging/log-contrac
 import { logScope, logEvent } from '../../logging/runtime-logger';
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { canonicalJson } from '../../../shared/serialization/canonical-json';
+import { canonicalJson, canonicalSnapshotJson } from '../../../shared/serialization/canonical-json';
 import { CommandError } from '../../../shared/errors/command-error';
 import { requireUuid } from '../../../shared/validation/identifiers';
 import type { CommandScope, CommandResult } from '../../../shared/operations/dto/command-scope.dto';
@@ -96,7 +96,7 @@ export class HttpCommandsService {
             // Canonical serializer отклоняет non-JSON/нестабильные значения и делает копию.
             // Неверный ответ сформировал сервер, поэтому его ошибка не должна стать HTTP 400 клиента.
             try {
-              result = JSON.parse(canonicalJson(candidate)) as CommandResult;
+              result = JSON.parse(canonicalSnapshotJson(candidate)) as CommandResult;
             } catch {
               throw new Error('Invalid command result');
             }

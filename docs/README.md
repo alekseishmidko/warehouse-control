@@ -68,6 +68,8 @@ replay/retry и rollback проверены. Collection/dashboards/alerts — о
 
 Ревью всего checkout и YAML-комментарии: [отчёт 2026-11-07](reports/project-review-2026-11-07.md).
 Открытые findings и ограничения перечислены в отчёте; зелёные gates не заменяют их исправление.
+Исправления гонки session, evidence, отмены нагрузки и чтения allocations:
+[повторное ревью 2026-11-13](reports/review-fixes-2026-11-13.md).
 
 ## Подход к коду
 
@@ -208,4 +210,4 @@ WMS-402 реализована: [отдельный локальный observabi
 Alloy JSONL collection, bounded HTTP/DB/outbox metrics, dashboards и local alerts.
 [Проверки и ограничения](reports/wms-402.md). WMS-403 реализована:
 [нагрузочные команды](../load/README.md), [flow и инварианты](flows/load-testing.md),
-[AC и evidence](reports/wms-403.md). WMS-404 не выполнена.
+[AC и evidence](reports/wms-403.md). WMS-404 выполнена для локального dev-стенда: [runbook](runbooks/recovery-drill.md), [AC и evidence](reports/wms-404.md).

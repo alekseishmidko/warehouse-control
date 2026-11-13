@@ -2,7 +2,7 @@
  * Рабочая .env и существующие volumes недоступны через интерфейс driver. Секреты живут только в памяти/0600.
  */
 const assert = require('node:assert/strict');
-const { mkdtemp, mkdir, writeFile, readFile, rename, rm, readdir } = require('node:fs/promises');
+const { mkdtemp, mkdir, writeFile, readFile, rm, readdir } = require('node:fs/promises');
 const os = require('node:os');
 const { resolve, join, relative } = require('node:path');
 const { randomBytes, randomUUID, createHash } = require('node:crypto');
@@ -22,13 +22,8 @@ function step(name) {
   phase = name;
   console.log(`WMS-403 ${name}`);
 }
-/** Evidence пишется атомарно. Старый принятый baseline не заменяется частичным или неуспешным прогоном. */
-async function writeJson(path, value) {
-  await mkdir(resolve(path, '..'), { recursive: true });
-  const temporary = path + '.tmp';
-  await writeFile(temporary, JSON.stringify(value, null, 2) + '\n');
-  await rename(temporary, path);
-}
+const { writeAtomicJson: writeJson } = require('../evidence/atomic-json.cjs');
+const { createCancellation } = require('./cancellation.cjs');
 /** Выполняет все адресные cleanup actions даже при отказе предыдущего. Уже известная ошибка
  * observer не заменяет первичную причину. Возвращает только безопасные имена неудачных шагов. */
 async function cleanupResources(actions, primaryError) {
@@ -63,6 +58,7 @@ async function sourceIdentity() {
     'infra/observability',
     'load/k6',
     'scripts/load',
+    'scripts/evidence',
   ])
     await add(path);
   for (const path of [
@@ -137,11 +133,13 @@ async function scenario(name) {
   let pool;
   let observer;
   let interrupted = false;
+  const cancellation = createCancellation();
   let workerRunning = false;
   let primaryError;
   // Ctrl-C прекращает k6, затем тот же finally удаляет проекты. SIGKILL/потеря daemon требуют ручного cleanup.
   const interrupt = () => {
     interrupted = true;
+    cancellation.abort();
     void run(['rm', '-f', k6Name], 'interrupt k6', 10000).catch(() => {});
   };
   process.once('SIGINT', interrupt);
@@ -164,22 +162,27 @@ async function scenario(name) {
     'infra/compose/compose.load.yaml',
   ];
   const compose = (args, timeout = 60000, input) =>
-    run([...base, ...args], `load compose ${args[0]}`, timeout, input);
-  const monitoring = (args) =>
-    run(
-      [
-        'compose',
-        '--project-name',
-        obsProject,
-        '--env-file',
-        envFile,
-        '-f',
-        'infra/observability/compose.yaml',
-        ...args,
-      ],
-      `load monitoring ${args[0]}`,
-      240000,
-    );
+    args[0] === 'down'
+      ? run([...base, ...args], 'load cleanup', timeout, input)
+      : cancellation.run(() => run([...base, ...args], `load compose ${args[0]}`, timeout, input));
+  const monitoring = (args) => {
+    const operation = () =>
+      run(
+        [
+          'compose',
+          '--project-name',
+          obsProject,
+          '--env-file',
+          envFile,
+          '-f',
+          'infra/observability/compose.yaml',
+          ...args,
+        ],
+        `load monitoring ${args[0]}`,
+        240000,
+      );
+    return args[0] === 'down' ? operation() : cancellation.run(operation);
+  };
   /** Проверяет exit=0 после SIGTERM: остановка клиента Compose сама по себе не доказывает drain процесса. */
   async function stopWorker() {
     await compose(['stop', 'worker']);
@@ -244,6 +247,7 @@ async function scenario(name) {
       const url = 'http://' + (await monitoring(['port', service, String(port)]));
       await waitFor(
         async () => {
+          cancellation.check();
           try {
             return (await fetch(url + path, { signal: AbortSignal.timeout(3000) })).status;
           } catch {
@@ -310,7 +314,7 @@ async function scenario(name) {
     step(`${name}: settle`);
     // Daemon/Grafana/Tempo ещё прогреваются после readiness. Фиксированная пауза входит
     // в provenance, но не в latency k6. Она не используется как доказательство конкурентной гонки.
-    await new Promise((resolve) => setTimeout(resolve, budget.settleSeconds * 1000));
+    await cancellation.wait(budget.settleSeconds * 1000);
     const before = await snapshot(pool);
     observer = startObserver(pool, () => run(['rm', '-f', k6Name], 'stop failed load', 10000));
     step(`${name}: k6`);
@@ -332,6 +336,7 @@ async function scenario(name) {
         );
         assert.equal(locked.rowCount, 1, 'SKU barrier balance');
       }
+      cancellation.check();
       launch = run(
         [
           'run',

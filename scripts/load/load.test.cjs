@@ -292,3 +292,28 @@ test('cleanup retains primary failure and attempts all resources including secre
   assert.deepEqual(failures, ['application_project']);
   assert.deepEqual(seen, ['observer', 'app', 'monitoring', 'secrets']);
 });
+
+test('cancel during setup or settle prevents the next load operation', async () => {
+  const { createCancellation } = require('./cancellation.cjs');
+  const cancelled = createCancellation();
+  let release;
+  const barrier = new Promise((resolve) => {
+    release = resolve;
+  });
+  const setup = cancelled.run(() => barrier);
+  cancelled.abort();
+  release();
+  await assert.rejects(setup);
+  let launched = false;
+  await assert.rejects(
+    cancelled.run(async () => {
+      launched = true;
+    }),
+  );
+  assert.equal(launched, false);
+  const settling = createCancellation();
+  const wait = settling.wait(15000);
+  settling.abort();
+  await assert.rejects(wait);
+  assert.throws(() => settling.check());
+});

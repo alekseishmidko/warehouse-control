@@ -53,10 +53,12 @@ export class ShippingService {
   }
   /** Полный снимок allocations одного заказа, без SQL чужого модуля; порядок SKU стабилен. */
   private async listOrderAllocations(c: TransactionContext, orderId: string) {
-    const result = [];
-    for (const line of await this.orders.lines(c, orderId))
-      result.push({ line, allocations: await this.inventory.allocations(c, line.id) });
-    return result;
+    const lines = await this.orders.lines(c, orderId);
+    const grouped = await this.inventory.allocationsForLines(
+      c,
+      lines.map((line) => line.id),
+    );
+    return lines.map((line) => ({ line, allocations: grouped.get(line.id) ?? [] }));
   }
   /** Создаёт draft выбранной staged партии; несколько draft не создают дополнительного резерва. */
   async prepareShipment(

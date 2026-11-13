@@ -8,11 +8,12 @@ import { CommandError } from '../../../shared/errors/command-error';
 /** Private provider. Order lock уже держит вызывающий fulfillment. */
 @Injectable()
 export class ReservationsRepository {
-  /** Активные allocations строки, включая историю для GET; не открывает транзакцию. */
-  async list(c: TransactionContext, lineId: string) {
+  /** Один запрос для набора строк: immutable история сохраняется, N+1 по строкам исключён. */
+  async listMany(c: TransactionContext, lineIds: string[]) {
     return (
       await transactionClient(c).execute<{
         id: string;
+        line_id: string;
         balance_id: string;
         allocated: number;
         active: number;
@@ -22,7 +23,10 @@ export class ReservationsRepository {
         location_id: string;
         kind: string;
       }>(
-        sql`select a.*,l.kind,b.location_id from stock_allocations a join stock_balances b on b.id=a.balance_id join locations l on l.id=b.location_id where a.line_id=${lineId} order by b.product_id,b.location_id,a.id`,
+        sql`select a.*,l.kind,b.location_id from stock_allocations a join stock_balances b on b.id=a.balance_id join locations l on l.id=b.location_id where a.line_id in (${sql.join(
+          lineIds.map((id) => sql`${id}::uuid`),
+          sql`,`,
+        )}) order by a.line_id,b.product_id,b.location_id,a.id`,
       )
     ).rows;
   }

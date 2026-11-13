@@ -6,6 +6,11 @@ HTTP и освобождение ресурсов при ошибке. Приё�
 отгрузка и возврат при отмене реализованы и проверяются соответствующими integration suites.
 WMS-104/105 разделы ниже описывают исходный baseline и контрактные проверки.
 
+WMS-404: `pnpm recovery:drill` объединяет DB login outage, operator recovery,
+lease/slow handler и monitoring checks. [Runbook и границы fault injection](../../../docs/runbooks/recovery-drill.md).
+Suite `recovery-drill.spec.ts` меняет только LOGIN роли собственной disposable БД;
+production handler и рабочая `.env` не получают fault flags.
+
 ## Команды из корня
 
 ```sh
