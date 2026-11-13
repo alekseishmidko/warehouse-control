@@ -9,28 +9,20 @@ export class ReservationsService {
     private readonly repository: ReservationsRepository,
   ) {}
   /** Снимок истории обеспечения строки. */ async list(c: TransactionContext, lineId: string) {
-    return (await this.repository.list(c, lineId)).map((a) => ({
-      id: a.id,
-      balanceId: a.balance_id,
-      allocated: a.allocated,
-      active: a.active,
-      released: a.released,
-      transferred: a.transferred,
-      consumed: a.consumed,
-      locationId: a.location_id,
-      state:
-        a.active > 0
-          ? 'active'
-          : a.transferred > 0
-            ? 'transferred'
-            : a.consumed > 0 && a.released > 0
-              ? 'closed_mixed'
-              : a.consumed > 0
-                ? 'consumed'
-                : 'released',
-      locationKind: a.kind,
-    }));
+    return (await this.listMany(c, [lineId])).get(lineId.toLowerCase()) ?? [];
   }
+  /** Группирует один SQL snapshot; строки без allocations получают пустой массив у caller. */
+  async listMany(c: TransactionContext, lineIds: string[]) {
+    const result = new Map<string, ReturnType<typeof allocationView>[]>();
+    if (!lineIds.length) return result;
+    for (const row of await this.repository.listMany(c, lineIds)) {
+      const values = result.get(row.line_id) ?? [];
+      values.push(allocationView(row));
+      result.set(row.line_id, values);
+    }
+    return result;
+  }
+
   /** Borrowed reserve; ошибку нельзя подавлять после частичных UPDATE. */ reserve(
     c: TransactionContext,
     warehouseId: string,
@@ -48,4 +40,29 @@ export class ReservationsService {
   ) {
     return this.repository.release(c, lineId, id, q);
   }
+}
+
+/** Явная безопасная DTO проекция, общая для single и batch чтения. */
+function allocationView(a: Awaited<ReturnType<ReservationsRepository['listMany']>>[number]) {
+  return {
+    id: a.id,
+    balanceId: a.balance_id,
+    allocated: a.allocated,
+    active: a.active,
+    released: a.released,
+    transferred: a.transferred,
+    consumed: a.consumed,
+    locationId: a.location_id,
+    state:
+      a.active > 0
+        ? 'active'
+        : a.transferred > 0
+          ? 'transferred'
+          : a.consumed > 0 && a.released > 0
+            ? 'closed_mixed'
+            : a.consumed > 0
+              ? 'consumed'
+              : 'released',
+    locationKind: a.kind,
+  };
 }

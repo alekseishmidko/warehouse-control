@@ -152,3 +152,5 @@ flowchart LR
 Тесты: warehouse-reads.spec.ts, warehouse-read-plans.spec.ts, keyset-page.spec.ts.
 Чтение не создаёт audit, event или HTTP idempotency запись. SQL timeout/ошибка
 откатывает read run; публичный ответ не содержит SQL, credentials и ORM-модели.
+
+Order/shipping snapshots используют пакетное чтение allocations через InventoryService: N+1 по строкам исключён. История по действующему DTO сохраняется полностью.

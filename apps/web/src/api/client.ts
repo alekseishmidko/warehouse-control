@@ -73,6 +73,15 @@ export function routeUrl(path: string, params: Record<string, string> = {}): str
 }
 /** JSON DTO доверяется API contract после HTTP success. Здесь нет копии серверных бизнес-проверок. */
 export class ApiClient {
+  private revision = 0;
+  /** Инвалидирует влияние старых ответов на текущую session; сохранённые команды не удаляются. */
+  advanceSession(): void {
+    this.revision++;
+  }
+  /** Номер локальной session эпохи для profile/logout callbacks, не credential и не server actor. */
+  get sessionRevision(): number {
+    return this.revision;
+  }
   /** Native fetch привязан к Window: вызов как метода ApiClient иначе даёт Illegal invocation. */
   constructor(
     private readonly unauthorized: () => void = () => {},
@@ -92,6 +101,7 @@ export class ApiClient {
       login?: boolean;
     } = {},
   ): Promise<T> {
+    const revision = this.revision;
     const controller = new AbortController();
     const abort = () => controller.abort();
     options.signal?.addEventListener('abort', abort, { once: true });
@@ -112,7 +122,8 @@ export class ApiClient {
         },
         body: options.body,
       });
-      if (response.status === 401 && !options.login) this.unauthorized();
+      if (response.status === 401 && !options.login && revision === this.revision)
+        this.unauthorized();
       if (!response.ok) {
         const problem: unknown = await response.json().catch(() => null);
         const code =

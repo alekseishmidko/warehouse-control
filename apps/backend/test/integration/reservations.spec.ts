@@ -550,3 +550,68 @@ test('migration preflight rejects existing mismatch and rolls back without guess
   });
   await reconcile();
 });
+
+test('batch order snapshot keeps released history and empty lines with one allocation query', async () => {
+  const x = await setup();
+  const { ReservationsRepository } =
+    await import('@backend/modules/inventory/repositories/reservations.repository');
+  const runner = app.get<TransactionRunner>(TRANSACTION_RUNNER);
+  const service = app.get(FulfillmentService);
+  await runner.run(async (c) => {
+    const metadata = x.fixture.metadata;
+    expect((await app.get(InventoryService).allocationsForLines(c, [])).size).toBe(0);
+    const second = await app
+      .get(CatalogService)
+      .create(c, { ...metadata, sku: `BATCH-${randomUUID()}`, name: 'Batch product' });
+    const order = await service.create(
+      c,
+      {
+        warehouseId: x.fixture.warehouse.id,
+        lines: [
+          { productId: x.fixture.product.id, quantity: 2 },
+          { productId: second.id, quantity: 2 },
+        ],
+      },
+      metadata,
+    );
+    await service.change(c, order.id, 'confirm', undefined, metadata);
+    const line = order.lines.find((l) => l.productId === x.fixture.product.id)!;
+    let reserved = await service.change(
+      c,
+      order.id,
+      'reserve',
+      { lines: [{ lineId: line.id, quantity: 1 }] },
+      metadata,
+    );
+    const allocation = reserved.lines.find((l) => l.id === line.id)!.allocations[0];
+    await service.change(c, order.id, 'release', { quantity: 1 }, metadata, allocation.id);
+    reserved = await service.change(
+      c,
+      order.id,
+      'reserve',
+      { lines: [{ lineId: line.id, quantity: 1 }] },
+      metadata,
+    );
+    const spy = jest.spyOn(app.get(ReservationsRepository), 'listMany');
+    try {
+      const snapshot = await service.read(c, order.id);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(snapshot.lines.find((l) => l.id === line.id)!.allocations).toHaveLength(2);
+      expect(snapshot.lines.find((l) => l.productId === second.id)!.allocations).toEqual([]);
+      expect(snapshot).toEqual(reserved);
+      expect(
+        await app
+          .get(InventoryService)
+          .allocations(c, snapshot.lines.find((l) => l.productId === second.id)!.id),
+      ).toEqual([]);
+      expect(await app.get(InventoryService).allocations(c, line.id.toUpperCase())).toEqual(
+        snapshot.lines.find((l) => l.id === line.id)!.allocations,
+      );
+      const cancelled = await service.change(c, order.id, 'cancel', undefined, metadata);
+      expect(cancelled.status).toBe('cancelled');
+      expect(cancelled.lines.every((l) => l.reservedStorage === 0)).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});

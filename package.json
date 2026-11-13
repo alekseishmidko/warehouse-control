@@ -44,7 +44,7 @@
     "format:check": "prettier --check .",
     "test:identity:coverage": "pnpm --filter @warehouse/backend test:identity:coverage",
     "test:functional": "pnpm --filter @warehouse/backend test:functional",
-    "check:pr": "pnpm format:check && pnpm lint && pnpm check:architecture && pnpm test:quality && pnpm test:dependencies && pnpm test:kubernetes:observations && pnpm test:observability:receiver && pnpm test:load && pnpm test:dev && pnpm web:api:check && pnpm typecheck && pnpm --filter @warehouse/web build && pnpm test:web && pnpm test:web:server && pnpm test:postgres:readiness && pnpm --filter @warehouse/backend test:pr",
+    "check:pr": "pnpm format:check && pnpm lint && pnpm check:architecture && pnpm test:quality && pnpm test:dependencies && pnpm test:kubernetes:observations && pnpm test:observability:receiver && pnpm test:evidence && pnpm test:load && pnpm test:dev && pnpm web:api:check && pnpm typecheck && pnpm --filter @warehouse/web build && pnpm test:web && pnpm test:web:server && pnpm test:postgres:readiness && pnpm --filter @warehouse/backend test:pr",
     "lint": "eslint apps/backend/src apps/backend/test apps/web/src apps/web/test apps/web/vite.config.ts --max-warnings 0",
     "check:architecture": "node scripts/quality/architecture.cjs",
     "test:quality": "node --test scripts/quality/*.test.cjs",
@@ -71,7 +71,9 @@
     "load:sku": "node scripts/load/run.cjs sku",
     "load:backlog": "node scripts/load/run.cjs backlog",
     "load:baseline": "node scripts/load/run.cjs baseline",
-    "test:load": "node --test scripts/load/*.test.cjs"
+    "test:load": "node --test scripts/load/*.test.cjs",
+    "recovery:drill": "node scripts/recovery/drill.cjs",
+    "test:evidence": "node --test scripts/evidence/*.test.cjs"
   },
   "private": true,
   "devDependencies": {

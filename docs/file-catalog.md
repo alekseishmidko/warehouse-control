@@ -832,3 +832,25 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | [infra/observability/grafana/dashboards/queue.json](../infra/observability/grafana/dashboards/queue.json)                           | Delivery count/age и поиск.                                             |
 | [infra/observability/grafana/dashboards/workers.json](../infra/observability/grafana/dashboards/workers.json)                       | Scrape/processing outcomes и поиск.                                     |
 | [infra/observability/grafana/dashboards/infrastructure.json](../infra/observability/grafana/dashboards/infrastructure.json)         | Up/pool pressure и поиск.                                               |
+
+## WMS-404
+
+| Файл                                                                                                            | Назначение                                             |
+| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| [scripts/recovery/drill.cjs](../scripts/recovery/drill.cjs)                                                     | Последовательный recovery drill и безопасный evidence. |
+| [scripts/recovery/README.md](../scripts/recovery/README.md)                                                     | Вход и границы driver.                                 |
+| [apps/backend/test/integration/recovery-drill.spec.ts](../apps/backend/test/integration/recovery-drill.spec.ts) | Реальный DB login outage/recovery и business totals.   |
+| [docs/runbooks/recovery-drill.md](../docs/runbooks/recovery-drill.md)                                           | Роли, четыре сценария, dev SLO и менеджерский статус.  |
+| [docs/reports/wms-404.md](../docs/reports/wms-404.md)                                                           | AC, результаты и ограничения.                          |
+| [docs/reports/wms-404-evidence.json](../docs/reports/wms-404-evidence.json)                                     | Generated successful drill evidence.                   |
+
+## Исправления review 2026-11-13
+
+| Файл                                                                                  | Назначение                                                      |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| [scripts/evidence/atomic-json.cjs](../scripts/evidence/atomic-json.cjs)               | Атомарный JSON writer обоих drivers.                            |
+| [scripts/evidence/atomic-json.test.cjs](../scripts/evidence/atomic-json.test.cjs)     | Write/rename faults с сохранением accepted файла.               |
+| [scripts/evidence/README.md](../scripts/evidence/README.md)                           | Контракт и пределы atomic evidence.                             |
+| [scripts/load/cancellation.cjs](../scripts/load/cancellation.cjs)                     | Отмена preparation и settle без новых операций.                 |
+| [docs/reports/review-fixes-2026-11-13.md](../docs/reports/review-fixes-2026-11-13.md) | AC и повторное review.                                          |
+| [docs/reports/canonical-json-review.md](../docs/reports/canonical-json-review.md)     | Ревью безопасности, контракта и раннего byte budget serializer. |

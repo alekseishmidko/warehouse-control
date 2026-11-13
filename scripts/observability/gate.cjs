@@ -356,6 +356,30 @@ exports.createObservabilityGate = function ({ project, envFile, run, compose, sq
       console.log(
         'PASS business commits during Loki outage and collector stop; collection resumes after restart; bounded retry loss diagnosed',
       );
+      if (process.env.WMS_RECOVERY_DRILL === '1') {
+        // Сначала даём очиститься минутному окну ошибок. Затем проверяем 60 s без
+        // pending/firing alerts при работающих API/worker/collector, а не пустой monitoring.
+        const healthy = async () => {
+          const data = await json(urls.prometheus + '/api/v1/alerts');
+          const up = await query('up{job=~"api|worker|collector"}');
+          return (
+            data.data.alerts.length === 0 &&
+            up.length === 3 &&
+            up.every((row) => row.value[1] === '1')
+          );
+        };
+        await wait(healthy, Boolean, 180);
+        const deadline = performance.now() + 60000;
+        let samples = 0;
+        do {
+          assert.equal(await healthy(), true, 'healthy recovery window has no noisy alerts');
+          samples++;
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+        } while (performance.now() < deadline);
+        console.log(
+          `PASS WMS-404 healthy alert window: 60s, ${samples} samples, 3 scrape targets up`,
+        );
+      }
     },
     async close() {
       await Promise.allSettled([

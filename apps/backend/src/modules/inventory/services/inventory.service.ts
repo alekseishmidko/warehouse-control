@@ -79,6 +79,10 @@ export class InventoryService {
   allocations(c: TransactionContext, lineId: string) {
     return this.reservations.list(c, lineId);
   }
+  /** Пакетная история строк своего inventory, без экспорта private repository. */
+  allocationsForLines(c: TransactionContext, lineIds: string[]) {
+    return this.reservations.listMany(c, lineIds);
+  }
   /** Release не меняет onHand, не открывает run и не удаляет allocation. */
   release(c: TransactionContext, lineId: string, id: string, q: number) {
     return this.reservations.release(c, lineId, id, q);

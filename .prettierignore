@@ -36,3 +36,6 @@ infra/helm/**/templates/**
 docs/reports/wms-403-baseline.json
 docs/reports/wms-403-probe-25rps.json
 artifacts/**
+
+# Generated recovery drill evidence; команда recovery:drill.
+docs/reports/wms-404-evidence.json

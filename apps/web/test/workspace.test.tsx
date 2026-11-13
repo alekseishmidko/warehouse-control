@@ -389,3 +389,121 @@ it('blocked sessionStorage getter does not prevent login or read-only workspace'
     getter.mockRestore();
   }
 });
+
+it('session generation keeps B after a late A command and serializes credential responses', async () => {
+  const { useSession } = await import('../src/session/session');
+  let state!: ReturnType<typeof useSession>;
+  let oldReply!: (response: Response) => void;
+  let logoutReply!: (response: Response) => void;
+  let profile = current;
+  vi.stubGlobal('fetch', (url: string) => {
+    if (url === '/old-command')
+      return new Promise<Response>((resolve) => {
+        oldReply = resolve;
+      });
+    if (url === '/api/v1/auth/logout')
+      return new Promise<Response>((resolve) => {
+        logoutReply = resolve;
+      });
+    return Promise.resolve(new Response(JSON.stringify(url === '/api/v1/auth/me' ? profile : {})));
+  });
+  const Probe = () => {
+    state = useSession();
+    return <span>probe</span>;
+  };
+  render(() => (
+    <QueryClientProvider client={createWarehouseQueryClient()}>
+      <SessionProvider>
+        <Probe />
+      </SessionProvider>
+    </QueryClientProvider>
+  ));
+  await waitFor(() => expect(state.user()?.user.id).toBe(current.user.id));
+  const command = state.api.request('POST', '/old-command', { key: 'original-key' });
+  const rejection = expect(command).rejects.toMatchObject({ status: 401 });
+  const logout = state.logout();
+  await waitFor(() => expect(logoutReply).toBeDefined());
+  profile = { ...current, user: { ...current.user, id: other, login: 'other' } };
+  const login = state.login('other', 'synthetic-password');
+  expect(state.user()?.user.id).toBe(current.user.id);
+  logoutReply(new Response(null, { status: 204 }));
+  await logout;
+  await login;
+  oldReply(new Response('{}', { status: 401 }));
+  await rejection;
+  expect(state.user()?.user.id).toBe(other);
+  logoutReply = undefined!;
+  const nextLogout = state.logout();
+  await waitFor(() => expect(logoutReply).toBeDefined());
+  logoutReply(new Response(null, { status: 204 }));
+  await nextLogout;
+  expect(state.user()).toBeNull();
+});
+
+it('late mount profile cannot restore the previous user after a new login', async () => {
+  const { useSession } = await import('../src/session/session');
+  let state!: ReturnType<typeof useSession>;
+  let firstReply!: (response: Response) => void;
+  let reads = 0;
+  vi.stubGlobal('fetch', (url: string) => {
+    if (url === '/api/v1/auth/me' && reads++ === 0)
+      return new Promise<Response>((resolve) => {
+        firstReply = resolve;
+      });
+    return Promise.resolve(
+      new Response(
+        JSON.stringify(
+          url === '/api/v1/auth/me' ? { ...current, user: { ...current.user, id: other } } : {},
+        ),
+      ),
+    );
+  });
+  const Probe = () => {
+    state = useSession();
+    return <span>probe</span>;
+  };
+  render(() => (
+    <QueryClientProvider client={createWarehouseQueryClient()}>
+      <SessionProvider>
+        <Probe />
+      </SessionProvider>
+    </QueryClientProvider>
+  ));
+  await waitFor(() => expect(firstReply).toBeDefined());
+  await state.login('other', 'synthetic-password');
+  firstReply(new Response(JSON.stringify(current)));
+  await waitFor(() => expect(state.loading()).toBe(false));
+  expect(state.user()?.user.id).toBe(other);
+});
+
+it('failed login does not poison the next authentication operation', async () => {
+  const { useSession } = await import('../src/session/session');
+  let state!: ReturnType<typeof useSession>;
+  let fail = true;
+  vi.stubGlobal('fetch', (url: string) => {
+    if (url === '/api/v1/auth/login' && fail)
+      return Promise.resolve(new Response('{}', { status: 401 }));
+    return Promise.resolve(new Response(JSON.stringify(url === '/api/v1/auth/me' ? current : {})));
+  });
+  const Probe = () => {
+    state = useSession();
+    return <span>probe</span>;
+  };
+  render(() => (
+    <QueryClientProvider client={createWarehouseQueryClient()}>
+      <SessionProvider>
+        <Probe />
+      </SessionProvider>
+    </QueryClientProvider>
+  ));
+  await waitFor(() => expect(state.loading()).toBe(false));
+  await expect(state.login('operator', 'synthetic-password')).rejects.toMatchObject({
+    status: 401,
+  });
+  fail = false;
+  await state.login('operator', 'synthetic-password');
+  expect(state.user()?.user.id).toBe(current.user.id);
+  state.api.advanceSession();
+  await state.logout();
+  expect(state.user()).toBeNull();
+});

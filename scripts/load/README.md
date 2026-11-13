@@ -36,3 +36,5 @@ UUID проекта, новую БД и loopback endpoint. Проверка не
 идемпотентный replay, инварианты и SIGTERM. Native tests включены в `check:pr`.
 Реальные нагрузки оставлены отдельной явной командой: их время и ресурсы
 нельзя совмещать с coverage и считать результат сопоставимым baseline.
+
+SIGINT/SIGTERM отменяет preparation/settle и запрещает следующий шаг; cleanup использует отдельный transport без отменённого signal. Atomic evidence writer общий с recovery driver.

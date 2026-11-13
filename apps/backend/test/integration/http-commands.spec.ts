@@ -431,3 +431,36 @@ test('production OpenAPI includes only actual routes, technical exclusions and P
     await plain.close();
   }
 });
+
+test('large server snapshot commits and replays without weakening request fingerprint budget', async () => {
+  const commands = app.get(HttpCommandsService);
+  const scope = {
+    actorType: 'system' as const,
+    actorId: randomUUID(),
+    operation: 'test.large-snapshot',
+    key: randomUUID(),
+    correlationId: randomUUID(),
+  };
+  const history = Array.from({ length: 1200 }, () => ({
+    id: randomUUID(),
+    balanceId: randomUUID(),
+    locationId: randomUUID(),
+    allocated: 1,
+    active: 0,
+    released: 1,
+    consumed: 0,
+    transferred: 0,
+    locationKind: 'storage',
+    state: 'released',
+  }));
+  const work = jest.fn(async () => ({ statusCode: 200 as const, body: { history } }));
+  expect(Buffer.byteLength(JSON.stringify(history))).toBeGreaterThan(262144);
+  const first = await commands.execute(scope, {}, work);
+  expect(first.body).toEqual({ history });
+  expect(await commands.execute(scope, {}, work)).toEqual(first);
+  expect(work).toHaveBeenCalledTimes(1);
+  await expect(
+    commands.execute({ ...scope, key: randomUUID() }, { input: 'x'.repeat(262145) }, work),
+  ).rejects.toMatchObject({ code: 'REQUEST_TOO_LARGE' });
+  expect(await database().connection.db.select().from(httpIdempotency)).toHaveLength(1);
+});

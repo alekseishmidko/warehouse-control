@@ -137,3 +137,21 @@ it('read/auth network failure never asks for a nonexistent saved command key', a
     expect(problemMessage(error)).not.toContain('ключ');
   }
 });
+
+it('late 401 from a previous session cannot clear the current session', async () => {
+  const clear = vi.fn();
+  let respond!: (value: Response) => void;
+  const api = new ApiClient(
+    clear,
+    () =>
+      new Promise<Response>((resolve) => {
+        respond = resolve;
+      }),
+  );
+  const old = api.request('POST', '/api/v1/receipts', { key: 'saved-key' });
+  const rejected = expect(old).rejects.toMatchObject({ status: 401 });
+  api.advanceSession();
+  respond(new Response('{}', { status: 401 }));
+  await rejected;
+  expect(clear).not.toHaveBeenCalled();
+});

@@ -22,7 +22,7 @@
 | Оркестрация      | kind, Kubernetes, Helm                                       | Реализовано WMS-301/302                                                 |
 | Внешний HTTP     | NGINX Gateway Fabric + Gateway API                           | Проверено на local kind WMS-303                                         |
 | Телеметрия       | Pino, OpenTelemetry, Prometheus, Grafana, Loki, Tempo        | Pino/OTel WMS-401; local collection WMS-402 реализована                 |
-| Проверки         | Jest, Supertest, Testcontainers, k6                          | WMS-102: первые три готовы, k6 запланирован                             |
+| Проверки         | Jest, Supertest, Testcontainers, k6                          | Jest/Supertest/Testcontainers; k6 baseline WMS-403 реализован           |
 | Поставка         | GitHub Actions, GHCR, Argo CD                                | После проверки репозитория и окружения                                  |
 
 Frontend выбран по [ADR-0026](adr/0026-solid-frontend.md): Solid SPA в apps/web,
