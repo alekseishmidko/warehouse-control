@@ -545,11 +545,15 @@ Gate 4: разработчик находит причину задержки, �
 
 ### WMS-502. Контракты Kafka и Registry
 
-- [ ] **WMS-502.1** — Провести compatibility spike JSON Schema 2020-12 с выбранным Registry и библиотеками consumers.
-- [ ] **WMS-502.2** — Зафиксировать Registry, subject strategy и compatibility policy; ADR нужен при изменении согласованных контрактных правил.
-- [ ] **WMS-502.3** — Добавить AsyncAPI: topics, keys, headers, envelope, версии и consumer responsibilities.
-- [ ] **WMS-502.4** — Настроить публикацию схем из Git и проверку diff/совместимости до включения producer.
-- [ ] **WMS-502.5** — Проверить additive поле, breaking type change и неизвестную версию; документировать rollout consumers-first.
+[Реализация и evidence](reports/wms-502.md), [release/runbook](flows/schema-release.md).
+Native Registry compatibility2020-12 не поддерживается выбранной версией; transitive
+release guard выполняется локально до POST, с сохранением исходного dialect.
+
+- [x] **WMS-502.1** — Провести compatibility spike JSON Schema 2020-12 с выбранным Registry и библиотеками consumers.
+- [x] **WMS-502.2** — Зафиксировать Registry, subject strategy и compatibility policy; ADR нужен при изменении согласованных контрактных правил.
+- [x] **WMS-502.3** — Добавить AsyncAPI: topics, keys, headers, envelope, версии и consumer responsibilities.
+- [x] **WMS-502.4** — Настроить публикацию схем из Git и проверку diff/совместимости до включения producer.
+- [x] **WMS-502.5** — Проверить additive поле, breaking type change и неизвестную версию; документировать rollout consumers-first.
 
 ### WMS-503. Outbox publisher
 

@@ -1,0 +1,15 @@
+# WMS-502: самостоятельный dev Registry. Не входит в application Compose/Helm.
+# In-memory состояние восстанавливается из Git; это spike, не production storage/HA.
+services:
+  registry:
+    image: apicurio/apicurio-registry:3.3.4@sha256:3ee4423c0f212c364d9525f7ab22ae1a009f610f3e6b8fc2cdba8b2ae68de460
+    # Доступ только на host loopback; случайный port выбирается в disposable gate.
+    ports:
+      - '127.0.0.1:${WMS_REGISTRY_PORT:-18081}:8080'
+    environment:
+      # Без runtime REST lookup из бизнес-транзакции и без внешнего анонимного endpoint.
+      QUARKUS_HTTP_HOST: 0.0.0.0
+    mem_limit: 1g
+    cpus: 1
+    security_opt:
+      - no-new-privileges:true

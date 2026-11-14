@@ -39,3 +39,6 @@ artifacts/**
 
 # Generated recovery drill evidence; команда recovery:drill.
 docs/reports/wms-404-evidence.json
+
+# Generated AsyncAPI: pnpm asyncapi:generate, exact diff проверяет schemas:check.
+docs/contracts/asyncapi.json

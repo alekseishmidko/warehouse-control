@@ -58,3 +58,6 @@ same-origin transport и явное восстановление сохранё�
 [0031. Local observability](0031-local-observability.md) — Alloy, pull metrics, bounded delivery и локальные alerts WMS-402.
 
 [0032. Dev Kafka topology](0032-dev-kafka-topology.md) — WMS-501: отдельный Strimzi, mTLS/ACL, стабильные key/topic/group; outbox сохраняется.
+
+[0033. Schema Registry contract release](0033-schema-registry-contract-release.md) — WMS-502:
+Apicurio catalogue/validity, mandatory local transitive guard, AsyncAPI и consumers-first.

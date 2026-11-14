@@ -281,3 +281,12 @@ Cursor привязан к фильтрам, timestamp сохраняет micros
 statement snapshots. Summary не заменяет существующий detail response со строками.
 [Фильтры, пример и согласованность](../flows/warehouse-reads.md); generated [OpenAPI](openapi.json).
 Audit view исключает глобальные identity/catalog/recovery записи и JSON changes.
+
+## WMS-502: Kafka release contracts
+
+[AsyncAPI](asyncapi.json) генерируется из текущих JSON Schema 2020-12 и aggregate topology;
+`pnpm asyncapi:generate`, `pnpm schemas:check`. Registry — Apicurio3.3.4 каталог; strict validity и transitive checks выполняются local Ajv/guard;
+native compatibility2020-12 не работает, FULL_TRANSITIVE release policy проверяет
+обязательный local guard по всей истории до POST. Ни dialect, ни wire envelope не меняются.
+[ADR-0033](../adr/0033-schema-registry-contract-release.md),
+[release/runbook](../flows/schema-release.md), [live evidence/ограничения](../reports/wms-502.md).

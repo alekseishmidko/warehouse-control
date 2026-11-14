@@ -84,6 +84,10 @@ replay/retry и rollback проверены. Collection/dashboards/alerts — о
 WMS-501 реализована и проверена: отдельный Kafka dev profile и topology; [статус проверок](reports/wms-501.md),
 [запуск/storage/ACL](../infra/kafka/README.md). Приложение пока использует PostgreSQL outbox.
 
+WMS-502 реализована для dev: [schema release/AsyncAPI](flows/schema-release.md), [spike и статус](reports/wms-502.md).
+Registry native compatibility2020-12 не используется: transitive release policy
+проверяет обязательный local guard. Kafka producer ещё не включён.
+
 ## Фактический статус
 
 - Готово: pnpm workspace, NestJS backend, TypeScript, build/typecheck,
