@@ -870,3 +870,24 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | Файл                                                                    | Назначение                                           |
 | ----------------------------------------------------------------------- | ---------------------------------------------------- |
 | [docs/reports/readability-refactor.md](reports/readability-refactor.md) | Границы, AC, review и проверки общего read refactor. |
+
+## WMS-502: Registry и AsyncAPI
+
+| Файл                                              | Назначение                                                                             |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| docs/adr/0033-schema-registry-contract-release.md | Subject/revision/policy, native Registry limitation и trusted release boundary.        |
+| docs/contracts/asyncapi.json                      | Generated AsyncAPI из scripts/registry; вручную не редактируется.                      |
+| docs/flows/schema-release.md                      | Release pipeline, consumers-first и recovery.                                          |
+| docs/reports/wms-502.md                           | AC, spike, review и фактические проверки.                                              |
+| infra/registry/compose.yaml                       | Loopback dev in-memory Registry с pinned image.                                        |
+| infra/registry/README.md                          | Запуск, ограничения и cleanup profile.                                                 |
+| scripts/registry/contracts.cjs                    | Git schemas/aggregate topology, canonical revision и conservative compatibility guard. |
+| scripts/registry/check.cjs                        | Source/Git/fixture checks и AsyncAPI validation/diff с Ajv2020 plugin.                 |
+| scripts/registry/client.cjs                       | Local REST v3 sync, rules/history/latest/content checks.                               |
+| scripts/registry/publish.cjs                      | Explicit publish/check CLI с accepted Git baseline.                                    |
+| scripts/registry/profile.cjs                      | Local Compose lifecycle и HTTP readiness.                                              |
+| scripts/registry/gate.cjs                         | Реальный Registry/dialect/consumer compatibility spike.                                |
+| scripts/registry/contracts.test.cjs               | Native regression tests compatibility/AsyncAPI/endpoint.                               |
+| scripts/registry/README.md                        | Команды, шаги и границы release tools.                                                 |
+
+| scripts/registry/validation.cjs | Общая strict Ajv2020 factory; metaschema/format validation до Registry I/O. |

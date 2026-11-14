@@ -71,8 +71,10 @@ Gate — основной воспроизводимый путь с автом�
 | -------------------------------------------------- | -------------------------- | -------------------------------------------- | ---------- | ------------ | -------------------------------- |
 | receipt, включая будущие schema/aggregate versions | warehouse.receiving.events | aggregateId UUID в canonical lowercase UTF-8 | 3          | 1 / 1        | inventory.putaway                |
 
-Других бизнес-потоков текущий outbox registry не публикует. Новые потоки требуют
-явной записи topology/контракта; нельзя автоматически делать topic из event type
+Текущий registry знает также retained putaway-task/order/picking-task facts,
+но WMS-501 provisioned только receipt topic. Полная contract topology описана в
+[WMS-502](../../docs/flows/schema-release.md); остальные topics/ACL должны быть
+созданы перед соответствующим publisher. Новые потоки требуют явного контракта; нельзя автоматически делать topic из event type
 или schemaVersion. EventId остаётся прежним при повторе; key не eventId, warehouseId
 или номер версии. Envelope и JSON Schema остаются в Git; Registry — WMS-502.
 Publisher WMS-503 обязан фиксировать один partitioner для всех producer versions и
