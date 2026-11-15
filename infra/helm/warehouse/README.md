@@ -25,3 +25,9 @@ CRDs/controller, TLS Secret и web Service. По умолчанию выключ
 web.enabled включает отдельный static image с обязательным web.image.digest.
 Gateway и web выключены по умолчанию; web Service по умолчанию <release>-web:8080.
 gateway.redirectPort задаёт внешний HTTPS порт для local port-forward (обычно 443).
+
+publisher.enabled добавляет один процесс того же backend digest с Recreate, без HPA,
+Service и API token. mTLS Secrets существуют отдельно; values содержат только ссылки.
+Registry release preflight выполняется до Helm. [Шаги и recovery](../../../docs/flows/publisher.md).
+`kubernetes:gate` проверяет optional manifest через server dry-run; actual transport
+проверяется отдельно реальными PostgreSQL/Kafka integration и `kafka:gate` ACL.

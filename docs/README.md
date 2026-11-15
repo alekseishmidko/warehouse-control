@@ -86,7 +86,11 @@ WMS-501 реализована и проверена: отдельный Kafka d
 
 WMS-502 реализована для dev: [schema release/AsyncAPI](flows/schema-release.md), [spike и статус](reports/wms-502.md).
 Registry native compatibility2020-12 не используется: transitive release policy
-проверяет обязательный local guard. Kafka producer ещё не включён.
+проверяет обязательный local guard. WMS-503 добавляет отдельный opt-in
+[publisher](flows/publisher.md); [AC и evidence](reports/wms-503.md). В рабочем стенде
+он автоматически не включается; Kafka consumers/cutover остаются WMS-504–506.
+WMS-503 выполнена:21publisher scenarios,659backend/54web tests; Docker/Helm/Strimzi
+gates и финальный check:pr прошли после снятия блокировки диска. Publisher остаётся opt-in.
 
 ## Фактический статус
 
@@ -129,8 +133,8 @@ Registry native compatibility2020-12 не используется: transitive r
 - WMS-302: API/worker в Kubernetes, pre-release migrations, Secret refs и local persistence проверены; [flow](flows/kubernetes-app.md).
 - WMS-303: static web image, NGF/Gateway/TLS и полный HTTPS UI gate проверены; [flow](flows/gateway-tls.md).
 - WMS-304: startup/ready/live API/worker, bounded drain, Pod kills и совместимый rolling release проверены.
-- Не реализованы Kafka и внешний CI/CD; production deployment не выполнялся.
-- `ReceivingPosted v1` зарегистрирован и используется outbox/worker; внешний Kafka transport ещё не подключён.
+- Kafka dev platform, schema release и opt-in publisher реализованы; consumers/cutover и внешний CI/CD ещё не реализованы. Production deployment не выполнялся.
+- `ReceivingPosted v1` используется outbox/local worker; Kafka publisher не изменяет eventId/envelope и не заменяет local consumer.
 - Локальные schema/fixtures/generation проверки выполняются в unit suite;
   OpenAPI generation/diff готов локально; CI workflow и breaking-change comparison пока не настроены.
 
@@ -151,7 +155,7 @@ WMS-203: [подробный flow размещения](flows/putaway-execution.
   дополнительные сценарии вне реализованных WMS-204–206 согласуются отдельно; текущие schema/DTO/лимиты описаны у владельцев flows.
 - Сроки сессий: [identity](identity.md); способ auth, threat assumptions и матрица
   ролей/складов приняты и реализованы WMS-202.
-- Точная версия и режим Schema Registry: перед Kafka, после compatibility spike.
+- Apicurio3.3.4 выбран для dev; ограничения native compatibility и trusted release boundary — ADR-0033. Production Registry/permissions остаются отдельным решением.
 - Ресурсы local kind проверены WMS-301; место и параметры внешнего стенда ещё не выбраны.
 - Резервное копирование и численные SLO: до эксплуатации внешнего стенда.
 

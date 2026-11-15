@@ -55,3 +55,15 @@ web:
     repository: warehouse-web
     digest: ''
     pullPolicy: IfNotPresent
+# Publisher не заменяет local worker до отдельного WMS-506 cutover.
+# Сначала schemas:check/registry:check, topics/ACL и migration0033; только затем enable.
+publisher:
+  enabled: false
+  # Replay требует полной retained history; from-boundary ещё не реализован.
+  replay: from-start
+  brokers: warehouse-kafka-bootstrap.warehouse-kafka.svc:9093
+  # Один ID на логический DB publisher; совпадает с literal Kafka ACL, не меняется при upgrade.
+  transactionalId: warehouse-outbox-publisher
+  # Имена существующих Secrets в namespace приложения; PEM/private keys не передаются через values.
+  caSecret: warehouse-kafka-ca
+  clientSecret: outbox-publisher

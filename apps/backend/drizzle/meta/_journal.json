@@ -232,6 +232,13 @@
       "when": 1793726975763,
       "tag": "0032_warehouse_read_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1794678642278,
+      "tag": "0033_kafka_publisher_destination",
+      "breakpoints": true
     }
   ]
 }

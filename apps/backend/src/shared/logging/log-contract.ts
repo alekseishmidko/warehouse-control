@@ -2,6 +2,8 @@
 import { isUuid } from '../validation/identifiers';
 /** Сообщения задаёт код, а не HTTP/event input или текст исключения. */
 export const LOG_EVENTS = {
+  'publisher.ready': ['info', 'Publisher ready'],
+  'publisher.shutdown_deadline': ['error', 'Publisher shutdown deadline exceeded'],
   'database.connection_failed': ['error', 'Database connection failed'],
   'worker.poll_failed': ['error', 'Worker poll failed'],
   'receiving.posted': ['info', 'Receipt posted'],
@@ -80,6 +82,56 @@ export interface OperationalLogger {
   emit(event: LogEvent, fields?: LogFields): void;
   child(fields: LogFields): OperationalLogger;
 }
+/** Закрытые причины отказа конфигурации publisher; названия не содержат env values/paths. */
+export const PUBLISHER_CONFIG_ERROR_CODES = {
+  optIn: 'PUBLISHER_OPT_IN_REQUIRED',
+  brokers: 'PUBLISHER_BROKERS_INVALID',
+  transactionalId: 'PUBLISHER_TRANSACTIONAL_ID_INVALID',
+  tls: 'PUBLISHER_TLS_INVALID',
+  requestTimeout: 'PUBLISHER_REQUEST_TIMEOUT_INVALID',
+  poll: 'PUBLISHER_POLL_INVALID',
+  shutdown: 'PUBLISHER_SHUTDOWN_INVALID',
+  healthPort: 'PUBLISHER_HEALTH_PORT_INVALID',
+} as const;
+/** Список создаётся один раз; расширение reason codes не разрешает произвольный driver text. */
+const SAFE_ERROR_CODES = new Set<string>([
+  'TELEMETRY_FAILED',
+  'CONFIG_INVALID',
+  'HTTP_FAILED',
+  'HTTP_REJECTED',
+  'STDOUT_FAILED',
+  'ADMIN_DEADLINE_EXCEEDED',
+  'ADMIN_COMMAND_FAILED',
+  'ADMIN_CLEANUP_FAILED',
+  'ADMIN_ENTRYPOINT_FAILED',
+  'INVALID_ARGUMENTS',
+  'LOCAL_ACCESS_REQUIRED',
+  'ADMIN_ROLE_REQUIRED',
+  'DELIVERY_NOT_FOUND',
+  'DELIVERY_BUSY',
+  'LEASE_ACTIVE',
+  'NOT_DEAD',
+  'PREDECESSOR_REQUIRED',
+  'ALREADY_PROCESSED',
+  'ATTEMPT_LIMIT_REACHED',
+  'OPERATION_FAILED',
+  'DATABASE_REJECTED',
+  'HANDLER_REJECTED',
+  'HANDLER_MISSING',
+  'CURSOR_MISMATCH',
+  'IDENTITY_MISMATCH',
+  'INVALID_JSON',
+  'INVALID_EVENT',
+  'UNSUPPORTED_EVENT',
+  'MESSAGE_TOO_LARGE',
+  'TRANSIENT_FAILURE',
+  'ATTEMPTS_EXHAUSTED',
+  'REDACTED',
+
+  'KAFKA_UNCONFIRMED',
+  'PUBLISHER_STARTUP_FAILED',
+  ...Object.values(PUBLISHER_CONFIG_ERROR_CODES),
+]);
 /** Runtime allowlist защищает также от лишних полей, переданных через структурную типизацию. */
 export function safeLogFields(input: LogFields): LogFields {
   const result: LogFields = {};
@@ -87,44 +139,7 @@ export function safeLogFields(input: LogFields): LogFields {
     result.httpStatus = input.httpStatus;
   if (typeof input.destination === 'string' && /^[a-z][a-z0-9_.-]{0,95}$/.test(input.destination))
     result.destination = input.destination;
-  if (
-    input.errorCode &&
-    [
-      'TELEMETRY_FAILED',
-      'CONFIG_INVALID',
-      'HTTP_FAILED',
-      'HTTP_REJECTED',
-      'STDOUT_FAILED',
-      'ADMIN_DEADLINE_EXCEEDED',
-      'ADMIN_COMMAND_FAILED',
-      'ADMIN_CLEANUP_FAILED',
-      'ADMIN_ENTRYPOINT_FAILED',
-      'INVALID_ARGUMENTS',
-      'LOCAL_ACCESS_REQUIRED',
-      'ADMIN_ROLE_REQUIRED',
-      'DELIVERY_NOT_FOUND',
-      'DELIVERY_BUSY',
-      'LEASE_ACTIVE',
-      'NOT_DEAD',
-      'PREDECESSOR_REQUIRED',
-      'ALREADY_PROCESSED',
-      'ATTEMPT_LIMIT_REACHED',
-      'OPERATION_FAILED',
-      'DATABASE_REJECTED',
-      'HANDLER_REJECTED',
-      'HANDLER_MISSING',
-      'CURSOR_MISMATCH',
-      'IDENTITY_MISMATCH',
-      'INVALID_JSON',
-      'INVALID_EVENT',
-      'UNSUPPORTED_EVENT',
-      'MESSAGE_TOO_LARGE',
-      'TRANSIENT_FAILURE',
-      'ATTEMPTS_EXHAUSTED',
-      'REDACTED',
-    ].includes(input.errorCode)
-  )
-    result.errorCode = input.errorCode;
+  if (input.errorCode && SAFE_ERROR_CODES.has(input.errorCode)) result.errorCode = input.errorCode;
   if (input.code && input.code === result.errorCode) result.code = input.code;
   if (input.module && (LOG_MODULES as readonly string[]).includes(input.module))
     result.module = input.module;

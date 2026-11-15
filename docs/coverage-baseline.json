@@ -1258,5 +1258,47 @@
     "statements": 96.36,
     "functions": 100,
     "branches": 94.33
+  },
+  "src/publisher.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/infrastructure/publisher/kafka-event.transport.ts": {
+    "lines": 91.75,
+    "statements": 91.75,
+    "functions": 100,
+    "branches": 91.66
+  },
+  "src/infrastructure/publisher/publisher.config.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 81.81
+  },
+  "src/infrastructure/publisher/repositories/publisher.repository.ts": {
+    "lines": 99.39,
+    "statements": 99.39,
+    "functions": 100,
+    "branches": 96.87
+  },
+  "src/infrastructure/publisher/services/publisher.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/shared/transport/event-transport.port.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/infrastructure/publisher/dto/publisher-record.dto.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
   }
 }

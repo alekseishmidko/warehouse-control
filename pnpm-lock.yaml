@@ -17,6 +17,9 @@ patchedDependencies:
   deepmerge@4.3.1:
     hash: dd3e0085ca0ef92275c137cb108a6203f2798970d07cf96644eda37357bc0b96
     path: patches/deepmerge@4.3.1.patch
+  kafkajs@2.2.4:
+    hash: c201e795f347d735710e1f534128171d63d76cfbe54f021b5d10792856659837
+    path: patches/kafkajs@2.2.4.patch
 
 importers:
 
@@ -88,6 +91,9 @@ importers:
       drizzle-orm:
         specifier: 0.45.4
         version: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1)
+      kafkajs:
+        specifier: 2.2.4
+        version: 2.2.4(patch_hash=c201e795f347d735710e1f534128171d63d76cfbe54f021b5d10792856659837)
       pg:
         specifier: 8.23.1
         version: 8.23.1
@@ -140,6 +146,9 @@ importers:
       supertest:
         specifier: 7.3.1
         version: 7.3.1
+      testcontainers:
+        specifier: 12.2.1
+        version: 12.2.1
       typescript:
         specifier: ^5.9.2
         version: 5.9.3
@@ -3939,6 +3948,10 @@ packages:
   jsonpointer@5.0.1:
     resolution: {integrity: sha512-p/nXbhSEcu3pZRdkW1OfJhpsVtW1gd4Wa1fnQc9YLiTfAjn0312eMKimbdIQzuZl9aa9xUGaRlP9T/CJE/ditQ==}
     engines: {node: '>=0.10.0'}
+
+  kafkajs@2.2.4:
+    resolution: {integrity: sha512-j/YeapB1vfPT2iOIUn/vxdyKEuhuY2PxMBvf5JWux6iSaukAccrMtXEY/Lb7OvavDhOWME589bpLrEdnVHjfjA==}
+    engines: {node: '>=14.0.0'}
 
   kebab-case@1.0.2:
     resolution: {integrity: sha512-7n6wXq4gNgBELfDCpzKc+mRrZFs7D+wgfF5WRFLNAr4DA/qtr9Js8uOAVAfHhuLMfAcQ0pRKqbpjx+TcJVdE1Q==}
@@ -9601,6 +9614,8 @@ snapshots:
       jsep: 1.6.0
 
   jsonpointer@5.0.1: {}
+
+  kafkajs@2.2.4(patch_hash=c201e795f347d735710e1f534128171d63d76cfbe54f021b5d10792856659837): {}
 
   kebab-case@1.0.2: {}
 

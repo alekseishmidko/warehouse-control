@@ -3,6 +3,9 @@ const assert = require('node:assert/strict');
 const { check } = require('./check.cjs');
 const { registryClient } = require('./client.cjs');
 async function main() {
+  // Root pnpm publisher сначала запускает этот check: exact Git schemas и compatibility
+  // должны быть подтверждены до enable producer. В business transaction Registry не вызывается.
+  // Прямой node/Helm startup обходит этот CLI preflight: его обязан выполнить оператор release.
   const mode = process.argv[2];
   assert.ok(
     ['publish', 'check'].includes(mode) && process.argv.length === 3,

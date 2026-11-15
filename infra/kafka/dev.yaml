@@ -1,4 +1,6 @@
 # WMS-501: platform dependency в отдельном namespace; application chart не владеет Kafka/PVC.
+# Порядок: Strimzi создаёт broker/PVC → Topic/User operators применяют topics и ACL → включается publisher.
+# Складской commit остаётся в PostgreSQL; недоступность этого broker останавливает доставку, не запись outbox.
 # Один combined broker/controller намеренно не предоставляет HA или rolling availability.
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaNodePool
@@ -65,9 +67,61 @@ spec:
   config:
     min.insync.replicas: 1
     cleanup.policy: delete
+    # Раньше времени data может уйти по byte limit; segments удаляются целиком. Это не SLA хранения.
     retention.ms: 604800000 # 7 дней для dev replay; PostgreSQL outbox не удаляется.
     retention.bytes: 268435456 # 256 MiB на partition, приблизительно 768 MiB на topic.
     segment.bytes: 16777216 # Retention применяется по segments, это не точный disk quota.
+---
+# Все версии aggregate stream сохраняют один topic и key; partitions=3 менять без migration mapping нельзя.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  # Завершение размещения; consumer бизнес-эффекта пока не зарегистрирован.
+  name: warehouse.inventory.putaway.events
+  labels: { strimzi.io/cluster: warehouse }
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    min.insync.replicas: 1
+    cleanup.policy: delete
+    retention.ms: 604800000 # 7 дней; PostgreSQL retained history сохраняется отдельно.
+    retention.bytes: 67108864 # 64MiB на partition: новые3topics вместе576MiB; это не disk quota.
+    segment.bytes: 16777216
+---
+# Все версии aggregate stream сохраняют один topic и key; partitions=3 менять без migration mapping нельзя.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  # OrderChanged и ShippingChanged делят topic заказа: event type/version не меняют stream.
+  name: warehouse.fulfillment.order.events
+  labels: { strimzi.io/cluster: warehouse }
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    min.insync.replicas: 1
+    cleanup.policy: delete
+    retention.ms: 604800000 # 7 дней; PostgreSQL retained history сохраняется отдельно.
+    retention.bytes: 67108864 # 64MiB на partition: новые3topics вместе576MiB; это не disk quota.
+    segment.bytes: 16777216
+---
+# Все версии aggregate stream сохраняют один topic и key; partitions=3 менять без migration mapping нельзя.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  # Прогресс задания сборки; key остаётся UUID задания во всех его версиях.
+  name: warehouse.fulfillment.picking.events
+  labels: { strimzi.io/cluster: warehouse }
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    min.insync.replicas: 1
+    cleanup.policy: delete
+    retention.ms: 604800000 # 7 дней; PostgreSQL retained history сохраняется отдельно.
+    retention.bytes: 67108864 # 64MiB на partition: новые3topics вместе576MiB; это не disk quota.
+    segment.bytes: 16777216
 ---
 # User Operator создаёт TLS Secret; private keys не хранятся в Git/rendered YAML.
 apiVersion: kafka.strimzi.io/v1
@@ -80,9 +134,20 @@ spec:
   authorization:
     type: simple
     acls:
+      # Literal ACL не даёт wildcard-доступа. Producer пишет факты, consumer читает только свой поток.
       - resource: { type: topic, name: warehouse.receiving.events, patternType: literal }
         operations: [Write, Describe]
+      - resource: { type: topic, name: warehouse.inventory.putaway.events, patternType: literal }
+        operations: [Write, Describe]
+      - resource: { type: topic, name: warehouse.fulfillment.order.events, patternType: literal }
+        operations: [Write, Describe]
+      - resource: { type: topic, name: warehouse.fulfillment.picking.events, patternType: literal }
+        operations: [Write, Describe]
+      # Stable logical ID даёт новому epoch право fence старого producer; никакого wildcard.
+      - resource: { type: transactionalId, name: warehouse-outbox-publisher, patternType: literal }
+        operations: [Write, Describe]
       - resource: { type: cluster }
+        # Нужно для идемпотентного producer; не заменяет отдельные права на transactionalId и topic.
         operations: [IdempotentWrite]
 ---
 # Logical consumer совпадает с текущим DB marker owner; transport не меняет dedup identity.

@@ -11,7 +11,8 @@ Outbox — надёжная очередь фактов; бизнес-код н�
 WMS-106 реализует запись события/delivery/stream и транзакционный счётчик.
 WMS-109 реализует worker claim/lease/token, retries/dead и processed markers/cursors.
 Business handler inventory.putaway подключён WMS-110: создаёт pending tasks, не повтор stock.
-Kafka ниже остаётся целевым транспортом. WMS-108 подключает документ приёмки и HTTP-команды; атомарность
+WMS-503 добавляет отдельный opt-in Kafka publisher; local worker сохраняется.
+[Transport flow, Mermaid и ограничения](flows/publisher.md). Kafka consumers/cutover пока не реализованы. WMS-108 подключает документ приёмки и HTTP-команды; атомарность
 inventory/audit/outbox/HTTP result подтверждена integration-тестами.
 
 ## Логическая модель хранения
@@ -83,15 +84,15 @@ cursor, claim только следующей версии и блокировк
 
 ## Переход на Kafka
 
-1. Ввести транспортный порт и publisher, не меняя бизнес-операции и eventId.
+1. WMS-503: transport port и opt-in publisher реализованы без изменения writer/eventId; ADR-0034.
 2. Один topic на поток контекста/агрегата, пример `warehouse.receiving.events`.
    Все версии одного агрегата идут в один topic; key — `aggregateId`.
 3. Зарегистрировать consumer groups по стабильному имени обработчика.
    Consumers валидируют envelope и atomically фиксируют DB effect + processed marker.
    Offset подтверждают после commit; обработка одной partition последовательна.
-4. Publisher подтверждает delivery только после broker ack (`acks=all`).
+4. Publisher подтверждает delivery после Kafka transaction commit ack (`send acks=all`).
    Producer idempotence полезна, но не устраняет дубликаты при рестарте publisher.
-5. Обеспечить одного активного publisher на stream. В отличие от DB handler,
+5. WMS-503: один owner через dedicated PG session advisory lock и stable Kafka transactionalId; Recreate/replicas1. В отличие от DB handler,
    lease не может отменить уже отправляемый сетевой запрос: истёкший lease
    не гарантирует fencing старого publisher. При потере владения publication
    останавливается; consumer cursor не допускает применения старых версий и

@@ -166,3 +166,15 @@ test('AC-401-01: malformed event cannot change an already committed result', () 
     }),
   ).toEqual({});
 });
+
+test('REV-503-01: publisher error codes survive JSON serialization while arbitrary code is discarded', () => {
+  const { logger, lines } = fixture();
+  for (const [event, errorCode] of [
+    ['delivery.retry', 'KAFKA_UNCONFIRMED'],
+    ['process.failed', 'PUBLISHER_BROKERS_INVALID'],
+  ] as const) {
+    logger.emit(event, { errorCode });
+    expect(JSON.parse(lines.at(-1)!)).toMatchObject({ errorCode });
+  }
+  expect(safeLogFields({ errorCode: 'PUBLISHER_CANARY_PASSWORD' })).toEqual({});
+});

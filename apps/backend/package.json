@@ -31,7 +31,8 @@
     "test:functional": "pnpm test:prepare && jest --selectProjects integration --runInBand",
     "test:pr": "pnpm test:coverage",
     "test:coverage": "pnpm test:prepare && jest --config jest.coverage.config.cjs --runInBand && node ../../scripts/quality/coverage.cjs",
-    "test:web:gate": "pnpm test:prepare && jest --selectProjects integration --runInBand --runTestsByPath .test-dist/test/integration/web-gate.spec.js"
+    "test:web:gate": "pnpm test:prepare && jest --selectProjects integration --runInBand --runTestsByPath .test-dist/test/integration/web-gate.spec.js",
+    "publisher": "node dist/publisher.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",
@@ -48,6 +49,7 @@
     "class-transformer": "0.5.1",
     "class-validator": "0.15.1",
     "drizzle-orm": "0.45.4",
+    "kafkajs": "2.2.4",
     "pg": "8.23.1",
     "pino": "10.4.0",
     "pino-pretty": "13.2.0",
@@ -67,6 +69,7 @@
     "jest": "30.5.2",
     "json-schema-to-typescript": "16.0.0",
     "supertest": "7.3.1",
+    "testcontainers": "12.2.1",
     "typescript": "^5.9.2"
   }
 }

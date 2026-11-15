@@ -85,7 +85,9 @@ function main() {
     k(['wait', 'kafka/warehouse', '--for=condition=Ready', '--timeout=300s']);
     console.log('WMS-501 Kafka Ready; checking topic/users and mTLS');
     for (const resource of [
-      'kafkatopic/warehouse.receiving.events',
+      ...Object.values(require('../docs/contracts/kafka-topology.json')).map(
+        (route) => 'kafkatopic/' + route.topic,
+      ),
       'kafkauser/outbox-publisher',
       'kafkauser/inventory-putaway',
     ])
@@ -157,6 +159,17 @@ function main() {
       offsets.split('\n').filter((line) => line.startsWith('warehouse.receiving.events:')).length,
       3,
     );
+
+    // Это проверка прав реальным broker, а не только чтение YAML: каждый topic должен
+    // принять committed transaction с тем же literal ID, который использует приложение.
+    // Payload smoke технический; business envelope/order/dedup проверяются отдельной publisher suite.
+    step('transactional publisher ACL for all stream topics');
+    for (const { topic } of Object.values(require('../docs/contracts/kafka-topology.json'))) {
+      // Только disposable cluster: один committed smoke record проверяет реальные topic и transactionalId ACL.
+      exec(
+        `/opt/kafka/bin/kafka-producer-perf-test.sh --bootstrap-server ${bootstrap} --topic ${topic} --num-records 1 --record-size 16 --throughput -1 --command-config /tmp/producer.properties --transactional-id warehouse-outbox-publisher`,
+      );
+    }
     step('deny consumer write');
     // Проверяем отказ самого broker, а не только наличие ACL в YAML. Диагностика остаётся внутри Pod.
     // Idempotence выключена только у запрещённого probe: проверяем topic Write,

@@ -24,7 +24,7 @@
   },
   "channels": {
     "warehouse.fulfillment.order.events": {
-      "description": "Все версии одного aggregateId используют один topic/key. Новые topics кроме receipt требуют provisioning перед WMS-503.",
+      "description": "Все версии одного aggregateId используют один topic/key. Consumers читают read_committed; effect/dedup выполняются в WMS-504. Четыре topics provisioned в infra/kafka/dev.yaml; partition mapping закреплён в ADR-0034.",
       "bindings": {
         "kafka": {
           "bindingVersion": "0.5.0"
@@ -45,7 +45,7 @@
       }
     },
     "warehouse.fulfillment.picking.events": {
-      "description": "Все версии одного aggregateId используют один topic/key. Новые topics кроме receipt требуют provisioning перед WMS-503.",
+      "description": "Все версии одного aggregateId используют один topic/key. Consumers читают read_committed; effect/dedup выполняются в WMS-504. Четыре topics provisioned в infra/kafka/dev.yaml; partition mapping закреплён в ADR-0034.",
       "bindings": {
         "kafka": {
           "bindingVersion": "0.5.0"
@@ -63,7 +63,7 @@
       }
     },
     "warehouse.inventory.putaway.events": {
-      "description": "Все версии одного aggregateId используют один topic/key. Новые topics кроме receipt требуют provisioning перед WMS-503.",
+      "description": "Все версии одного aggregateId используют один topic/key. Consumers читают read_committed; effect/dedup выполняются в WMS-504. Четыре topics provisioned в infra/kafka/dev.yaml; partition mapping закреплён в ADR-0034.",
       "bindings": {
         "kafka": {
           "bindingVersion": "0.5.0"
@@ -81,7 +81,7 @@
       }
     },
     "warehouse.receiving.events": {
-      "description": "Все версии одного aggregateId используют один topic/key. Новые topics кроме receipt требуют provisioning перед WMS-503.",
+      "description": "Все версии одного aggregateId используют один topic/key. Consumers читают read_committed; effect/dedup выполняются в WMS-504. Четыре topics provisioned в infra/kafka/dev.yaml; partition mapping закреплён в ADR-0034.",
       "bindings": {
         "kafka": {
           "bindingVersion": "0.5.0"

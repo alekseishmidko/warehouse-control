@@ -1,0 +1,95 @@
+{{/* Publisher включается отдельно от worker. Recreate убирает штатное rollout-перекрытие;
+PG session lock и stable Kafka transactionalId дополнительно защищают от zombie process.
+Chart не создаёт Kafka/Registry и не публикует схемы: release preflight выполняет оператор. */}}
+{{- if .Values.publisher.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-publisher
+spec:
+  # Нельзя увеличивать replicas/HPA. Recreate не является fencing при node partition.
+  # Одна replica убирает штатную конкуренцию; реальные fences — PG session lock и Kafka epoch.
+  replicas: 1
+  strategy:
+    type: Recreate
+  progressDeadlineSeconds: 180
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: publisher
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: publisher
+    spec:
+      # Runtime DB role, без Kubernetes API прав и migration credentials.
+      serviceAccountName: {{ .Release.Name }}-runtime
+      automountServiceAccountToken: false
+      # Default process drain45s включает close Kafka/PG;60s дают запас до Kubernetes SIGKILL.
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: publisher
+          image: {{ include "warehouse.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: [node]
+          # Тот же immutable backend image, но отдельный PID1. API/worker автоматически publisher не запускают.
+          args: [dist/publisher.js]
+          securityContext:
+            {{- include "warehouse.security" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.runtimeSecret }}
+                  key: DATABASE_URL
+            # Два явных opt-in: подключение к transport и replay retained history от версии1.
+            - name: PUBLISHER_ENABLED
+              value: 'true'
+            - name: PUBLISHER_REPLAY
+              value: {{ .Values.publisher.replay | quote }}
+            - name: PUBLISHER_BROKERS
+              value: {{ .Values.publisher.brokers | quote }}
+            # Не включать release revision, Pod UID или random suffix: ID должен fence предыдущий процесс.
+            - name: PUBLISHER_TRANSACTIONAL_ID
+              value: {{ .Values.publisher.transactionalId | quote }}
+            - name: PUBLISHER_CA_FILE
+              value: /tls/ca/ca.crt
+            - name: PUBLISHER_CERT_FILE
+              value: /tls/client/user.crt
+            - name: PUBLISHER_KEY_FILE
+              value: /tls/client/user.key
+          ports:
+            - { name: health, containerPort: 9101 }
+          # Liveness не зависит от внешних сервисов; startup ждёт initial DB/Kafka validation.
+          startupProbe:
+            httpGet: { path: /health/startup, port: health }
+            periodSeconds: 2
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: { path: /health/ready, port: health }
+          livenessProbe:
+            httpGet: { path: /health/live, port: health }
+          volumeMounts:
+            - { name: ca, mountPath: /tls/ca, readOnly: true }
+            - { name: client, mountPath: /tls/client, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        # Оператор переносит TLS Secrets в namespace приложения; chart содержит только имена.
+        - name: ca
+          secret: { secretName: {{ .Values.publisher.caSecret }}, defaultMode: 0440 }
+        - name: client
+          secret: { secretName: {{ .Values.publisher.clientSecret }}, defaultMode: 0440 }
+        - name: tmp
+          emptyDir: { medium: Memory, sizeLimit: 64Mi }
+{{- end }}

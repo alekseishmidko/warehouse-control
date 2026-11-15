@@ -189,3 +189,11 @@ grace30s. [Подробный flow](../../docs/flows/lifecycle.md), [реали�
 WMS-402: opt-in internal metrics listener и локальный monitoring profile.
 [Metrics](src/infrastructure/metrics/README.md), [stack и команды](../../infra/observability/README.md).
 Обычный app:up не требует нового env; warehouse API/auth policy сохраняются.
+
+Команда publisher в backend package.json запускает `node dist/publisher.js`. Корневая
+`pnpm publisher` сначала выполняет Registry preflight; backend entrypoint сам схемы
+не публикует. kafkajs2.2.4 — production adapter, testcontainers12.2.1 — только dev
+dependency для настоящего Kafka fixture. pnpm-lock.yaml фиксирует версии и hash
+vendor patch; вручную lockfile не редактируется. Patch устраняет отрицательный SDK
+timer delay на Node24, не меняя гарантии доставки. JSON package manifests не принимают
+комментарии; пошаговый runtime protocol — [flow](../../docs/flows/publisher.md).
