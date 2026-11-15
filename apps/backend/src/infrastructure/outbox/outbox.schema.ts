@@ -148,7 +148,7 @@ export const deliveryStreams = pgTable(
   'delivery_streams',
   {
     /**
-     * Стабильное text-имя получателя, часть PK потока. CHECK фиксирует inventory.putaway; новая
+     * Стабильное text-имя получателя, часть PK потока. CHECK разрешает inventory.putaway и kafka.publish; новая
      * подписка требует миграции и плана обработки истории.
      */
     destination: text('destination').notNull(),
@@ -200,10 +200,13 @@ export const deliveryStreams = pgTable(
       'delivery_stream_cursor_range',
       sql`${t.lastCompletedVersion} between 0 and ${sql.raw(String(MAX_AGGREGATE_VERSION))}`,
     ),
-    // Разрешён только подключённый destination; новый consumer требует отдельного плана запуска и миграции.
+    // Migration0033 расширяет CHECK до двух destinations, сохраняя старые local rows.
+    // Это не изменение envelope/eventId и не замена inventory.putaway: publisher ведёт
+    // собственные delivery/cursor, а consumer effect/marker остаются отдельным протоколом.
+    // Kafka destination — transport, а не новый business consumer; его регистрация только explicit publisher opt-in.
     check(
       'delivery_stream_destination',
-      sql`${t.destination} = ${sql.raw(`'${PUTAWAY_DESTINATION}'`)}`,
+      sql`${t.destination} in (${sql.raw(`'${PUTAWAY_DESTINATION}'`)}, 'kafka.publish')`,
     ),
     // Пара NULL/NULL означает свободный поток; заполненная пара — lease.
     // Сам CHECK не проверяет свежесть токена или владельца: это работа протокола под блокировкой.
@@ -292,7 +295,7 @@ export const outboxDeliveries = pgTable(
     // Доставка адресована подключённому consumer; произвольное имя не должно создавать необрабатываемый маршрут.
     check(
       'outbox_delivery_destination',
-      sql`${t.destination} = ${sql.raw(`'${PUTAWAY_DESTINATION}'`)}`,
+      sql`${t.destination} in (${sql.raw(`'${PUTAWAY_DESTINATION}'`)}, 'kafka.publish')`,
     ),
     // Разрешены только состояния протокола доставки; допустимость конкретного перехода проверяется отдельно.
     check(

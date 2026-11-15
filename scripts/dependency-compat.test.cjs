@@ -104,3 +104,29 @@ test('AC-R04-02: Drizzle loader esbuild transforms TS and does not expose wildca
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+// Patch KafkaJS clamps отрицательный timer delay к0: без него Node24 печатает
+// TimeoutNegativeWarning вне нашего JSON logger. Это исправление таймера SDK,
+// а не изменение broker acks, transaction semantics или retry/delivery guarantees.
+test('WMS-503: KafkaJS empty request queue не создаёт отрицательный timer delay', async () => {
+  const RequestQueue = backend('kafkajs/src/network/requestQueue');
+  const queue = new RequestQueue({
+    maxInFlightRequests: 1,
+    requestTimeout: 1000,
+    enforceRequestTimeout: true,
+    clientId: 'test',
+    broker: 'loopback',
+    logger: { debug() {}, error() {}, warn() {} },
+  });
+  const warnings = [];
+  const observe = (warning) => warnings.push(warning.name);
+  process.on('warning', observe);
+  try {
+    queue.scheduleCheckPendingRequests();
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    assert.equal(warnings.includes('TimeoutNegativeWarning'), false);
+  } finally {
+    process.off('warning', observe);
+    clearTimeout(queue.throttleCheckTimeoutId);
+  }
+});

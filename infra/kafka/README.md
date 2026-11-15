@@ -71,17 +71,19 @@ Gate — основной воспроизводимый путь с автом�
 | -------------------------------------------------- | -------------------------- | -------------------------------------------- | ---------- | ------------ | -------------------------------- |
 | receipt, включая будущие schema/aggregate versions | warehouse.receiving.events | aggregateId UUID в canonical lowercase UTF-8 | 3          | 1 / 1        | inventory.putaway                |
 
-Текущий registry знает также retained putaway-task/order/picking-task facts,
-но WMS-501 provisioned только receipt topic. Полная contract topology описана в
-[WMS-502](../../docs/flows/schema-release.md); остальные topics/ACL должны быть
-созданы перед соответствующим publisher. Новые потоки требуют явного контракта; нельзя автоматически делать topic из event type
-или schemaVersion. EventId остаётся прежним при повторе; key не eventId, warehouseId
-или номер версии. Envelope и JSON Schema остаются в Git; Registry — WMS-502.
-Publisher WMS-503 обязан фиксировать один partitioner для всех producer versions и
-сериализовать aggregate versions. Одинаковый key сам по себе не исправляет перестановку
-конкурентных publish. Console tools smoke не заменяет этот application contract.
+WMS-503 provisioned также warehouse.inventory.putaway.events,
+warehouse.fulfillment.order.events и warehouse.fulfillment.picking.events с теми же
+3partitions/RF1/minISR1. Source mapping — docs/contracts/kafka-topology.json.
+У дополнительных потоков Kafka consumers пока нет. Publisher использует фиксированный
+SHA256(key UTF8)/uint32BE/mod3 partition mapping, один stream cursor и stable
+transactionalId warehouse-outbox-publisher с literal ACL Write/Describe. Cluster
+IdempotentWrite не заменяет право на transactionalId. Consumers обязаны read_committed.
+Полные шаги и ограничения — [publisher flow](../../docs/flows/publisher.md).
 
-Retention: delete, 604800000 ms; 268435456 bytes на partition; segment 16777216 bytes.
+Retention: delete, 604800000 ms; receipt —268435456 bytes на partition,
+три новых topics —67108864 bytes на partition; segment16777216 bytes. Суммарный
+configured data budget около1344MiB для PVC2GiB; internal logs/segments также занимают
+диск, поэтому retention не заменяет контроль свободного места.
 Удаляется целый segment, поэтому это не точная квота диска и не гарантия семи дней
 истории при раннем достижении byte limit. Compaction выключена: промежуточные версии
 нужны для cursor. Outbox/БД не очищаются retention Kafka. Consumer offline дольше

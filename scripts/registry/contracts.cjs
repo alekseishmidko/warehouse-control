@@ -5,12 +5,11 @@ const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const root = path.resolve(__dirname, '../..');
 // Топология принадлежит aggregate stream, поэтому два event types заказа не расходятся.
-const routes = {
-  receipt: { topic: 'warehouse.receiving.events', consumers: ['inventory.putaway'] },
-  'putaway-task': { topic: 'warehouse.inventory.putaway.events', consumers: [] },
-  order: { topic: 'warehouse.fulfillment.order.events', consumers: [] },
-  'picking-task': { topic: 'warehouse.fulfillment.picking.events', consumers: [] },
-};
+// Один source используется и AsyncAPI, и generated runtime mapping. Массив consumers
+// описывает logical names; пустой массив не создаёт и не запускает бизнес-обработчик.
+const routes = JSON.parse(
+  fs.readFileSync(path.join(root, 'docs/contracts/kafka-topology.json'), 'utf8'),
+);
 /** Канонизация нужна для equality/diff, не меняет schema keywords или dialect. */
 function canonical(value) {
   if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
@@ -169,7 +168,7 @@ function asyncApiDocument(contracts = loadContracts()) {
     };
     channels[c.topic] ??= {
       description:
-        'Все версии одного aggregateId используют один topic/key. Новые topics кроме receipt требуют provisioning перед WMS-503.',
+        'Все версии одного aggregateId используют один topic/key. Consumers читают read_committed; effect/dedup выполняются в WMS-504. Четыре topics provisioned в infra/kafka/dev.yaml; partition mapping закреплён в ADR-0034.',
       bindings: { kafka: { bindingVersion: '0.5.0' } },
       publish: { operationId: 'publish_' + c.topic.replaceAll('.', '_'), message: { oneOf: [] } },
     };

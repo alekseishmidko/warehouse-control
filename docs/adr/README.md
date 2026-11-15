@@ -61,3 +61,6 @@ same-origin transport и явное восстановление сохранё�
 
 [0033. Schema Registry contract release](0033-schema-registry-contract-release.md) — WMS-502:
 Apicurio catalogue/validity, mandatory local transitive guard, AsyncAPI и consumers-first.
+
+[0034. Outbox Kafka publisher](0034-outbox-kafka-publisher.md) — session singleton,
+stable Kafka epoch, read_committed и ack → SQL completion без обещания exactly once.

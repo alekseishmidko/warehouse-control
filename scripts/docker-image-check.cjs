@@ -38,7 +38,9 @@ async function main() {
       'pnpm-lock.yaml',
       'pnpm-workspace.yaml',
       // Frozen install проверяет hash vendor patch даже при фильтрации workspace.
-      'patches/deepmerge@4.3.1.patch',
+      // Включаем все объявленные vendor patches: иначе clean context не повторит frozen
+      // install разработчика. .dockerignore отдельно разрешает конкретные patch files.
+      ...Object.values(require('../package.json').pnpm.patchedDependencies),
       'tsconfig.base.json',
       `apps/${app}/package.json`,
       `apps/${app}/Dockerfile`,
@@ -105,6 +107,23 @@ async function main() {
         /^(DATABASE_URL|POSTGRES_PASSWORD|CONTAINER_DATABASE_URL)=/.test(value),
       ),
     );
+    if (!web) {
+      // Проверяем publisher и patched production SDK внутри image, без host modules/network и DB credentials.
+      execFileSync(
+        'docker',
+        [
+          'run',
+          '--rm',
+          '--read-only',
+          '--network=none',
+          image,
+          '-e',
+          "const a=require('node:assert/strict'),f=require('node:fs');a.ok(f.existsSync('dist/publisher.js'));a.equal(require('kafkajs/package.json').version,'2.2.4');a.ok(require('kafkajs/src/network/requestQueue').prototype.scheduleCheckPendingRequests.toString().includes('Math.max(0, scheduleAt)'))",
+        ],
+        { timeout: 15000, stdio: 'pipe' },
+      );
+      console.log('PASS publisher artifact and patched production KafkaJS inside image');
+    }
     if (web) {
       // Проверяем настоящий ENTRYPOINT и SIGTERM, а не только декларацию User/Entrypoint.
       const container = execFileSync(

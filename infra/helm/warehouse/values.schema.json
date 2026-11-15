@@ -166,6 +166,35 @@
           }
         }
       }
+    },
+    "publisher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "replay", "brokers", "transactionalId", "caSecret", "clientSecret"],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "replay": {
+          "const": "from-start"
+        },
+        "brokers": {
+          "type": "string",
+          "minLength": 1
+        },
+        "transactionalId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9._-]{2,95}$"
+        },
+        "caSecret": {
+          "type": "string",
+          "minLength": 1
+        },
+        "clientSecret": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     }
   }
 }

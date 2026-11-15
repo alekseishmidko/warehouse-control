@@ -891,3 +891,29 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | scripts/registry/README.md                        | Команды, шаги и границы release tools.                                                 |
 
 | scripts/registry/validation.cjs | Общая strict Ajv2020 factory; metaschema/format validation до Registry I/O. |
+
+## WMS-503: Outbox publisher
+
+| Файл                                                                           | Назначение                                                                                        |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| apps/backend/src/publisher.ts                                                  | Process lifetime, probes, singleton startup и bounded signal drain.                               |
+| apps/backend/src/shared/transport/event-transport.port.ts                      | Transport ack port без SQL/business mutations.                                                    |
+| apps/backend/src/shared/transport/README.md                                    | Контракт и ошибки transport capability.                                                           |
+| apps/backend/src/infrastructure/publisher/README.md                            | Модуль publisher и ссылка на flow.                                                                |
+| apps/backend/src/infrastructure/publisher/publisher.config.ts                  | Opt-in, mTLS, stable ID и timeout bounds.                                                         |
+| apps/backend/src/infrastructure/publisher/kafka-event.transport.ts             | KafkaJS transactional producer и фиксированный partition mapping.                                 |
+| apps/backend/src/infrastructure/publisher/repositories/publisher.repository.ts | Lifetime PG owner session; claim/retry/completion и cursor.                                       |
+| apps/backend/src/infrastructure/publisher/services/publisher.service.ts        | Identity validation, network ack и completion orchestration.                                      |
+| apps/backend/drizzle/0033_kafka_publisher_destination.sql                      | Новая migration расширения destination CHECK; старые rows сохраняются.                            |
+| apps/backend/drizzle/meta/0033_snapshot.json                                   | Generated snapshot db:generate, output вручную не меняется.                                       |
+| docs/contracts/kafka-topology.json                                             | Единый Git source topic/aggregate/consumer mapping, описание в publisher flow.                    |
+| apps/backend/src/shared/events/generated/kafka-topology.ts                     | Generated contracts:generate из topology JSON.                                                    |
+| apps/backend/test/integration/publisher.spec.ts                                | Реальные PG/Kafka, ack/crash/fencing/order/config и root command.                                 |
+| apps/backend/test/support/kafka.fixture.ts                                     | Disposable mTLS Kafka, ephemeral certs и bounded cleanup.                                         |
+| apps/backend/test/support/publisher-child.ts                                   | Только test IPC barrier до SQL completion для SIGKILL.                                            |
+| infra/helm/warehouse/templates/publisher.yaml                                  | Opt-in replicas1/Recreate, тот же digest, TLS Secret references.                                  |
+| patches/kafkajs@2.2.4.patch                                                    | Clamp отрицательного SDK timer delay для JSON logging на Node24.                                  |
+| docs/adr/0034-outbox-kafka-publisher.md                                        | Singleton, broker epoch, partitioner и at-least-once ограничения.                                 |
+| docs/flows/publisher.md                                                        | Mermaid, шаги, trust boundary, ошибки, команды и recovery.                                        |
+| apps/backend/src/infrastructure/publisher/dto/publisher-record.dto.ts          | Snapshot claim и безопасные failure codes без pg client/I/O; service валидирует unknown envelope. |
+| docs/reports/wms-503.md                                                        | AC, review/fixes/re-review, фактическое evidence и ограничения.                                   |

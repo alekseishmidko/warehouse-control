@@ -1,0 +1,14 @@
+diff --git a/src/network/requestQueue/index.js b/src/network/requestQueue/index.js
+--- a/src/network/requestQueue/index.js
++++ b/src/network/requestQueue/index.js
+@@ -317,7 +317,9 @@ module.exports = class RequestQueue {
+       this.throttleCheckTimeoutId = setTimeout(() => {
+         this.throttleCheckTimeoutId = null
+         this.checkPendingRequests()
+-      }, scheduleAt)
++      // No throttle means an immediate check, never a negative Unix timestamp.
++      // Node 24 emits an unstructured TimeoutNegativeWarning for a negative delay.
++      }, Math.max(0, scheduleAt))
+     }
+   }
+ }

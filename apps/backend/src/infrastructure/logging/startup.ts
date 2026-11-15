@@ -10,6 +10,7 @@ const roles = new Map<string, 'api' | 'worker' | 'cli'>([
   [resolve(dist, 'main.js'), 'api'],
   [resolve(dist, 'worker.js'), 'worker'],
   ...[
+    'publisher.js',
     'infrastructure/database/migrate.js',
     'infrastructure/database/check.js',
     'infrastructure/database/seed-dev.js',

@@ -557,12 +557,18 @@ release guard выполняется локально до POST, с сохран
 
 ### WMS-503. Outbox publisher
 
-- [ ] **WMS-503.1** — Выделить transport port, не меняя бизнес-writer, envelope и eventId.
-- [ ] **WMS-503.2** — Добавить Kafka destination и publisher с broker acks и проверкой конфигурации producer.
-- [ ] **WMS-503.3** — Сохранить последовательность aggregate stream; completion выполнять только после подтверждения broker.
-- [ ] **WMS-503.4** — Настроить singleton запуск без перекрытия старого/нового процесса; описать ограничения при node partition и ручном восстановлении.
-- [ ] **WMS-503.5** — Проверить broker outage, lost ack, crash после publish до completion и неизменный eventId при повторе.
-- [ ] **WMS-503.6** — Проверить, что накопление outbox не требует доступности Kafka в бизнес-транзакции; HA publisher оставить отдельной задачей.
+Выполнено: [flow и Mermaid](flows/publisher.md), [ревью, проверки и ограничения](reports/wms-503.md).
+Docker/Helm/Strimzi gates и финальный check:pr прошли; после дополнительного review:659backend/54web tests,21publisher scenarios.
+Исправлены reason codes диагностики, DTO/SQL шаги разделены; evidence — в отчёте.
+Пояснения по Kafka/claim/ack/singleton/ACL перенесены в комментарии рядом с кодом; JSON описан в ближайших README.
+Publisher включается явно; outbox/local worker сохранены, HA и consumers/cutover остаются отдельными задачами.
+
+- [x] **WMS-503.1** — Выделить transport port, не меняя бизнес-writer, envelope и eventId.
+- [x] **WMS-503.2** — Добавить Kafka destination и publisher с broker acks и проверкой конфигурации producer.
+- [x] **WMS-503.3** — Сохранить последовательность aggregate stream; completion выполнять только после подтверждения broker.
+- [x] **WMS-503.4** — Настроить singleton запуск без перекрытия старого/нового процесса; описать ограничения при node partition и ручном восстановлении.
+- [x] **WMS-503.5** — Проверить broker outage, lost ack, crash после publish до completion и неизменный eventId при повторе.
+- [x] **WMS-503.6** — Проверить, что накопление outbox не требует доступности Kafka в бизнес-транзакции; HA publisher оставить отдельной задачей.
 
 ### WMS-504. Kafka consumers
 

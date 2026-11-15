@@ -48,8 +48,11 @@ async function generateEventContracts({
     );
   }
   // Bundle содержит схемы прямо в TS: собранному backend не нужно читать docs на диске.
-  // Оба файла являются generated artifacts; ручные правки обнаружит --check.
+  // Все output файлы являются generated artifacts; ручные правки обнаружит --check.
   const outputs = {
+    // Runtime получает mapping из того же Git JSON, что Registry/AsyncAPI. Собранному
+    // image не нужен docs/; generated output нельзя править вручную вместо source.
+    'kafka-topology.ts': `/** @file GENERATED из docs/contracts/kafka-topology.json: pnpm contracts:generate. Не редактировать вручную. */\nexport const kafkaTopology = ${JSON.stringify(JSON.parse(await readFile(resolve(sourceDirectory, '../kafka-topology.json'), 'utf8')), null, 2)} as const;\n`,
     'event-types.ts': `${banner}\n${declarations.join('\n')}`,
     'event-schemas.ts': `${banner}\nexport const eventSchemas = ${JSON.stringify(schemas, null, 2)} as const;\n`,
   };

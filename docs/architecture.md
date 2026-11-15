@@ -14,9 +14,9 @@
 | ---------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------- |
 | Workspace        | pnpm + TypeScript                                            | Реализован                                                              |
 | Backend          | NestJS                                                       | WMS-202–207: auth/ACL, складские команды и read API                     |
-| Данные           | PostgreSQL + Drizzle + SQL                                   | Stock/allocations/receiving/fulfillment/audit/outbox; migrations до0032 |
+| Данные           | PostgreSQL + Drizzle + SQL                                   | Stock/allocations/receiving/fulfillment/audit/outbox; migrations до0033 |
 | Надёжные события | PostgreSQL transactional outbox                              | WMS-110 writer/worker/putaway handler готовы                            |
-| Event transport  | Kafka, затем Schema Registry                                 | Последующий этап                                                        |
+| Event transport  | Kafka + Apicurio catalogue                                   | Dev platform/release/publisher WMS-501–503; consumers/cutover позже     |
 | UI               | Solid, TypeScript, Vite, Solid Router, Solid Query, Tailwind | SPA WMS-208; static web image и TLS hosting WMS-303                     |
 | Контейнеры       | Docker, Compose                                              | PostgreSQL + non-root API/worker image и Compose готовы WMS-112         |
 | Оркестрация      | kind, Kubernetes, Helm                                       | Реализовано WMS-301/302                                                 |
@@ -56,9 +56,10 @@ context, если изменения обязаны фиксироваться �
 
 ## Процессы
 
-Ниже целевая схема с будущим Kafka transport. В host dev web использует Vite proxy;
+Ниже реализованные процессы и будущие Kafka consumers. В host dev web использует Vite proxy;
 на local kind работают Helm API/worker/web, PostgreSQL outbox и NGF/TLS.
-Kafka и отдельные Kafka consumers ещё не развёрнуты. Lifecycle/active rollout WMS-304 проверены: [flow](flows/lifecycle.md), [ADR-0029](adr/0029-process-lifecycle.md).
+Kafka dev platform и отдельный opt-in publisher реализованы; Kafka consumers ещё не реализованы.
+[Publisher flow и Mermaid](flows/publisher.md). Lifecycle/active rollout WMS-304 проверены: [flow](flows/lifecycle.md), [ADR-0029](adr/0029-process-lifecycle.md).
 [Реализованный web flow](flows/web.md).
 
 ```mermaid
@@ -68,13 +69,14 @@ flowchart LR
   API --> PG[(PostgreSQL: domain + audit + outbox)]
   PG --> W[Outbox worker]
   W --> H[Локальные обработчики: этап 1]
-  W -. этап 2 .-> K[Kafka]
-  K --> C[Consumers]
+  PG --> P[Opt-in singleton publisher WMS-503]
+  P --> K[Kafka]
+  K -. WMS-504 .-> C[Будущие consumers]
   H --> PG
   C --> PG
 ```
 
-API, worker и consumers разворачиваются независимо, но используют один
+API, worker, publisher и будущие consumers разворачиваются независимо, но используют один
 backend-пакет и одну БД. Это модульный монолит, не набор микросервисов.
 На первом этапе worker читает outbox и вызывает долговечные обработчики;
 Nest EventEmitter не является гарантией доставки.

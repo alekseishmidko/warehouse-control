@@ -40,10 +40,11 @@ Headers не переопределяют envelope/actor. Trace context оста
 | order        | warehouse.fulfillment.order.events   | Подписчик ещё не зарегистрирован; order/shipping facts вместе |
 | picking-task | warehouse.fulfillment.picking.events | Подписчик ещё не зарегистрирован                              |
 
-WMS-501 реально создаёт только receipt topic. Остальные адреса — contract topology;
-provisioning/ACL обязателен перед включением соответствующего publisher в WMS-503.
+WMS-503 расширяет infra/kafka/dev.yaml до всех4topics и publisher ACL;
+provisioning и Registry preflight обязательны до enable publisher.
 Новый consumer требует replay/start-position плана; нельзя начать с произвольного latest.
-Все четыре потока существуют как retained outbox facts, но не все имеют deliveries.
+Все4потока существуют как retained outbox facts; opt-in publisher добавляет transport
+delivery kafka.publish лениво, local business delivery остаётся только inventory.putaway.
 
 ## Consumers-first и совместимость
 

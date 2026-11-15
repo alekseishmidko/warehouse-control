@@ -92,8 +92,8 @@ create/post/get подключены с session/warehouse ACL WMS-202. Existing 
 - Неизвестный тип/версия попадает в диагностику/карантин, не считается успешным бизнес-действием.
 - Старые события не переписываются при replay; преобразование делается явным upcaster.
 
-Перед Kafka добавим AsyncAPI с топиками, ключами и группами, а существующие
-JSON Schema подключим к Registry после проверки поддерживаемого dialect.
+WMS-502 добавляет AsyncAPI с topics/keys/groups и публикацию Git JSON Schema
+в Registry после compatibility spike; ограничения native2020-12 описывает ADR-0033.
 Схемы в Git остаются первичным источником; Registry — проверяемая публикация.
 
 ## Реализованные локальные проверки WMS-105
@@ -234,7 +234,8 @@ insufficient-stock/idempotency-conflict, 422 invalid-zone/foreign-location/overf
 [пример](examples/inventory.putaway-completed.v1.json) — новый совместимый тип, ReceivingPosted v1
 не меняется. Registry/KnownEvent/generated bundle содержат оба типа. Общие UUID/UTC Z/int4/256KiB/
 optional extensions rules сохраняются. Aggregate putaway-task, aggregateId=taskId,
-causationId исходного receipt event; subscribers пока нет, retained outbox факт без delivery.
+causationId исходного receipt event; бизнес-subscribers пока нет. Opt-in WMS-503 добавляет transport delivery kafka.publish;
+она не является consumer effect/marker.
 В будущем добавление consumer требует явного replay/start-position плана.
 [Подробный flow](../flows/putaway-execution.md).
 
@@ -290,3 +291,11 @@ native compatibility2020-12 не работает, FULL_TRANSITIVE release polic
 обязательный local guard по всей истории до POST. Ни dialect, ни wire envelope не меняются.
 [ADR-0033](../adr/0033-schema-registry-contract-release.md),
 [release/runbook](../flows/schema-release.md), [live evidence/ограничения](../reports/wms-502.md).
+
+`kafka-topology.json` — source mapping для publisher и генераторов. JSON не поддерживает
+комментарии, поэтому назначение его полей описано здесь: ключ — aggregateType, topic —
+постоянный адрес всех версий этого агрегата, consumers — stable logical names будущих
+или существующих обработчиков. Пустой consumers не включает обработчик. OrderChanged
+и ShippingChanged используют общий order topic; schemaVersion не создаёт новый topic.
+Генератор выдаёт runtime kafka-topology.ts, Registry tools — AsyncAPI; generated файлы
+вручную не изменяются. Runtime image использует встроенный TS mapping без чтения docs/.

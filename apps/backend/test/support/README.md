@@ -57,3 +57,8 @@ reserved-picking.fixture.ts переиспользуется picking/shipping in
 warehouseCommand добавляет реальный browser context и key, не подменяет guards и не копирует
 логику остатков. Для двух конкурентных команд одного пользователя используются разные
 сессии, чтобы исследовать order/balance locks, а не случайную сериализацию idle touch.
+
+WMS-503: kafka.fixture запускает отдельный KRaft broker с обязательным mTLS, а
+publisher-child содержит только IPC crash barrier до send/после broker commit.
+Production entrypoint не получает fault injection flags. Ключи сертификатов временные;
+cleanup удаляет только созданный suite контейнер и каталог. Consumer read_committed.

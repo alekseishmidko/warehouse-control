@@ -19,3 +19,8 @@ OTel и жизненный цикл sink принадлежат infrastructure, 
 Тесты: test/unit/logging.spec.ts. Владелец I/O — infrastructure/logging.
 
 [Подробный flow и границы](../../../../../docs/flows/logging.md).
+
+Конфигурационные `PUBLISHER_*` коды заданы в PUBLISHER_CONFIG_ERROR_CODES этого контракта;
+infra config не передаёт в logger текст Error/env. Закрытый SAFE_ERROR_CODES Set создаётся
+один раз и сохраняет KAFKA_UNCONFIRMED, не разрешая неизвестные строки по префиксу.
+Regression: test/unit/logging.spec.ts проверяет реальный Pino JSON и canary rejection.

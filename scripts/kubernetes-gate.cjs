@@ -258,6 +258,27 @@ async function main() {
       h(['install', 'warehouse', chart, '-f', values, '--wait', '--timeout', '180s']);
     }
     console.log('PASS delayed DB blocks workload until migration; explicit recovery succeeds');
+    // Optional publisher проверяется тем же API server, но без включения Kafka/cutover в API/worker gate.
+    const publisherManifest = run(helm, [
+      'template',
+      'warehouse',
+      chart,
+      '-f',
+      values,
+      '--set',
+      'publisher.enabled=true',
+      '--show-only',
+      'templates/publisher.yaml',
+    ]);
+    assert.match(publisherManifest, /replicas: 1/);
+    assert.match(publisherManifest, /type: Recreate/);
+    assert.ok(!publisherManifest.includes('RollingUpdate'));
+    assert.ok(
+      !publisherManifest.includes(password) && !publisherManifest.includes(runtimePassword),
+    );
+    k(['apply', '--dry-run=server', '-f', '-'], publisherManifest);
+    console.log('PASS publisher Recreate/replicas1/TLS Secret refs server validation');
+
     const api = JSON.parse(k(['get', 'deployment', 'warehouse-api', '-o', 'json']));
     const worker = JSON.parse(k(['get', 'deployment', 'warehouse-worker', '-o', 'json']));
     for (const deployment of [api, worker]) {

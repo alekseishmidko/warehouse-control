@@ -82,7 +82,8 @@
     "registry:down": "node scripts/registry/profile.cjs down",
     "registry:publish": "pnpm schemas:check && node scripts/registry/publish.cjs publish",
     "registry:check": "pnpm schemas:check && node scripts/registry/publish.cjs check",
-    "registry:gate": "pnpm schemas:check && pnpm --filter @warehouse/backend build && node scripts/registry/gate.cjs"
+    "registry:gate": "pnpm schemas:check && pnpm --filter @warehouse/backend build && node scripts/registry/gate.cjs",
+    "publisher": "pnpm registry:check && pnpm --filter @warehouse/backend publisher"
   },
   "private": true,
   "devDependencies": {
@@ -105,7 +106,8 @@
       "minimatch@>=7.0.0 <11.0.1": "11.0.5"
     },
     "patchedDependencies": {
-      "deepmerge@4.3.1": "patches/deepmerge@4.3.1.patch"
+      "deepmerge@4.3.1": "patches/deepmerge@4.3.1.patch",
+      "kafkajs@2.2.4": "patches/kafkajs@2.2.4.patch"
     }
   }
 }

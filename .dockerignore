@@ -32,3 +32,5 @@
 # Проверяемый security patch — часть lockfile inputs, без произвольных файлов из patches.
 !patches/
 !patches/deepmerge@4.3.1.patch
+# WMS-503: KafkaJS timer compatibility patch также обязателен для frozen production install.
+!patches/kafkajs@2.2.4.patch
