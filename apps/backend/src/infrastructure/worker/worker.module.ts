@@ -1,29 +1,20 @@
-/** @file Worker graph без HTTP/Receiving controllers; handlers подключаются явно в composition root WMS-110. */
+/** @file Local worker graph: scheduler/config отдельно от общей application consumer capability. */
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.module';
+import { ApplicationConsumerModule } from './application-consumer.module';
 import { WORKER_CONFIG, loadWorkerConfig } from './worker.config';
-import { HandlerRegistry, WORKER_HANDLERS } from './services/handler-registry';
 import { WorkerService } from './services/worker.service';
 import { WorkerLoop } from './services/worker-loop';
 import { WorkerRepository } from './repositories/worker.repository';
-import { InventoryModule } from '../../modules/inventory/inventory.module';
-import { ReceivingPostedHandler } from './services/receiving-posted.handler';
-/** Production registry содержит настоящий handler; tests могут явно заменить список, не меняя API graph. */
+/** Production handler подключён общим module; tests override тот же stable registration token. */
 @Module({
-  imports: [DatabaseModule, InventoryModule],
+  imports: [DatabaseModule, ApplicationConsumerModule],
   providers: [
     { provide: WORKER_CONFIG, useFactory: loadWorkerConfig },
-    ReceivingPostedHandler,
-    {
-      provide: WORKER_HANDLERS,
-      useFactory: (handler: ReceivingPostedHandler) => [handler],
-      inject: [ReceivingPostedHandler],
-    },
-    HandlerRegistry,
     WorkerRepository,
     WorkerService,
     WorkerLoop,
   ],
-  exports: [WorkerService, WorkerLoop],
+  exports: [WorkerService, WorkerLoop, ApplicationConsumerModule],
 })
 export class WorkerModule {}

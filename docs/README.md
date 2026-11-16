@@ -88,7 +88,8 @@ WMS-502 реализована для dev: [schema release/AsyncAPI](flows/schem
 Registry native compatibility2020-12 не используется: transitive release policy
 проверяет обязательный local guard. WMS-503 добавляет отдельный opt-in
 [publisher](flows/publisher.md); [AC и evidence](reports/wms-503.md). В рабочем стенде
-он автоматически не включается; Kafka consumers/cutover остаются WMS-504–506.
+он автоматически не включается; Kafka consumer WMS-504 добавлен отдельным opt-in process; cutover остаётся WMS-506.
+[Consumer flow](flows/kafka-consumer.md), [AC/review/evidence](reports/wms-504.md).
 WMS-503 выполнена:21publisher scenarios,659backend/54web tests; Docker/Helm/Strimzi
 gates и финальный check:pr прошли после снятия блокировки диска. Publisher остаётся opt-in.
 
@@ -133,7 +134,7 @@ gates и финальный check:pr прошли после снятия бло
 - WMS-302: API/worker в Kubernetes, pre-release migrations, Secret refs и local persistence проверены; [flow](flows/kubernetes-app.md).
 - WMS-303: static web image, NGF/Gateway/TLS и полный HTTPS UI gate проверены; [flow](flows/gateway-tls.md).
 - WMS-304: startup/ready/live API/worker, bounded drain, Pod kills и совместимый rolling release проверены.
-- Kafka dev platform, schema release и opt-in publisher реализованы; consumers/cutover и внешний CI/CD ещё не реализованы. Production deployment не выполнялся.
+- Kafka dev platform, schema release и opt-in publisher реализованы; opt-in consumer реализован WMS-504; cutover и внешний CI/CD ещё не реализованы. Production deployment не выполнялся.
 - `ReceivingPosted v1` используется outbox/local worker; Kafka publisher не изменяет eventId/envelope и не заменяет local consumer.
 - Локальные schema/fixtures/generation проверки выполняются в unit suite;
   OpenAPI generation/diff готов локально; CI workflow и breaking-change comparison пока не настроены.
@@ -224,3 +225,5 @@ Alloy JSONL collection, bounded HTTP/DB/outbox metrics, dashboards и local aler
 [Проверки и ограничения](reports/wms-402.md). WMS-403 реализована:
 [нагрузочные команды](../load/README.md), [flow и инварианты](flows/load-testing.md),
 [AC и evidence](reports/wms-403.md). WMS-404 выполнена для локального dev-стенда: [runbook](runbooks/recovery-drill.md), [AC и evidence](reports/wms-404.md).
+
+Локальный engineering harness: [постановка, runner, evidence и критерии готовности](flows/engineering-harness.md).

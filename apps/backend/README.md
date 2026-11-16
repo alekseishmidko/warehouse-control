@@ -197,3 +197,10 @@ dependency для настоящего Kafka fixture. pnpm-lock.yaml фикси�
 vendor patch; вручную lockfile не редактируется. Patch устраняет отрицательный SDK
 timer delay на Node24, не меняя гарантии доставки. JSON package manifests не принимают
 комментарии; пошаговый runtime protocol — [flow](../../docs/flows/publisher.md).
+
+## WMS-504: отдельный Kafka consumer
+
+`pnpm consumer` из корня запускает opt-in `dist/consumer.js` того же backend image.
+Используются общий application handler, inventory.putaway markers/cursor и offset после
+DB commit. [Конфигурация, Mermaid, rebalance и ошибки](../../docs/flows/kafka-consumer.md),
+[AC/ревью/evidence](../../docs/reports/wms-504.md). Автоматического cutover нет.

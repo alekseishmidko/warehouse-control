@@ -9,6 +9,7 @@ const dist = resolve(__dirname, '../..');
 const roles = new Map<string, 'api' | 'worker' | 'cli'>([
   [resolve(dist, 'main.js'), 'api'],
   [resolve(dist, 'worker.js'), 'worker'],
+  [resolve(dist, 'consumer.js'), 'worker'],
   ...[
     'publisher.js',
     'infrastructure/database/migrate.js',

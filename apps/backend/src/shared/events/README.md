@@ -139,3 +139,6 @@ WMS-204: третий KnownEvent — OrderChangedV1, source schema/example fulfi
 Envelope и closed action enum валидируются до writer/handler, unknown optional fields сохраняются.
 Order aggregate без consumers, retained facts. Snapshot заказа не копируется в event; quantities
 объясняются allocations/audit. Unit fixture и generation diff покрывают новый registry entry.
+
+`kafka-route.ts` задаёт единый aggregateId key/topic/partition mapping ADR-0034 для
+publisher и consumer. Он не обращается к broker/Registry и не меняет число partitions.

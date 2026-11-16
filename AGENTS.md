@@ -153,6 +153,11 @@ Warehouse Controller — учебная WMS: приёмка, размещени�
 - Покрытие требований и coverage кода — разные измерения. Все критерии должны иметь
   evidence; цель бизнес-веток 100%, фактические пробелы и child-process gaps явно указаны.
   [Политика и команды](docs/quality.md); не объявлять весь backend покрытым на 100%.
+- Для изменений репозитория сначала оформлять source task JSON из запроса пользователя и применять [локальный harness](docs/flows/engineering-harness.md):
+  пользователь задаёт цель/AC; агент оформляет task, запускает harness:plan/run/ready.
+  Exit0 readiness — техническая готовность текущего snapshot, не бизнес-приёмка.
+  Не переписывать evidence вручную и не ссылаться на stale run. Этот локальный механизм
+  сам по себе не может блокировать текст финального ответа или внешний merge.
 - Перед PR выполнить pnpm check:pr на итоговом diff. Он включает формат, typed lint,
   architecture guard/self-tests, typecheck/build/contracts/OpenAPI, unit/integration
   web generation/build/Vitest, Chromium gate и coverage обоих приложений с отдельными

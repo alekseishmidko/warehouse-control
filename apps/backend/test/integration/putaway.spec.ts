@@ -1,4 +1,5 @@
 /** @file WMS-110 реальные production handler/DB: tasks, audit/marker atomicity, unique race и stock invariance. */
+import { ApplicationConsumerService } from '@backend/infrastructure/worker/services/application-consumer.service';
 import type { INestApplication, INestApplicationContext } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -382,6 +383,7 @@ test('runtime warehouse_app can handle source FKs/audit and tasks remain immutab
     restrictedRunner,
     app.get(WorkerRepository),
     app.get(HandlerRegistry),
+    app.get(ApplicationConsumerService),
     validateWorkerEnvironment({}),
   );
   const [claim] = await restricted.claim();

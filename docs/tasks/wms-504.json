@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "id": "wms-504",
+  "issuedBy": "Пользователь: WMS-504 Kafka consumers",
+  "request": "Реализовать Kafka consumer с общим application handler, PostgreSQL markers/cursors, offset после commit и безопасным rebalance; проверить crash и N+1.",
+  "base": "f5e7864ba65159b5766bcac169bf0014a45584a0",
+  "criteria": [
+    {
+      "id": "WMS-504.1",
+      "statement": "Один inventory.putaway handler и logical name для обоих transport.",
+      "tests": [
+        "apps/backend/test/integration/kafka-consumer.spec.ts#504.1–4: real Kafka delivery and duplicate preserve one business effect"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-504.2",
+      "statement": "Envelope/routing/retained source проверяются до эффекта; partition обрабатывается последовательно.",
+      "tests": [
+        "apps/backend/test/integration/kafka-consumer.spec.ts#504.2: invalid routing and unknown schema have no effects"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-504.3",
+      "statement": "Effect/marker/cursor атомарны; offset только после DB commit.",
+      "tests": [
+        "apps/backend/test/integration/kafka-consumer.spec.ts#504.3: failure after handler rolls back effect marker cursor"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-504.4",
+      "statement": "Duplicate не повторяет эффект; gap останавливает partition без offset ack.",
+      "tests": [
+        "apps/backend/test/integration/kafka-consumer.spec.ts#504.4: gap fails closed and does not apply following version"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-504.5",
+      "statement": "Потеря ownership запрещает новые эффекты и offset ack; broker generation fences stale offset.",
+      "tests": [
+        "apps/backend/test/integration/kafka-consumer.spec.ts#504.5: rebalance during active transaction rolls back and successor applies once"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-504.6",
+      "statement": "Crash между DB/offset commits допускает duplicate; N+1 продолжает retained cursor.",
+      "tests": [
+        "apps/backend/test/integration/kafka-consumer.spec.ts#504.6: child crash after DB commit replays without second effect",
+        "apps/backend/test/integration/kafka-consumer.spec.ts#504.6: Kafka starts at N+1 after local completion"
+      ],
+      "gates": ["pr"]
+    }
+  ]
+}

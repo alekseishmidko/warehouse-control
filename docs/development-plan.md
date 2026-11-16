@@ -572,12 +572,17 @@ Publisher включается явно; outbox/local worker сохранены,
 
 ### WMS-504. Kafka consumers
 
-- [ ] **WMS-504.1** — Повторно использовать application handlers и logical consumer names, не копировать складскую логику.
-- [ ] **WMS-504.2** — Валидировать сообщения и управлять последовательной обработкой partition и aggregate cursor.
-- [ ] **WMS-504.3** — Фиксировать business effect/processed marker/cursor в PostgreSQL; offset подтверждать после commit.
-- [ ] **WMS-504.4** — При дубликате подтверждать отсутствие повторного эффекта; при gap останавливать применение последующих версий по явной policy.
-- [ ] **WMS-504.5** — На rebalance прекратить работу с отозванной partition, корректно завершить/откатить transaction и не подтвердить непринадлежащий offset.
-- [ ] **WMS-504.6** — Проверить падение после DB commit до offset commit, rebalance и начало с N+1 после cutover.
+Реализованы opt-in consumer, общий application handler/marker/cursor и fail-stop policy.
+[Flow и запуск](flows/kafka-consumer.md), [AC/review и источник evidence](reports/wms-504.md).
+Готовность текущего snapshot проверяется `pnpm harness:ready docs/tasks/wms-504.json`;
+полный перенос рабочего стенда остаётся WMS-506.
+
+- [x] **WMS-504.1** — Повторно использовать application handlers и logical consumer names, не копировать складскую логику.
+- [x] **WMS-504.2** — Валидировать сообщения и управлять последовательной обработкой partition и aggregate cursor.
+- [x] **WMS-504.3** — Фиксировать business effect/processed marker/cursor в PostgreSQL; offset подтверждать после commit.
+- [x] **WMS-504.4** — При дубликате подтверждать отсутствие повторного эффекта; при gap останавливать применение последующих версий по явной policy.
+- [x] **WMS-504.5** — На rebalance прекратить работу с отозванной partition, корректно завершить/откатить transaction и не подтвердить непринадлежащий offset.
+- [x] **WMS-504.6** — Проверить падение после DB commit до offset commit, rebalance и начало с N+1 после cutover.
 
 ### WMS-505. Ошибки Kafka и восстановление
 
@@ -737,3 +742,12 @@ Docker и установленный Playwright Chromium обязательны.
 ## Поддерживаемость чтения
 
 Рефактор read services и cursor protocol без смены бизнес-правил: [границы и evidence](reports/readability-refactor.md). Это работа по качеству, не закрытие следующего WMS-этапа.
+
+## Локальный engineering harness: runner и готовность
+
+Пользователь задаёт цель/критерии; агент оформляет source task JSON, реализует и
+проводит review; runner выполняет gates, readiness проверяет content-bound evidence.
+[Процесс запуска и полномочия](flows/engineering-harness.md),
+[source task/AC](tasks/harness-runner.json). HAR-01–03 проверяются native tests;
+окончательный результат читается из artifacts/harness/harness-runner/latest.json.
+Это техническая готовность; бизнес-приёмка остаётся за пользователем.
