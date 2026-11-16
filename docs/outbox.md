@@ -12,7 +12,7 @@ WMS-106 реализует запись события/delivery/stream и тра
 WMS-109 реализует worker claim/lease/token, retries/dead и processed markers/cursors.
 Business handler inventory.putaway подключён WMS-110: создаёт pending tasks, не повтор stock.
 WMS-503 добавляет отдельный opt-in Kafka publisher; local worker сохраняется.
-[Transport flow, Mermaid и ограничения](flows/publisher.md). Kafka consumers/cutover пока не реализованы. WMS-108 подключает документ приёмки и HTTP-команды; атомарность
+[Transport flow, Mermaid и ограничения](flows/publisher.md). Opt-in Kafka consumer реализован WMS-504; [flow](flows/kafka-consumer.md). Полный cutover остаётся WMS-506. WMS-108 подключает документ приёмки и HTTP-команды; атомарность
 inventory/audit/outbox/HTTP result подтверждена integration-тестами.
 
 ## Логическая модель хранения

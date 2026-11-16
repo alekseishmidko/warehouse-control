@@ -2,6 +2,8 @@
 import { isUuid } from '../validation/identifiers';
 /** Сообщения задаёт код, а не HTTP/event input или текст исключения. */
 export const LOG_EVENTS = {
+  'consumer.halted': ['error', 'Kafka consumer halted without offset acknowledgement'],
+  'consumer.ready': ['info', 'Kafka consumer ready'],
   'publisher.ready': ['info', 'Publisher ready'],
   'publisher.shutdown_deadline': ['error', 'Publisher shutdown deadline exceeded'],
   'database.connection_failed': ['error', 'Database connection failed'],
@@ -130,6 +132,8 @@ const SAFE_ERROR_CODES = new Set<string>([
 
   'KAFKA_UNCONFIRMED',
   'PUBLISHER_STARTUP_FAILED',
+  'CONSUMER_STARTUP_FAILED',
+  'CONSUMER_FAILED',
   ...Object.values(PUBLISHER_CONFIG_ERROR_CODES),
 ]);
 /** Runtime allowlist защищает также от лишних полей, переданных через структурную типизацию. */

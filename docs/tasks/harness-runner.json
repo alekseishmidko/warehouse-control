@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "id": "harness-runner",
+  "issuedBy": "Пользователь: запрос runner/content evidence/readiness",
+  "request": "Создать runner, content-bound evidence и проверку готовности; описать инициатора, процесс и критерии.",
+  "base": "f5e7864ba65159b5766bcac169bf0014a45584a0",
+  "criteria": [
+    {
+      "id": "HAR-01",
+      "statement": "Снимок учитывает dirty/untracked/deleted/env inputs; изменение обесценивает evidence.",
+      "tests": [
+        "scripts/harness/harness.test.cjs#snapshot covers dirty/untracked/deletion/symlink/env but ignores build artifacts"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "HAR-02",
+      "statement": "Runner исполняет обязательные gates, не принимает failed/missing/stale/tampered evidence.",
+      "tests": [
+        "scripts/harness/harness.test.cjs#CLI run/ready bind success to content and exact logs; stale/failed rerun cannot reuse pass"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "HAR-03",
+      "statement": "Изменение и возврат input во время gate не даёт passed.",
+      "tests": [
+        "scripts/harness/harness.test.cjs#input write and revert during gate invalidates evidence"
+      ],
+      "gates": ["pr"]
+    }
+  ]
+}

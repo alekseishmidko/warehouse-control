@@ -917,3 +917,41 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | docs/flows/publisher.md                                                        | Mermaid, шаги, trust boundary, ошибки, команды и recovery.                                        |
 | apps/backend/src/infrastructure/publisher/dto/publisher-record.dto.ts          | Snapshot claim и безопасные failure codes без pg client/I/O; service валидирует unknown envelope. |
 | docs/reports/wms-503.md                                                        | AC, review/fixes/re-review, фактическое evidence и ограничения.                                   |
+
+## Engineering harness
+
+| Файл                              | Назначение                                                                       |
+| --------------------------------- | -------------------------------------------------------------------------------- |
+| scripts/harness/cli.cjs           | plan/run/ready, checkout lock, child processes и content-bound evidence.         |
+| scripts/harness/policy.cjs        | Task/AC validation и обязательные gates по diff.                                 |
+| scripts/harness/snapshot.cjs      | Content hashes Git/env inputs и native write observer.                           |
+| scripts/harness/harness.test.cjs  | Disposable Git/process tests freshness, failure, timeout, locks и log integrity. |
+| scripts/harness/README.md         | Команды и границы runner module.                                                 |
+| docs/tasks/README.md              | Source task schema, issuer/criteria/base semantics.                              |
+| docs/tasks/harness-runner.json    | Текущее задание пользователя и HAR-01–03.                                        |
+| docs/flows/engineering-harness.md | Роли, запуск, состояния, review/acceptance и ограничения trust.                  |
+
+## WMS-504 Kafka consumers
+
+| Файл                                                                               | Назначение                                                           |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `apps/backend/src/consumer.ts`                                                     | Opt-in executable, probes и bounded signal cleanup                   |
+| `apps/backend/src/infrastructure/kafka/README.md`                                  | Общие transport security guards                                      |
+| `apps/backend/src/infrastructure/kafka/kafka-connection.config.ts`                 | Brokers/mTLS guards publisher и consumer                             |
+| `apps/backend/src/shared/events/kafka-route.ts`                                    | Единый deterministic routing                                         |
+| `apps/backend/src/infrastructure/worker/repositories/consumer.repository.ts`       | Общие retained identity, marker и cursor SQL                         |
+| `apps/backend/src/infrastructure/worker/services/application-consumer.service.ts`  | Общий application handler protocol                                   |
+| `apps/backend/src/infrastructure/kafka-consumer/README.md`                         | Назначение и границы Kafka consumer                                  |
+| `apps/backend/src/infrastructure/kafka-consumer/consumer.config.ts`                | Consumer-only opt-in и budgets                                       |
+| `apps/backend/src/infrastructure/kafka-consumer/kafka-consumer.module.ts`          | Nest composition без local polling/HTTP                              |
+| `apps/backend/src/infrastructure/kafka-consumer/kafka-consumer.ts`                 | KafkaJS batches, ownership и offset adapter                          |
+| `apps/backend/src/infrastructure/kafka-consumer/services/kafka-message.service.ts` | Validation и transaction owner                                       |
+| `apps/backend/test/integration/kafka-consumer.spec.ts`                             | Real Kafka/PostgreSQL reliability и command gates                    |
+| `apps/backend/test/support/consumer-child.ts`                                      | Test-only after-DB-commit IPC crash barrier                          |
+| `apps/backend/test/unit/kafka-consumer-config.spec.ts`                             | Отрицательные guards конфигурации                                    |
+| `docs/tasks/wms-504.json`                                                          | Source task и stable AC/test references                              |
+| `docs/adr/0035-kafka-application-consumers.md`                                     | Consumer transport решение                                           |
+| `docs/flows/kafka-consumer.md`                                                     | Полный flow и runbook                                                |
+| `docs/reports/wms-504.md`                                                          | Traceability/review/evidence limitations                             |
+| `apps/backend/src/infrastructure/worker/application-consumer.module.ts`            | Общая application capability без worker config/polling               |
+| `apps/backend/test/unit/kafka-consumer-adapter.spec.ts`                            | SDK boundary regressions: revoke/offset int64/heartbeat cleanup race |

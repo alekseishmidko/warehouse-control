@@ -14,33 +14,37 @@ pending PutawayTask на строку проведённой приёмки. Tas
 [Подробный бизнес-флоу и SQL диагностика](../../../../../docs/flows/putaway.md).
 
 At least once, порядок только внутри `(destination, aggregateType, aggregateId)`.
-Нет обещания exactly once или глобального порядка, Kafka и внешние эффекты отсутствуют.
+Нет обещания exactly once или глобального порядка. Local worker не выполняет внешние эффекты; отдельный Kafka consumer WMS-504 использует тот же application service.
 Dead останавливает поток до управляемого восстановления WMS-111 через локальную role-checked CLI.
 Сохранённые receiving/stock данные от этого не откатываются.
 
 ## Для разработчика
 
+WorkerModule реэкспортирует ApplicationConsumerModule с ApplicationConsumerService для [Kafka consumer](../kafka-consumer/README.md). Его импорт не запускает WorkerLoop.
 WorkerModule — отдельный Nest graph, не импортирует AppModule/HTTP controllers.
-Экспортирует WorkerService и WorkerLoop; WorkerRepository внутренний. Transport handler
+Экспортирует WorkerService и WorkerLoop; WorkerRepository/ConsumerRepository внутренние. Transport handler
 контракт локален capability: принимает opaque TransactionContext и validated KnownEvent,
 не требует обязательного domain/application слоя. Общие transaction/event contracts
 переиспользуются; бизнес-операции вызываются через сервисы владельцев.
 
-| Файл                                 | Ответственность                                                             |
-| ------------------------------------ | --------------------------------------------------------------------------- |
-| ../../worker.ts                      | Executable bootstrap с probe listener, validated config                     |
-| worker.module.ts                     | DatabaseModule/InventoryModule и явная регистрация ReceivingPostedHandler   |
-| worker.config.ts                     | Worker-only env validation/defaults, DI token                               |
-| worker.schema.ts                     | Source processed_events/consumer_streams для Drizzle                        |
-| dto/delivery.dto.ts                  | Frozen scalar claim и LocalEventHandler contract                            |
-| delivery-policy.ts                   | Permanent/stale errors, safe classification, equal jitter                   |
-| services/receiving-posted.handler.ts | Production inventory.putaway, server actor и вызов публичного inventory API |
-| services/handler-registry.ts         | Регистрация стабильных destinations, duplicate guard                        |
-| services/worker.service.ts           | Владелец claim/process/failure transactions                                 |
-| repositories/worker.repository.ts    | SKIP LOCKED, token locks, markers/cursors/ack SQL                           |
-| services/worker-loop.ts              | Последовательные polls, bounded batch parallelism, stop/drain               |
-| worker-process.ts                    | SIGTERM/SIGINT, hard deadline и pool/context cleanup                        |
-| README.md                            | Этот контракт; [общий каталог](../../../../../docs/file-catalog.md)         |
+| Файл                                     | Ответственность                                                                    |
+| ---------------------------------------- | ---------------------------------------------------------------------------------- |
+| ../../worker.ts                          | Executable bootstrap с probe listener, validated config                            |
+| worker.module.ts                         | DatabaseModule/InventoryModule и явная регистрация ReceivingPostedHandler          |
+| worker.config.ts                         | Worker-only env validation/defaults, DI token                                      |
+| worker.schema.ts                         | Source processed_events/consumer_streams для Drizzle                               |
+| dto/delivery.dto.ts                      | Frozen scalar claim и LocalEventHandler contract                                   |
+| delivery-policy.ts                       | Permanent/stale errors, safe classification, equal jitter                          |
+| services/receiving-posted.handler.ts     | Production inventory.putaway, server actor и вызов публичного inventory API        |
+| services/handler-registry.ts             | Регистрация стабильных destinations, duplicate guard                               |
+| application-consumer.module.ts           | Общая handler capability без WORKER_* config и polling                             |
+| services/application-consumer.service.ts | Общий для local/Kafka handler, retained identity, marker/cursor в borrowed context |
+| repositories/consumer.repository.ts      | Retained envelope, consumer cursor locks и processed markers                       |
+| services/worker.service.ts               | Владелец claim/process/failure transactions                                        |
+| repositories/worker.repository.ts        | SKIP LOCKED, token locks, markers/cursors/ack SQL                                  |
+| services/worker-loop.ts                  | Последовательные polls, bounded batch parallelism, stop/drain                      |
+| worker-process.ts                        | SIGTERM/SIGINT, hard deadline и pool/context cleanup                               |
+| README.md                                | Этот контракт; [общий каталог](../../../../../docs/file-catalog.md)                |
 
 ### Данные, миграции и права
 

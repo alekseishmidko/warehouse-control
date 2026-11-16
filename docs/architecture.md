@@ -10,20 +10,20 @@
 
 ## Стек и статус
 
-| Слой             | Решение                                                      | Статус                                                                  |
-| ---------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------- |
-| Workspace        | pnpm + TypeScript                                            | Реализован                                                              |
-| Backend          | NestJS                                                       | WMS-202–207: auth/ACL, складские команды и read API                     |
-| Данные           | PostgreSQL + Drizzle + SQL                                   | Stock/allocations/receiving/fulfillment/audit/outbox; migrations до0033 |
-| Надёжные события | PostgreSQL transactional outbox                              | WMS-110 writer/worker/putaway handler готовы                            |
-| Event transport  | Kafka + Apicurio catalogue                                   | Dev platform/release/publisher WMS-501–503; consumers/cutover позже     |
-| UI               | Solid, TypeScript, Vite, Solid Router, Solid Query, Tailwind | SPA WMS-208; static web image и TLS hosting WMS-303                     |
-| Контейнеры       | Docker, Compose                                              | PostgreSQL + non-root API/worker image и Compose готовы WMS-112         |
-| Оркестрация      | kind, Kubernetes, Helm                                       | Реализовано WMS-301/302                                                 |
-| Внешний HTTP     | NGINX Gateway Fabric + Gateway API                           | Проверено на local kind WMS-303                                         |
-| Телеметрия       | Pino, OpenTelemetry, Prometheus, Grafana, Loki, Tempo        | Pino/OTel WMS-401; local collection WMS-402 реализована                 |
-| Проверки         | Jest, Supertest, Testcontainers, k6                          | Jest/Supertest/Testcontainers; k6 baseline WMS-403 реализован           |
-| Поставка         | GitHub Actions, GHCR, Argo CD                                | После проверки репозитория и окружения                                  |
+| Слой             | Решение                                                      | Статус                                                                      |
+| ---------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| Workspace        | pnpm + TypeScript                                            | Реализован                                                                  |
+| Backend          | NestJS                                                       | WMS-202–207: auth/ACL, складские команды и read API                         |
+| Данные           | PostgreSQL + Drizzle + SQL                                   | Stock/allocations/receiving/fulfillment/audit/outbox; migrations до0033     |
+| Надёжные события | PostgreSQL transactional outbox                              | WMS-110 writer/worker/putaway handler готовы                                |
+| Event transport  | Kafka + Apicurio catalogue                                   | Dev platform/release/publisher WMS-501–503; consumer WMS-504; cutover позже |
+| UI               | Solid, TypeScript, Vite, Solid Router, Solid Query, Tailwind | SPA WMS-208; static web image и TLS hosting WMS-303                         |
+| Контейнеры       | Docker, Compose                                              | PostgreSQL + non-root API/worker image и Compose готовы WMS-112             |
+| Оркестрация      | kind, Kubernetes, Helm                                       | Реализовано WMS-301/302                                                     |
+| Внешний HTTP     | NGINX Gateway Fabric + Gateway API                           | Проверено на local kind WMS-303                                             |
+| Телеметрия       | Pino, OpenTelemetry, Prometheus, Grafana, Loki, Tempo        | Pino/OTel WMS-401; local collection WMS-402 реализована                     |
+| Проверки         | Jest, Supertest, Testcontainers, k6                          | Jest/Supertest/Testcontainers; k6 baseline WMS-403 реализован               |
+| Поставка         | GitHub Actions, GHCR, Argo CD                                | После проверки репозитория и окружения                                      |
 
 Frontend выбран по [ADR-0026](adr/0026-solid-frontend.md): Solid SPA в apps/web,
 Solid Router и `@tanstack/solid-query`. Реализован WMS-208: [web](../apps/web/README.md),
@@ -56,9 +56,9 @@ context, если изменения обязаны фиксироваться �
 
 ## Процессы
 
-Ниже реализованные процессы и будущие Kafka consumers. В host dev web использует Vite proxy;
+Ниже реализованные процессы с отдельным opt-in Kafka consumer. В host dev web использует Vite proxy;
 на local kind работают Helm API/worker/web, PostgreSQL outbox и NGF/TLS.
-Kafka dev platform и отдельный opt-in publisher реализованы; Kafka consumers ещё не реализованы.
+Kafka dev platform и отдельный opt-in publisher реализованы; Opt-in Kafka consumer реализован WMS-504; полный cutover остаётся WMS-506.
 [Publisher flow и Mermaid](flows/publisher.md). Lifecycle/active rollout WMS-304 проверены: [flow](flows/lifecycle.md), [ADR-0029](adr/0029-process-lifecycle.md).
 [Реализованный web flow](flows/web.md).
 
@@ -71,12 +71,12 @@ flowchart LR
   W --> H[Локальные обработчики: этап 1]
   PG --> P[Opt-in singleton publisher WMS-503]
   P --> K[Kafka]
-  K -. WMS-504 .-> C[Будущие consumers]
+  K --> C[Opt-in consumer WMS-504]
   H --> PG
   C --> PG
 ```
 
-API, worker, publisher и будущие consumers разворачиваются независимо, но используют один
+API, worker, publisher и consumer разворачиваются независимо, но используют один
 backend-пакет и одну БД. Это модульный монолит, не набор микросервисов.
 На первом этапе worker читает outbox и вызывает долговечные обработчики;
 Nest EventEmitter не является гарантией доставки.

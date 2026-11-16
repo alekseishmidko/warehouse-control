@@ -64,3 +64,5 @@ Apicurio catalogue/validity, mandatory local transitive guard, AsyncAPI и consu
 
 [0034. Outbox Kafka publisher](0034-outbox-kafka-publisher.md) — session singleton,
 stable Kafka epoch, read_committed и ack → SQL completion без обещания exactly once.
+
+[0035. Kafka application consumers](0035-kafka-application-consumers.md) — WMS-504: общий handler/marker/cursor, read_committed, offset после commit и fail-stop rebalance/gap policy.

@@ -6,7 +6,6 @@ import { transactionClient } from '../../database/postgres-transaction-runner';
 import type { TransactionContext } from '../../../shared/transactions/transaction.port';
 import type { DeliveryClaim } from '../dto/delivery.dto';
 import type { WorkerConfig } from '../worker.config';
-import { PermanentDeliveryError } from '../delivery-policy';
 import {
   deliveryDiagnostic,
   DeliveryDiagnostic,
@@ -153,38 +152,9 @@ export class WorkerRepository {
       : null;
   }
 
-  /** Создаёт/блокирует consumer cursor и проверяет dedup marker до handler; gap не маскируется успешным ack. */
-  async prepareConsumer(context: TransactionContext, claim: DeliveryClaim): Promise<boolean> {
-    const tx = transactionClient(context);
-    await tx.execute(sql`insert into consumer_streams(consumer_name,aggregate_type,aggregate_id)
-      values(${claim.destination},${claim.aggregateType},${claim.aggregateId}) on conflict do nothing`);
-    const cursor = await tx.execute<{
-      version: string;
-    }>(sql`select last_processed_version::text as version from consumer_streams
-      where consumer_name=${claim.destination} and aggregate_type=${claim.aggregateType} and aggregate_id=${claim.aggregateId} for update`);
-    const marker = await tx.execute(
-      sql`select 1 from processed_events where consumer_name=${claim.destination} and event_id=${claim.eventId}`,
-    );
-    const previous = Number(cursor.rows[0].version);
-    const duplicate = marker.rows.length > 0;
-    if (duplicate ? previous < claim.version : previous !== claim.version - 1)
-      throw new PermanentDeliveryError('CURSOR_MISMATCH');
-    return duplicate;
-  }
-
-  /** INSERT marker выполняется после awaited handler, но в той же transaction; unique conflict не скрывается. */
-  async markProcessed(context: TransactionContext, claim: DeliveryClaim): Promise<void> {
-    await transactionClient(context).execute(
-      sql`insert into processed_events(consumer_name,event_id) values(${claim.destination},${claim.eventId})`,
-    );
-  }
-
   /** Эффект/marker/оба cursors/completion подтверждаются одним commit. После lock token нельзя перехватить. */
   async complete(context: TransactionContext, claim: DeliveryClaim): Promise<void> {
     const tx = transactionClient(context);
-    // GREATEST сохраняет consumer cursor при controlled повторе старого event с уже имеющимся marker.
-    await tx.execute(sql`update consumer_streams set last_processed_version=greatest(last_processed_version,${claim.version})
-      where consumer_name=${claim.destination} and aggregate_type=${claim.aggregateType} and aggregate_id=${claim.aggregateId}`);
     await tx.execute(sql`update outbox_deliveries set status='completed',completed_at=clock_timestamp(),last_error=null,lease_token=null,lease_until=null
       where event_id=${claim.eventId} and destination=${claim.destination} and lease_token=${claim.token}`);
     await tx.execute(sql`update delivery_streams set last_completed_version=${claim.version},lease_token=null,lease_until=null

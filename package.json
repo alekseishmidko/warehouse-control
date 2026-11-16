@@ -44,7 +44,7 @@
     "format:check": "prettier --check .",
     "test:identity:coverage": "pnpm --filter @warehouse/backend test:identity:coverage",
     "test:functional": "pnpm --filter @warehouse/backend test:functional",
-    "check:pr": "pnpm format:check && pnpm lint && pnpm check:architecture && pnpm test:quality && pnpm test:dependencies && pnpm test:kubernetes:observations && pnpm test:observability:receiver && pnpm test:evidence && pnpm test:registry && pnpm schemas:check && pnpm test:load && pnpm test:dev && pnpm web:api:check && pnpm typecheck && pnpm --filter @warehouse/web build && pnpm test:web && pnpm test:web:server && pnpm test:postgres:readiness && pnpm --filter @warehouse/backend test:pr",
+    "check:pr": "pnpm format:check && pnpm lint && pnpm check:architecture && pnpm test:quality && pnpm test:harness && pnpm test:dependencies && pnpm test:kubernetes:observations && pnpm test:observability:receiver && pnpm test:evidence && pnpm test:registry && pnpm schemas:check && pnpm test:load && pnpm test:dev && pnpm web:api:check && pnpm typecheck && pnpm --filter @warehouse/web build && pnpm test:web && pnpm test:web:server && pnpm test:postgres:readiness && pnpm --filter @warehouse/backend test:pr",
     "lint": "eslint apps/backend/src apps/backend/test apps/web/src apps/web/test apps/web/vite.config.ts --max-warnings 0",
     "check:architecture": "node scripts/quality/architecture.cjs",
     "test:quality": "node --test scripts/quality/*.test.cjs",
@@ -83,7 +83,12 @@
     "registry:publish": "pnpm schemas:check && node scripts/registry/publish.cjs publish",
     "registry:check": "pnpm schemas:check && node scripts/registry/publish.cjs check",
     "registry:gate": "pnpm schemas:check && pnpm --filter @warehouse/backend build && node scripts/registry/gate.cjs",
-    "publisher": "pnpm registry:check && pnpm --filter @warehouse/backend publisher"
+    "publisher": "pnpm registry:check && pnpm --filter @warehouse/backend publisher",
+    "harness:plan": "node scripts/harness/cli.cjs plan",
+    "harness:run": "node scripts/harness/cli.cjs run",
+    "harness:ready": "node scripts/harness/cli.cjs ready",
+    "test:harness": "node --test scripts/harness/*.test.cjs",
+    "consumer": "pnpm --filter @warehouse/backend consumer"
   },
   "private": true,
   "devDependencies": {

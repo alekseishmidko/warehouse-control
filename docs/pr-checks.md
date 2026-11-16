@@ -131,3 +131,8 @@ DB locks, SQL fault injection и Chromium web gate 2. Vitest и Jest unit в э�
 WMS-402: `pnpm test:observability:receiver` входит в check:pr; полный Docker fault drill
 выполняется отдельно `pnpm observability:gate`. Не запускать его параллельно с coverage
 из-за общей Docker VM. [Проверки и ограничения](reports/wms-402.md).
+
+Для source task JSON используйте harness:plan → harness:run → harness:ready:
+[кто ставит задачу, AC и freshness](flows/engineering-harness.md). check:pr остаётся
+обязательным и входит в run; harness не запускается из check:pr рекурсивно, только
+его native regression tests. Локальная readiness не заменяет внешний CI status.

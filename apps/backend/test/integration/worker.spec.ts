@@ -1,4 +1,6 @@
 /** @file WMS-109 PostgreSQL: два worker graphs, real locks, ordering, dedup, faults и lease fencing. */
+import { ApplicationConsumerService } from '@backend/infrastructure/worker/services/application-consumer.service';
+import { ConsumerRepository } from '@backend/infrastructure/worker/repositories/consumer.repository';
 import { randomUUID } from 'node:crypto';
 import type { INestApplicationContext } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
@@ -58,6 +60,7 @@ async function worker(
   return {
     service: app.get(WorkerService),
     repository: app.get(WorkerRepository),
+    consumerRepository: app.get(ConsumerRepository),
     runner: app.get<TransactionRunner>(TRANSACTION_RUNNER),
   };
 }
@@ -164,8 +167,8 @@ test('active processing row locks fence reclaim even after expiry and block only
   const started = new Promise<void>((resolve) => {
     entered = resolve;
   });
-  const original = a.repository.prepareConsumer.bind(a.repository);
-  const spy = jest.spyOn(a.repository, 'prepareConsumer').mockImplementation(async (...args) => {
+  const original = a.consumerRepository.prepare.bind(a.consumerRepository);
+  const spy = jest.spyOn(a.consumerRepository, 'prepare').mockImplementation(async (...args) => {
     const result = await original(...args);
     // Test-only clock mutation в той же транзакции уже удерживает обе строки.
     // Reclaim другого worker обязан пропустить их, хотя DB expiry теперь в прошлом.
@@ -229,10 +232,10 @@ test('two concurrent processors with the same claim recheck state after waiting 
   const started = new Promise<void>((resolve) => {
     entered = resolve;
   });
-  const original = a.repository.prepareConsumer.bind(a.repository);
+  const original = a.consumerRepository.prepare.bind(a.consumerRepository);
   // Удерживаем реальные locks первого run; второй обязан ждать PostgreSQL,
   // затем увидеть completed после commit, а не довериться snapshot до ожидания.
-  const spy = jest.spyOn(a.repository, 'prepareConsumer').mockImplementation(async (...args) => {
+  const spy = jest.spyOn(a.consumerRepository, 'prepare').mockImplementation(async (...args) => {
     const result = await original(...args);
     entered();
     await barrier;
@@ -463,25 +466,27 @@ test('consumer gap is dead; runtime role can process and cannot erase markers or
   // Реальный production service/repository, меняется только login role границы runner.
   const { HandlerRegistry } =
     await import('@backend/infrastructure/worker/services/handler-registry');
+  const restrictedRegistry = new HandlerRegistry([
+    {
+      destination: 'inventory.putaway',
+      handle: async (context, event) => {
+        await audit.write(context, {
+          actorType: 'system',
+          actorId: randomUUID(),
+          correlationId: event.correlationId,
+          reasonCode: 'worker-test',
+          action: 'worker.test-handled',
+          entityType: 'receipt',
+          entityId: event.aggregateId,
+        });
+      },
+    },
+  ]);
   const restricted = new WorkerService(
     roleRunner,
     a.repository,
-    new HandlerRegistry([
-      {
-        destination: 'inventory.putaway',
-        handle: async (context, event) => {
-          await audit.write(context, {
-            actorType: 'system',
-            actorId: randomUUID(),
-            correlationId: event.correlationId,
-            reasonCode: 'worker-test',
-            action: 'worker.test-handled',
-            entityType: 'receipt',
-            entityId: event.aggregateId,
-          });
-        },
-      },
-    ]),
+    restrictedRegistry,
+    new ApplicationConsumerService(restrictedRegistry, new ConsumerRepository()),
     config,
   );
   expect(await restricted.process(claim)).toBe('completed');
@@ -509,6 +514,23 @@ test('explicitly empty registry leaves delivery pending and starts no implicit n
   const context = await database().createWorkerApplication([]);
   contexts.push(context);
   expect(await context.get(WorkerService).claim()).toEqual([]);
+  // Private SQL boundary также не должен формировать IN () или захватывать delivery
+  // при пустой подписке. Application boundary не превращает отсутствие handler в no-op.
+  const event = (
+    await database().connection.pool.query<{ envelope: KnownEvent }>(
+      'select envelope from outbox_events',
+    )
+  ).rows[0].envelope;
+  await expect(
+    context
+      .get<TransactionRunner>(TRANSACTION_RUNNER)
+      .run((tx) => context.get(WorkerRepository).claim(tx, [], config)),
+  ).resolves.toEqual({ claims: [], exhausted: [] });
+  await expect(
+    context
+      .get<TransactionRunner>(TRANSACTION_RUNNER)
+      .run((tx) => context.get(ApplicationConsumerService).apply(tx, 'inventory.putaway', event)),
+  ).rejects.toThrow('HANDLER_MISSING');
   expect(
     (await database().connection.pool.query('select status,attempts from outbox_deliveries')).rows,
   ).toEqual([{ status: 'pending', attempts: 0 }]);

@@ -17,6 +17,7 @@ import {
 } from '../delivery-policy';
 import { WorkerRepository } from '../repositories/worker.repository';
 import { HandlerRegistry } from './handler-registry';
+import { ApplicationConsumerService } from './application-consumer.service';
 import { deliveryDiagnostic } from '../../../shared/diagnostics/delivery-diagnostic';
 import { logDelivery } from '../delivery-logger';
 
@@ -29,6 +30,7 @@ export class WorkerService {
     @Inject(TRANSACTION_RUNNER) private readonly transactions: TransactionRunner,
     private readonly repository: WorkerRepository,
     private readonly registry: HandlerRegistry,
+    private readonly consumer: ApplicationConsumerService,
     @Inject(WORKER_CONFIG) private readonly config: WorkerConfig,
   ) {}
 
@@ -83,12 +85,7 @@ export class WorkerService {
                   event.aggregateVersion !== claim.version
                 )
                   throw new PermanentDeliveryError('IDENTITY_MISMATCH');
-                const handler = this.registry.get(claim.destination);
-                if (!handler) throw new PermanentDeliveryError('HANDLER_MISSING');
-                if (!(await this.repository.prepareConsumer(context, claim))) {
-                  await handler.handle(context, event);
-                  await this.repository.markProcessed(context, claim);
-                }
+                await this.consumer.apply(context, claim.destination, event);
                 // Lease мог истечь во время handler, но обе строки всё ещё locked:
                 // reclaim SKIP LOCKED не сменит token до commit, повторной проверки wall clock не нужно.
                 await this.repository.complete(context, claim);

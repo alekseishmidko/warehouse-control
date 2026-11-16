@@ -1300,5 +1300,65 @@
     "statements": 0,
     "functions": 0,
     "branches": 100
+  },
+  "src/consumer.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/infrastructure/kafka/kafka-connection.config.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/kafka-consumer/consumer.config.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/kafka-consumer/kafka-consumer.module.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/kafka-consumer/kafka-consumer.ts": {
+    "lines": 98.98,
+    "statements": 98.98,
+    "functions": 91.66,
+    "branches": 92.68
+  },
+  "src/infrastructure/kafka-consumer/services/kafka-message.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/worker/application-consumer.module.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/worker/repositories/consumer.repository.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/infrastructure/worker/services/application-consumer.service.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "src/shared/events/kafka-route.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100
   }
 }

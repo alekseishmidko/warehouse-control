@@ -1,7 +1,7 @@
 /** @file Publisher-only config: explicit full-replay opt-in, stable fencing ID и mTLS без логирования secrets. */
 import { PUBLISHER_CONFIG_ERROR_CODES as CONFIG_CODES } from '../../shared/logging/log-contract';
-import { readFileSync } from 'node:fs';
-import { createSecureContext, type ConnectionOptions } from 'node:tls';
+import { kafkaBrokers, kafkaTls } from '../kafka/kafka-connection.config';
+import type { ConnectionOptions } from 'node:tls';
 /** Неизменная конфигурация одного логического publisher, не одного Pod. */
 export interface PublisherConfig {
   readonly brokers: string[];
@@ -25,32 +25,18 @@ export function validatePublisherEnvironment(env: NodeJS.ProcessEnv): PublisherC
   // получить явное разрешение на from-start replay: незаметно включать его при app startup нельзя.
   if (env.PUBLISHER_ENABLED !== 'true' || env.PUBLISHER_REPLAY !== 'from-start')
     throw new PublisherConfigurationError(CONFIG_CODES.optIn);
-  const brokers = env.PUBLISHER_BROKERS?.split(',') ?? [];
-  if (
-    !brokers.length ||
-    brokers.some(
-      (b) =>
-        !/^[A-Za-z0-9.-]+:[0-9]{1,5}$/.test(b) ||
-        Number(b.split(':')[1]) < 1 ||
-        Number(b.split(':')[1]) > 65535,
-    )
-  )
+  let brokers: string[];
+  try {
+    brokers = kafkaBrokers(env.PUBLISHER_BROKERS);
+  } catch {
     throw new PublisherConfigurationError(CONFIG_CODES.brokers);
+  }
   const transactionalId = env.PUBLISHER_TRANSACTIONAL_ID;
   if (!transactionalId || !/^[a-z][a-z0-9._-]{2,95}$/.test(transactionalId))
     throw new PublisherConfigurationError(CONFIG_CODES.transactionalId);
   let ssl: ConnectionOptions;
   try {
-    const options = {
-      ca: readFileSync(env.PUBLISHER_CA_FILE ?? ''),
-      cert: readFileSync(env.PUBLISHER_CERT_FILE ?? ''),
-      key: readFileSync(env.PUBLISHER_KEY_FILE ?? ''),
-      // Наличие client certificate не заменяет проверку server certificate/hostname.
-      // Plaintext и отключение проверки TLS не являются способом запустить dev profile.
-      rejectUnauthorized: true,
-    };
-    createSecureContext(options);
-    ssl = options;
+    ssl = kafkaTls(env.PUBLISHER_CA_FILE, env.PUBLISHER_CERT_FILE, env.PUBLISHER_KEY_FILE);
   } catch {
     throw new PublisherConfigurationError(CONFIG_CODES.tls);
   }
