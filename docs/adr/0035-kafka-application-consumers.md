@@ -1,6 +1,6 @@
 # ADR-0035. Kafka application consumer и retained identity
 
-Статус: принято в рамках WMS-504. Дополняет [ADR-0034](0034-outbox-kafka-publisher.md),
+Статус: принято в рамках WMS-504. Дополнено [ADR-0037](0037-kafka-partition-recovery.md): opt-in partition recovery; legacy fail-stop сохранён. Дополняет [ADR-0034](0034-outbox-kafka-publisher.md),
 [ADR-0015](0015-postgres-worker.md); local outbox transport не удаляется.
 
 ## Решение

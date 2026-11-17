@@ -1,4 +1,9 @@
 /** @file KafkaJS read_committed adapter: sequential batches, bounded heartbeat guard и DB-before-offset protocol. */
+import { startKafkaLagMetrics } from './kafka-lag.metrics';
+import { kafkaFailureCode, waitForKafkaCoordinator } from './kafka-startup';
+import { KafkaRecoveryService } from './services/kafka-recovery.service';
+import { PartitionBlockedError } from './repositories/quarantine.repository';
+import { StaleDeliveryError } from '../worker/delivery-policy';
 import { Kafka, logLevel, type Consumer, type EachBatchPayload, type Admin } from 'kafkajs';
 import { setTimeout as delay } from 'node:timers/promises';
 import { logEvent } from '../logging/runtime-logger';
@@ -29,6 +34,7 @@ export class KafkaApplicationConsumer {
   constructor(
     private readonly config: ConsumerConfig,
     private readonly messages: KafkaMessageService,
+    private readonly recovery?: KafkaRecoveryService,
   ) {
     this.failure = new Promise<never>((_, reject) => {
       this.rejectFailure = reject;
@@ -65,9 +71,16 @@ export class KafkaApplicationConsumer {
     this.consumer.on(this.consumer.events.GROUP_JOIN, () => {
       this.epoch++;
       this.assigned = true;
+      if (this.recovery?.enabled) {
+        for (const timer of this.paused.values()) clearInterval(timer);
+        this.paused.clear();
+        this.consumer.resume([{ topic: kafkaTopology.receipt.topic, partitions: [0, 1, 2] }]);
+      }
       this.joined();
     });
-    this.consumer.on(this.consumer.events.CRASH, () => this.fail());
+    this.consumer.on(this.consumer.events.CRASH, (event) =>
+      this.fail(kafkaFailureCode(event.payload.error)),
+    );
   }
   /** Connect/subscribe с начала при отсутствии offset; retained DB cursor никогда не инициализируется из Kafka offset. */
   async start(): Promise<void> {
@@ -75,14 +88,18 @@ export class KafkaApplicationConsumer {
     const metadata = await this.admin.fetchTopicMetadata({ topics: [kafkaTopology.receipt.topic] });
     if (metadata.topics.length !== 1 || metadata.topics[0].partitions.length !== 3)
       throw new Error('Consumer topology mismatch');
+    await waitForKafkaCoordinator(this.admin, () => this.stopped);
+    if (this.stopped) return;
     await this.consumer.connect();
     await this.consumer.subscribe({ topics: [kafkaTopology.receipt.topic], fromBeginning: true });
     await this.consumer.run({
       autoCommit: false,
       eachBatchAutoResolve: false,
-      partitionsConsumedConcurrently: 1,
+      partitionsConsumedConcurrently: this.recovery?.enabled ? 3 : 1,
       eachBatch: (payload) => this.batch(payload),
     });
+    if (this.recovery?.enabled && !this.stopped)
+      this.stopLagMetrics = startKafkaLagMetrics(this.admin);
     let timer: NodeJS.Timeout | undefined;
     try {
       await Promise.race([
@@ -100,21 +117,56 @@ export class KafkaApplicationConsumer {
   stop(): void {
     this.stopped = true;
     this.epoch++;
+    this.stopLagMetrics?.();
   }
   /** Disconnect ждёт текущий batch; hard deadline задаёт entrypoint, а не неограниченный shutdown. */
   async close(): Promise<void> {
     this.stop();
+
+    for (const timer of this.paused.values()) clearInterval(timer);
+    this.paused.clear();
     try {
       await this.consumer.disconnect();
     } finally {
       await this.admin.disconnect();
     }
   }
-  private fail(): void {
+  private stopLagMetrics: (() => void) | undefined;
+  private readonly paused = new Map<number, NodeJS.Timeout>();
+  /** Один bounded poll на partition; success делает seek к исходному record, не к следующему offset. */
+  private pause(payload: EachBatchPayload, offset: string): void {
+    const resume = payload.pause();
+    const { topic, partition } = payload.batch;
+    const epoch = this.epoch;
+    if (this.paused.has(partition)) return;
+    let checking = false;
+    const timer = setInterval(() => {
+      if (checking || this.stopped || this.failed) return;
+      checking = true;
+      void this.recovery!.ready({ topic, partition, offset })
+        .then((ready) => {
+          if (ready && !this.stopped && !this.failed && epoch === this.epoch) {
+            clearInterval(timer);
+            this.paused.delete(partition);
+            this.consumer.seek({ topic, partition, offset });
+            resume();
+          }
+        })
+        .catch(() => this.fail())
+        .finally(() => {
+          checking = false;
+        });
+    }, 1000);
+    timer.unref();
+    this.paused.set(partition, timer);
+  }
+  private fail(reason = 'KAFKA_FAILURE'): void {
     if (this.failed) return;
     this.failed = true;
     this.epoch++;
-    this.rejectFailure(new Error('Kafka consumer halted without offset acknowledgement'));
+    this.rejectFailure(
+      new Error('Kafka consumer halted without offset acknowledgement: ' + reason),
+    );
   }
   /** Ни resolveOffset, ни commitOffsetsIfNecessary не вызываются до successful PostgreSQL commit. */
   private async batch(payload: EachBatchPayload): Promise<void> {
@@ -156,6 +208,7 @@ export class KafkaApplicationConsumer {
           }
         }
       })();
+      let dbCommitted = false;
       try {
         await beat();
         if (!owned()) return;
@@ -166,6 +219,7 @@ export class KafkaApplicationConsumer {
           owned,
           this.config.transactionTimeoutMs,
         );
+        dbCommitted = true;
         // DB commit мог пройти прямо перед revoke: эффект допустим, но offset не ack-аем.
         await beat();
         if (!owned()) return;
@@ -180,6 +234,25 @@ export class KafkaApplicationConsumer {
         ]);
         resolveOffset(message.offset);
       } catch (error) {
+        if (
+          this.recovery?.enabled &&
+          !dbCommitted &&
+          owned() &&
+          !(error instanceof StaleDeliveryError)
+        ) {
+          if (!(error instanceof PartitionBlockedError))
+            await this.recovery.failed(
+              { topic: batch.topic, partition: batch.partition, offset: message.offset },
+              message,
+              error,
+              owned,
+            );
+          this.pause(
+            payload,
+            error instanceof PartitionBlockedError ? error.offset : message.offset,
+          );
+          return;
+        }
         logEvent('consumer.halted', {
           module: 'worker',
           destination: PUTAWAY_DESTINATION,

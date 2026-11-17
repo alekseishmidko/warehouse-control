@@ -586,11 +586,15 @@ Publisher включается явно; outbox/local worker сохранены,
 
 ### WMS-505. Ошибки Kafka и восстановление
 
-- [ ] **WMS-505.1** — Определить retry policy и судьбу partition на transient/permanent error; задокументировать влияние на другие агрегаты.
-- [ ] **WMS-505.2** — Создать durable quarantine с исходным envelope, ошибкой и ссылкой на source topic/partition/offset.
-- [ ] **WMS-505.3** — Не подтверждать необработанный разрыв как успешный бизнес-факт; DLQ сама по себе не разрешает обгон.
-- [ ] **WMS-505.4** — Добавить inspect/retry для Kafka-пути с прежним eventId и аудитом оператора.
-- [ ] **WMS-505.5** — Вывести lag, quarantine, retry и oldest unprocessed age; пройти poison-message recovery и проверить отсутствие обхода cursor.
+Согласована [политика encrypted raw quarantine для dev](adr/0036-dev-kafka-quarantine-storage.md).
+Реализованы runtime quarantine/retry/CLI/metrics; [flow](flows/kafka-consumer.md), [AC/review/evidence](reports/wms-505.md).
+Готовность текущего snapshot проверяется `pnpm harness:ready docs/tasks/wms-505.json`.
+
+- [x] **WMS-505.1** — Определить retry policy и судьбу partition на transient/permanent error; задокументировать влияние на другие агрегаты.
+- [x] **WMS-505.2** — Создать durable quarantine с исходным envelope, ошибкой и ссылкой на source topic/partition/offset.
+- [x] **WMS-505.3** — Не подтверждать необработанный разрыв как успешный бизнес-факт; DLQ сама по себе не разрешает обгон.
+- [x] **WMS-505.4** — Добавить inspect/retry для Kafka-пути с прежним eventId и аудитом оператора.
+- [x] **WMS-505.5** — Вывести lag, quarantine, retry и oldest unprocessed age; пройти poison-message recovery и проверить отсутствие обхода cursor.
 
 ### WMS-506. Переключение транспорта
 

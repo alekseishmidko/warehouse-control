@@ -955,3 +955,28 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | `docs/reports/wms-504.md`                                                          | Traceability/review/evidence limitations                             |
 | `apps/backend/src/infrastructure/worker/application-consumer.module.ts`            | Общая application capability без worker config/polling               |
 | `apps/backend/test/unit/kafka-consumer-adapter.spec.ts`                            | SDK boundary regressions: revoke/offset int64/heartbeat cleanup race |
+
+## WMS-505: согласованная политика хранения
+
+| Файл                                          | Назначение                                                                         |
+| --------------------------------------------- | ---------------------------------------------------------------------------------- |
+| docs/adr/0036-dev-kafka-quarantine-storage.md | Согласованная dev-политика encrypted raw; runtime AC открыты                       |
+| docs/tasks/wms-505-policy.json                | Подготовительный task политики с ручным review criterion; не runtime recovery task |
+
+## WMS-505 runtime
+
+| Файл                                                                                   | Назначение                                                                                 |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `apps/backend/src/infrastructure/kafka-consumer/quarantine-crypto.ts`                  | Lossless decoded record, private key и AES-256-GCM                                         |
+| `apps/backend/src/infrastructure/kafka-consumer/dto/quarantine.dto.ts`                 | Safe metadata/address/admin contracts                                                      |
+| `apps/backend/src/infrastructure/kafka-consumer/repositories/quarantine.repository.ts` | Durable gate/quota/failure/admin SQL                                                       |
+| `apps/backend/src/infrastructure/kafka-consumer/services/kafka-recovery.service.ts`    | Recovery transactions и AuditService                                                       |
+| `apps/backend/src/infrastructure/kafka-consumer/kafka-admin.ts`                        | Explicit local admin CLI и private export                                                  |
+| `apps/backend/drizzle/0034_kafka_quarantine.sql`                                       | Custom additive SQL migration с per-column comments и grants                               |
+| `apps/backend/drizzle/meta/0034_snapshot.json`                                         | Generated custom migration snapshot; drizzle-kit generate --custom --name kafka_quarantine |
+| `apps/backend/test/unit/quarantine-crypto.spec.ts`                                     | Bytes/authentication/key/limit tests                                                       |
+| `docs/tasks/wms-505.json`                                                              | Source task и stable AC/test references                                                    |
+| `docs/adr/0037-kafka-partition-recovery.md`                                            | Протокол partition retry/recovery                                                          |
+| `docs/reports/wms-505.md`                                                              | Traceability/review/evidence и ограничения                                                 |
+| `apps/backend/src/infrastructure/kafka-consumer/kafka-lag.metrics.ts`                  | Bounded cached broker lag observer, отдельный от обработки records                         |
+| `apps/backend/src/infrastructure/kafka-consumer/kafka-startup.ts`                      | Read-only cold coordinator readiness и allowlisted SDK failure reason                      |

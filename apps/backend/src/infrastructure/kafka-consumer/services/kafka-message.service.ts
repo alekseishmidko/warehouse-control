@@ -1,5 +1,6 @@
 /** @file Kafka record boundary: schema/routing validation, общий application consumer и одна PostgreSQL transaction. */
-import { Inject, Injectable } from '@nestjs/common';
+import { KafkaRecoveryService } from './kafka-recovery.service';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { KafkaMessage } from 'kafkajs';
 import { sql } from 'drizzle-orm';
 import {
@@ -23,6 +24,7 @@ export class KafkaMessageService {
   constructor(
     @Inject(TRANSACTION_RUNNER) private readonly transactions: TransactionRunner,
     private readonly application: ApplicationConsumerService,
+    @Optional() private readonly recovery?: KafkaRecoveryService,
   ) {}
   /** Возвращает applied/duplicate только ПОСЛЕ commit; offset принадлежит вызывающему adapter.
    * Revocation, schema/routing mismatch, gap и любая DB ошибка дают rollback и не разрешают ack. */
@@ -33,6 +35,8 @@ export class KafkaMessageService {
     isOwned: () => boolean,
     timeoutMs: number,
   ): Promise<'applied' | 'duplicate'> {
+    const address = { topic, partition, offset: message.offset };
+    await this.recovery?.check(address);
     if (!message.value) throw new EventContractError('INVALID_EVENT');
     const event = this.contracts.parseForHandler(message.value.toString('utf8'));
     const route = kafkaRoute(event);
@@ -72,9 +76,13 @@ export class KafkaMessageService {
                 sql`select set_config('transaction_timeout',${String(timeoutMs)},true),set_config('statement_timeout',${String(timeoutMs)},true)`,
               );
               if (!isOwned()) throw new StaleDeliveryError();
+              await this.recovery?.guard(context, address);
               const result = await this.application.apply(context, PUTAWAY_DESTINATION, event);
               // Revoke во время ожидания SQL/handler откатывает и business effect, и marker/cursor.
               // Неизвестный до этого момента revoke может совпасть с commit; redelivery всё равно deduplicated.
+              if (!isOwned()) throw new StaleDeliveryError();
+              await this.recovery?.resolve(context, address);
+              // Resolution тоже await SQL: revoke во время него должен откатить весь callback.
               if (!isOwned()) throw new StaleDeliveryError();
               return result;
             });

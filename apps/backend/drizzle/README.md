@@ -226,3 +226,12 @@ movement; order/time/id — picking/shipment; time/id и entityType/entityId/tim
 На больших таблицах обычный CREATE INDEX требует отдельного окна миграции: CONCURRENTLY
 в текущем transactional runner не используется. Проверка выполнена на disposable БД;
 рабочая БД автоматически не менялась. [Реальные планы](../../../docs/reports/wms-207.md).
+
+## WMS-505:0034_kafka_quarantine
+
+Custom additive migration создаёт encrypted raw table, durable source identity/index,
+retained fields/counters trigger и role grants. Runtime SELECT ограничен metadata;
+ciphertext читает только admin role. Все поля описаны SQL COMMENT. Таблица обслуживается
+параметризованным SQL capability, не Drizzle ORM table schema. Snapshot/journal созданы
+`pnpm --filter @warehouse/backend exec drizzle-kit generate --custom --name kafka_quarantine`.
+Custom SQL заполнен до release; прошлые applied migrations не менялись.

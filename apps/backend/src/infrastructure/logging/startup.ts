@@ -12,6 +12,7 @@ const roles = new Map<string, 'api' | 'worker' | 'cli'>([
   [resolve(dist, 'consumer.js'), 'worker'],
   ...[
     'publisher.js',
+    'infrastructure/kafka-consumer/kafka-admin.js',
     'infrastructure/database/migrate.js',
     'infrastructure/database/check.js',
     'infrastructure/database/seed-dev.js',

@@ -3,6 +3,7 @@ import './infrastructure/logging/startup';
 import { NestFactory } from '@nestjs/core';
 import type { INestApplicationContext } from '@nestjs/common';
 import type { Server } from 'node:http';
+import { KafkaRecoveryService } from './infrastructure/kafka-consumer/services/kafka-recovery.service';
 import { KafkaConsumerModule } from './infrastructure/kafka-consumer/kafka-consumer.module';
 import { KafkaApplicationConsumer } from './infrastructure/kafka-consumer/kafka-consumer';
 import { KafkaMessageService } from './infrastructure/kafka-consumer/services/kafka-message.service';
@@ -44,7 +45,11 @@ export async function runConsumer(): Promise<void> {
       abortOnError: false,
     });
     if (stopped) return;
-    consumer = new KafkaApplicationConsumer(config, app.get(KafkaMessageService));
+    consumer = new KafkaApplicationConsumer(
+      config,
+      app.get(KafkaMessageService),
+      app.get(KafkaRecoveryService),
+    );
     await consumer.start();
     if (stopped) return;
     const database = app.get(DatabaseService);

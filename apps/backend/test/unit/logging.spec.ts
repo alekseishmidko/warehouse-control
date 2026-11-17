@@ -178,3 +178,27 @@ test('REV-503-01: publisher error codes survive JSON serialization while arbitra
   }
   expect(safeLogFields({ errorCode: 'PUBLISHER_CANARY_PASSWORD' })).toEqual({});
 });
+
+test('505 quarantine diagnostics expose only validated UUID and bounded partition', () => {
+  const quarantineId = randomUUID();
+  const f = fixture();
+  const fields = {
+    quarantineId,
+    partition: 0,
+    errorCode: 'INVALID_EVENT',
+    raw: 'SECRET',
+    ciphertext: 'SECRET',
+    key: 'SECRET',
+    headers: { authorization: 'SECRET' },
+  };
+  f.logger.emit('consumer.partition_blocked', fields);
+  expect(f.lines[0]).not.toContain('SECRET');
+  const entry = JSON.parse(f.lines[0]) as { quarantineId: string; partition: number };
+  expect(entry).toMatchObject({ quarantineId, partition: 0 });
+  for (const partition of [-1, 3, 0.5, NaN])
+    expect(safeLogFields({ partition, quarantineId: 'SECRET' })).toEqual({});
+  expect(safeLogFields({ partition: 2, quarantineId })).toMatchObject({
+    partition: 2,
+    quarantineId,
+  });
+});

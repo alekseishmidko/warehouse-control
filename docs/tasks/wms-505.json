@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "id": "wms-505",
+  "issuedBy": "Пользователь: WMS-505 + согласованный ADR-0036",
+  "request": "Реализовать encrypted durable quarantine, partition retry gate, admin recovery и bounded metrics; проверить poison recovery без обхода cursor.",
+  "base": "b71573db0de5435ace489f6c6ba00f74085cb9ec",
+  "criteria": [
+    {
+      "id": "WMS-505.1",
+      "statement": "Bounded transient retry и permanent partition block переживают restart.",
+      "tests": [
+        "apps/backend/test/integration/kafka-consumer.spec.ts#505 automatic transient retry rolls back partial effects then applies once",
+        "apps/backend/test/integration/kafka-consumer.spec.ts#505 malformed partition does not stop another partition; transient budget is durable",
+        "apps/backend/test/integration/kafka-consumer.spec.ts#505 late transient failure cannot reopen permanent quarantine without admin retry"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-505.2",
+      "statement": "Encrypted исходные bytes/source address, safe codes и atomic quota.",
+      "tests": [
+        "apps/backend/test/integration/kafka-consumer.spec.ts#505 durable recovery",
+        "apps/backend/test/integration/kafka-consumer.spec.ts#505 quota is serialized across partitions; unresolved retention is never cleanup"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-505.3",
+      "statement": "Quarantine не подтверждает offset и не разрешает обход cursor.",
+      "tests": [
+        "apps/backend/test/integration/kafka-consumer.spec.ts#505 durable recovery",
+        "apps/backend/test/integration/kafka-consumer.spec.ts#505 revocation during resolution rolls back effect and marker"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-505.4",
+      "statement": "Admin inspect/retry/export/cleanup с audit и исходной Kafka identity.",
+      "tests": [
+        "apps/backend/test/integration/kafka-consumer.spec.ts#505 durable recovery",
+        "apps/backend/test/integration/kafka-consumer.spec.ts#505 concurrent cleanup/export reports missing raw before authorization audit"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-505.5",
+      "statement": "Lag/quarantine/retry/age bounded metrics и poison recovery.",
+      "tests": [
+        "apps/backend/test/integration/kafka-consumer.spec.ts#505 durable recovery",
+        "apps/backend/test/integration/kafka-consumer.spec.ts#505 malformed partition does not stop another partition; transient budget is durable"
+      ],
+      "gates": ["pr"]
+    }
+  ]
+}
