@@ -58,8 +58,15 @@ beforeEach(async () => {
   try {
     await admin.connect();
     const groups = await admin.listGroups();
-    if (groups.groups.some((g) => g.groupId === 'inventory.putaway'))
+    if (groups.groups.some((g) => g.groupId === 'inventory.putaway')) {
+      // Root pnpm wrapper может exit-нуть раньше Node drain: ждём реальное leave group.
+      await until(async () =>
+        ['Empty', 'Dead'].includes(
+          (await admin.describeGroups(['inventory.putaway'])).groups[0].state,
+        ),
+      );
       await admin.deleteGroups(['inventory.putaway']);
+    }
     const topic = 'warehouse.receiving.events';
     const offsets = await admin.fetchTopicOffsets(topic);
     await admin.deleteTopicRecords({
@@ -503,6 +510,7 @@ function environment(healthPort: number): NodeJS.ProcessEnv {
     NODE_ENV: 'test',
     DATABASE_URL: database().config.databaseUrl,
     WORKER_LEASE_MS: '0', // Kafka graph не должен читать local scheduler config.
+    CONSUMER_RECOVERY_ENABLED: 'false',
     CONSUMER_ENABLED: 'true',
     CONSUMER_START: 'retained-cursor',
     CONSUMER_BROKERS: config.brokers.join(','),
@@ -620,4 +628,744 @@ test('root pnpm consumer reaches ready and shuts down normally', async () => {
   } finally {
     await kill(child, 'SIGKILL');
   }
+});
+
+test('505 durable recovery', async () => {
+  const { QuarantineCrypto } =
+    await import('@backend/infrastructure/kafka-consumer/quarantine-crypto');
+  const { QuarantineRepository } =
+    await import('@backend/infrastructure/kafka-consumer/repositories/quarantine.repository');
+  const { KafkaRecoveryService } =
+    await import('@backend/infrastructure/kafka-consumer/services/kafka-recovery.service');
+  const { AuditService } = await import('@backend/modules/audit/services/audit.service');
+  const { ReceivingPostedHandler } =
+    await import('@backend/infrastructure/worker/services/receiving-posted.handler');
+  const { PermanentDeliveryError } = await import('@backend/infrastructure/worker/delivery-policy');
+  const { writeFileSync, readFileSync, statSync, realpathSync } = await import('node:fs');
+  const { randomBytes } = await import('node:crypto');
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const { startMetrics, stopMetrics, registerMetricsPool, renderMetrics } =
+    await import('@backend/infrastructure/metrics/runtime-metrics');
+  const key = randomBytes(32);
+  const keyPath = join(broker.directory, 'quarantine.key');
+  writeFileSync(keyPath, key, { mode: 0o600 });
+  const crypto = new QuarantineCrypto(key, 'dev-test');
+  const recovery = new KafkaRecoveryService(
+    api.get(TRANSACTION_RUNNER),
+    new QuarantineRepository(),
+    api.get(AuditService),
+    crypto,
+  );
+  const original = (await graph()).app.get(ReceivingPostedHandler);
+  let broken = true;
+  const g = await graph(async (ctx, event) => {
+    if (broken) throw new PermanentDeliveryError('HANDLER_REJECTED');
+    await original.handle(ctx, event);
+  });
+  const messages = new KafkaMessageService(
+    g.app.get(TRANSACTION_RUNNER),
+    g.app.get(ApplicationConsumerService),
+    recovery,
+  );
+  const instance = new KafkaApplicationConsumer(config, messages, recovery);
+  cleanup.push(() => instance.close());
+  const previousPort = process.env.WMS_METRICS_PORT;
+  process.env.WMS_METRICS_PORT = '0';
+  startMetrics('worker');
+  registerMetricsPool(database().connection.pool);
+  try {
+    await instance.start();
+    const event = await eventForReceipt();
+    const route = kafkaRoute(event);
+    await publish([event]);
+    await until(
+      async () =>
+        (
+          await database().connection.pool.query(
+            "select id from kafka_quarantine where status='quarantine'",
+          )
+        ).rows.length === 1,
+    );
+    const row = (
+      await database().connection.pool.query<{
+        id: string;
+        ciphertext: string;
+        digest: string;
+        source_offset: string;
+        raw_bytes: number;
+      }>('select * from kafka_quarantine')
+    ).rows[0];
+    expect(row.ciphertext).not.toContain(event.eventId);
+    expect(await offset(route.partition)).toBe('-1');
+    expect(await state()).toMatchObject({ tasks: 0, markers: 0, cursor: 0, stock: 10 });
+    await publish([event]); // duplicate в следующем offset той же partition
+    await instance.close();
+    const reset = broker.kafka.admin();
+    try {
+      await reset.connect();
+      await until(
+        async () => (await reset.describeGroups(['inventory.putaway'])).groups[0].state === 'Empty',
+      );
+      await reset.setOffsets({
+        groupId: 'inventory.putaway',
+        topic: route.topic,
+        partitions: [
+          { partition: route.partition, offset: (BigInt(row.source_offset) + 1n).toString() },
+        ],
+      });
+    } finally {
+      await reset.disconnect();
+    }
+    // Даже ошибочный cutover start после poison должен вернуть нас к исходной позиции.
+    const successor = new KafkaApplicationConsumer(config, messages, recovery);
+    cleanup.push(() => successor.close());
+    await successor.start();
+    const safe = await recovery.inspect(row.id);
+    expect(JSON.stringify(safe)).not.toContain('ciphertext');
+    expect(safe.event_id).toBe(event.eventId);
+    await until(async () => (await renderMetrics()).includes('wms_kafka_lag_scrape_success 1'));
+    const metrics = await renderMetrics();
+    expect(metrics).toContain('wms_kafka_records{status="quarantine"} 1');
+    expect(metrics).toContain('wms_kafka_oldest_unprocessed_age_seconds');
+    expect(metrics).not.toContain(event.eventId);
+    const env: NodeJS.ProcessEnv = {
+      ...environment(await availableLoopbackPort()),
+      CONSUMER_RECOVERY_ENABLED: 'true',
+      CONSUMER_QUARANTINE_KEY_FILE: keyPath,
+      CONSUMER_QUARANTINE_KEY_ID: 'dev-test',
+      OUTBOX_ADMIN_ENABLED: 'true',
+    };
+    const cli = async (...args: string[]) =>
+      promisify(execFile)('pnpm', ['kafka:admin', ...args], {
+        cwd: resolve('../..'),
+        env,
+        timeout: 20000,
+      });
+    const inspected = await cli('inspect', '--id', row.id);
+    expect(inspected.stdout).toContain('HANDLER_REJECTED');
+    expect(inspected.stdout).not.toContain(row.ciphertext);
+    const exportPath = join(realpathSync(broker.directory), 'export.json');
+    await cli(
+      'export',
+      '--id',
+      row.id,
+      '--operator',
+      randomUUID(),
+      '--reason',
+      'diagnostic',
+      '--output',
+      exportPath,
+    );
+    expect(statSync(exportPath).mode & 0o777).toBe(0o600);
+    const raw = JSON.parse(readFileSync(exportPath, 'utf8')) as {
+      value: string;
+      timestamp: string;
+    };
+    expect(JSON.parse(Buffer.from(raw.value, 'base64').toString()).eventId).toBe(event.eventId);
+    // Произвольная последующая позиция не проходит gate даже при прямом вызове service.
+    await expect(
+      messages.process(
+        route.topic,
+        route.partition,
+        { ...record(event), offset: (BigInt(row.source_offset) + 1n).toString() },
+        () => true,
+        10000,
+      ),
+    ).rejects.toThrow('blocked');
+    // Audit failure обязан откатить budget reset; raw/source/partition gate остаются прежними.
+    await database().connection.pool.query(
+      `create function fail_kafka_admin_audit() returns trigger language plpgsql as $$begin if NEW.action='kafka.quarantine-retry-scheduled' then raise exception 'fixture audit fault'; end if; return NEW; end$$; create trigger fail_kafka_admin_audit before insert on audit_entries for each row execute function fail_kafka_admin_audit()`,
+    );
+    try {
+      await expect(
+        recovery.retry({
+          id: row.id,
+          operatorId: randomUUID(),
+          reasonCode: 'audit-fault',
+          correlationId: randomUUID(),
+        }),
+      ).rejects.toThrow();
+      expect((await recovery.inspect(row.id)).status).toBe('quarantine');
+    } finally {
+      await database().connection.pool.query(
+        'drop trigger fail_kafka_admin_audit on audit_entries; drop function fail_kafka_admin_audit()',
+      );
+    }
+    broken = false;
+    await cli('retry', '--id', row.id, '--operator', randomUUID(), '--reason', 'handler-fixed');
+    await until(async () => (await state()).tasks === 1);
+    await until(
+      async () => (await offset(route.partition)) === (await currentMessageOffset(event)),
+    );
+    expect(await state()).toMatchObject({
+      tasks: 1,
+      markers: 1,
+      cursor: 1,
+      stock: 10,
+      movements: 1,
+    });
+    expect((await recovery.inspect(row.id)).status).toBe('resolved');
+    const replay = { ...record(event), offset: row.source_offset, timestamp: raw.timestamp };
+    await recovery.failed(
+      { topic: route.topic, partition: route.partition, offset: row.source_offset },
+      replay,
+      new Error('uncertain commit'),
+    );
+    expect((await recovery.inspect(row.id)).status).toBe('resolved');
+    await expect(
+      recovery.failed(
+        { topic: route.topic, partition: route.partition, offset: row.source_offset },
+        { ...replay, value: Buffer.from('changed') },
+        new Error('uncertain commit'),
+      ),
+    ).rejects.toThrow('identity changed');
+
+    const resolvedMetrics = await renderMetrics();
+    expect(resolvedMetrics).toContain('wms_kafka_records{status="quarantine"} 0');
+    expect(resolvedMetrics).toContain('wms_kafka_records{status="retry"} 0');
+    await expect(
+      recovery.retry({
+        id: row.id,
+        operatorId: randomUUID(),
+        reasonCode: 'again',
+        correlationId: randomUUID(),
+      }),
+    ).rejects.toThrow('state');
+    expect(
+      (
+        await database().connection.pool.query(
+          "select count(*)::int n from audit_entries where action like 'kafka.quarantine-%'",
+        )
+      ).rows[0].n,
+    ).toBe(2);
+    // Runtime role не получает admin recovery через прямой service вызов.
+    const restricted: TransactionRunner = {
+      run: (work) =>
+        g.app.get<TransactionRunner>(TRANSACTION_RUNNER).run(async (ctx) => {
+          await transactionClient(ctx).execute(sql`set local role warehouse_app`);
+          return work(ctx);
+        }),
+    };
+    const denied = new KafkaRecoveryService(
+      restricted,
+      new QuarantineRepository(),
+      api.get(AuditService),
+      crypto,
+    );
+    await expect(denied.inspect(row.id)).rejects.toThrow('admin role');
+    await expect(
+      restricted.run((ctx) =>
+        transactionClient(ctx).execute(sql`select ciphertext from kafka_quarantine`),
+      ),
+    ).rejects.toThrow();
+    await database().connection.pool.query(
+      "update kafka_quarantine set resolved_at=clock_timestamp()-interval '8 days' where id=$1",
+      [row.id],
+    );
+    const cleaned = await cli(
+      'cleanup',
+      '--id',
+      randomUUID(),
+      '--operator',
+      randomUUID(),
+      '--reason',
+      'expired-resolved',
+    );
+    expect(cleaned.stdout).toContain('"deleted":1');
+    await expect(recovery.inspect(row.id)).rejects.toThrow('not found');
+    await successor.close();
+    // Тот же root entry point, но новый explicit recovery profile и настоящий private key file.
+    const root = spawn('pnpm', ['consumer'], {
+      cwd: resolve('../..'),
+      env,
+      detached: true,
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
+    let rootOutput = '';
+    root.stderr?.on('data', (chunk) => {
+      rootOutput += String(chunk);
+    });
+    const port = Number(env.CONSUMER_HEALTH_PORT);
+    try {
+      await until(async () => {
+        if (root.exitCode !== null) throw new Error('Recovery root consumer exited');
+        try {
+          return (await fetch(`http://127.0.0.1:${port}/health/ready`)).status === 200;
+        } catch {
+          return false;
+        }
+      });
+      const beforePoisonOffset = await offset(route.partition);
+      const producer = broker.kafka.producer();
+      await producer.connect();
+      try {
+        await producer.send({
+          topic: route.topic,
+          messages: [{ partition: route.partition, key: 'test', value: '{ROOT_POISON_CANARY' }],
+        });
+      } finally {
+        await producer.disconnect();
+      }
+      await until(
+        async () =>
+          (
+            await database().connection.pool.query(
+              "select count(*)::int n from kafka_quarantine where status='quarantine'",
+            )
+          ).rows[0].n === 1,
+      );
+      expect((await fetch(`http://127.0.0.1:${port}/health/ready`)).status).toBe(200);
+      expect(await offset(route.partition)).toBe(beforePoisonOffset);
+      await kill(root, 'SIGTERM');
+      await until(async () => {
+        try {
+          await fetch(`http://127.0.0.1:${port}/health/live`);
+          return false;
+        } catch {
+          return true;
+        }
+      });
+      await until(() => root.stderr?.readableEnded ?? true);
+      expect(rootOutput).not.toContain('ROOT_POISON_CANARY');
+      expect(rootOutput).toContain('quarantineId');
+      expect(rootOutput).toContain('consumer.partition_blocked');
+      expect(rootOutput).not.toContain('"event":"process.failed"');
+    } finally {
+      await kill(root, 'SIGKILL');
+    }
+  } finally {
+    stopMetrics();
+    if (previousPort === undefined) delete process.env.WMS_METRICS_PORT;
+    else process.env.WMS_METRICS_PORT = previousPort;
+  }
+});
+
+test('505 malformed partition does not stop another partition; transient budget is durable', async () => {
+  const { QuarantineCrypto } =
+    await import('@backend/infrastructure/kafka-consumer/quarantine-crypto');
+  const { QuarantineRepository } =
+    await import('@backend/infrastructure/kafka-consumer/repositories/quarantine.repository');
+  const { KafkaRecoveryService } =
+    await import('@backend/infrastructure/kafka-consumer/services/kafka-recovery.service');
+  const { AuditService } = await import('@backend/modules/audit/services/audit.service');
+  const { randomBytes } = await import('node:crypto');
+  const recovery = new KafkaRecoveryService(
+    api.get(TRANSACTION_RUNNER),
+    new QuarantineRepository(),
+    api.get(AuditService),
+    new QuarantineCrypto(randomBytes(32), 'dev-test'),
+  );
+  const g = await graph();
+  const messages = new KafkaMessageService(
+    g.app.get(TRANSACTION_RUNNER),
+    g.app.get(ApplicationConsumerService),
+    recovery,
+  );
+  const instance = new KafkaApplicationConsumer(config, messages, recovery);
+  cleanup.push(() => instance.close());
+  await instance.start();
+  const event = await eventForReceipt();
+  const partition = (kafkaRoute(event).partition + 1) % 3;
+  const producer = broker.kafka.producer();
+  await producer.connect();
+  try {
+    await producer.send({
+      topic: kafkaRoute(event).topic,
+      messages: [{ partition, key: 'canary-secret', value: '{CANARY_SECRET' }],
+    });
+  } finally {
+    await producer.disconnect();
+  }
+  await until(
+    async () =>
+      (await database().connection.pool.query('select id from kafka_quarantine')).rows.length === 1,
+  );
+  await publish([event]);
+  await until(async () => (await state()).tasks === 1);
+  expect(instance.ready).toBe(true);
+  expect(await offset(partition)).toBe('-1');
+  const row = (
+    await database().connection.pool.query<{ id: string; ciphertext: string }>(
+      'select id,ciphertext from kafka_quarantine',
+    )
+  ).rows[0];
+  expect(row.ciphertext).not.toContain('CANARY_SECRET');
+  const address = { topic: kafkaRoute(event).topic, partition, offset: '999' };
+  // Отдельная partition position показывает устойчивость budget между service instances.
+  const input = { ...record(event), offset: '999' };
+  for (let i = 0; i < 3; i++)
+    await recovery.failed(address, input, new Error('DO_NOT_PERSIST_RAW_ERROR'));
+  const exhausted = (
+    await database().connection.pool.query(
+      'select attempts,status,error_code from kafka_quarantine where source_offset=999',
+    )
+  ).rows[0];
+  expect(exhausted).toEqual({ attempts: 3, status: 'quarantine', error_code: 'TRANSIENT_FAILURE' });
+  await expect(
+    messages.process(address.topic, partition, input, () => true, 10000),
+  ).rejects.toThrow('blocked');
+  await database().connection.pool.query(
+    'update kafka_quarantine set attempts=2147483647 where id=$1',
+    [row.id],
+  );
+  await expect(
+    recovery.retry({
+      id: row.id,
+      operatorId: randomUUID(),
+      correlationId: randomUUID(),
+      reasonCode: 'overflow-check',
+    }),
+  ).rejects.toThrow('attempt limit');
+  await expect(recovery.check({ ...address, topic: 'wrong-topic' })).rejects.toThrow(
+    'Invalid Kafka address',
+  );
+});
+
+test('505 quota is serialized across partitions; unresolved retention is never cleanup', async () => {
+  const { QuarantineCrypto } =
+    await import('@backend/infrastructure/kafka-consumer/quarantine-crypto');
+  const { QuarantineRepository } =
+    await import('@backend/infrastructure/kafka-consumer/repositories/quarantine.repository');
+  const { KafkaRecoveryService } =
+    await import('@backend/infrastructure/kafka-consumer/services/kafka-recovery.service');
+  const { AuditService } = await import('@backend/modules/audit/services/audit.service');
+  const { randomBytes } = await import('node:crypto');
+  const crypto = new QuarantineCrypto(randomBytes(32), 'quota-test');
+  const recovery = new KafkaRecoveryService(
+    api.get(TRANSACTION_RUNNER),
+    new QuarantineRepository(),
+    api.get(AuditService),
+    crypto,
+  );
+  const event = await eventForReceipt();
+  const message = { ...record(event), offset: '5000' };
+  const sealed = crypto.seal(
+    { topic: kafkaRoute(event).topic, partition: 0, offset: '5000' },
+    message,
+  );
+  // Только quota metadata fixture: не стресс-тест256MiB raw. Crypto roundtrip проверяется
+  // отдельно; здесь настоящий PostgreSQL SUM/advisory lock видит заполненный budget.
+  await database().connection.pool.query(
+    `insert into kafka_quarantine(id,topic,partition,source_offset,ciphertext,nonce,tag,key_id,digest,raw_bytes,error_code,status,attempts,created_at)
+    select gen_random_uuid(),'warehouse.receiving.events',2,100000+n,$1,$2,$3,$4,$5,case when n=256 then 1048576-$6 else 1048576 end,'HANDLER_REJECTED','quarantine',1,clock_timestamp()-interval '8 days' from generate_series(1,256) n`,
+    [sealed.ciphertext, sealed.nonce, sealed.tag, sealed.keyId, sealed.digest, sealed.bytes],
+  );
+  const attempts = await Promise.allSettled(
+    [0, 1].map((partition) =>
+      recovery.failed(
+        { topic: kafkaRoute(event).topic, partition, offset: '5000' },
+        message,
+        new Error('transient'),
+      ),
+    ),
+  );
+  expect(attempts.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+  expect(attempts.filter((r) => r.status === 'rejected')).toHaveLength(1);
+  expect(
+    (
+      await database().connection.pool.query(
+        'select sum(raw_bytes)::text bytes from kafka_quarantine',
+      )
+    ).rows[0].bytes,
+  ).toBe('268435456');
+  expect(
+    (
+      await recovery.cleanup({
+        id: randomUUID(),
+        operatorId: randomUUID(),
+        correlationId: randomUUID(),
+        reasonCode: 'retention-check',
+      })
+    ).deleted,
+  ).toBe(0);
+  expect(
+    (await database().connection.pool.query('select count(*)::int n from kafka_quarantine')).rows[0]
+      .n,
+  ).toBe(257);
+});
+
+test('505 revocation during resolution rolls back effect and marker', async () => {
+  const { QuarantineCrypto } =
+    await import('@backend/infrastructure/kafka-consumer/quarantine-crypto');
+  const { QuarantineRepository } =
+    await import('@backend/infrastructure/kafka-consumer/repositories/quarantine.repository');
+  const { KafkaRecoveryService } =
+    await import('@backend/infrastructure/kafka-consumer/services/kafka-recovery.service');
+  const { AuditService } = await import('@backend/modules/audit/services/audit.service');
+  const { PermanentDeliveryError } = await import('@backend/infrastructure/worker/delivery-policy');
+  const { randomBytes } = await import('node:crypto');
+  const repository = new QuarantineRepository();
+  const recovery = new KafkaRecoveryService(
+    api.get(TRANSACTION_RUNNER),
+    repository,
+    api.get(AuditService),
+    new QuarantineCrypto(randomBytes(32), 'race-test'),
+  );
+  const event = await eventForReceipt();
+  const route = kafkaRoute(event);
+  const address = { topic: route.topic, partition: route.partition, offset: '77' };
+  const message = { ...record(event), offset: '77' };
+  let checks = 0;
+  await expect(
+    recovery.failed(
+      address,
+      message,
+      new PermanentDeliveryError('HANDLER_REJECTED'),
+      () => ++checks === 1,
+    ),
+  ).rejects.toBeInstanceOf(StaleDeliveryError);
+  expect(
+    (await database().connection.pool.query('select count(*)::int n from kafka_quarantine')).rows[0]
+      .n,
+  ).toBe(0);
+  await recovery.failed(address, message, new PermanentDeliveryError('HANDLER_REJECTED'));
+  const id = (
+    await database().connection.pool.query<{ id: string }>('select id from kafka_quarantine')
+  ).rows[0].id;
+  await recovery.retry({
+    id,
+    operatorId: randomUUID(),
+    reasonCode: 'fixed',
+    correlationId: randomUUID(),
+  });
+  const g = await graph();
+  const messages = new KafkaMessageService(
+    g.app.get(TRANSACTION_RUNNER),
+    g.app.get(ApplicationConsumerService),
+    recovery,
+  );
+  let entered!: () => void, release!: () => void;
+  const started = new Promise<void>((r) => {
+    entered = r;
+  });
+  const barrier = new Promise<void>((r) => {
+    release = r;
+  });
+  const original = repository.resolve.bind(repository);
+  jest.spyOn(repository, 'resolve').mockImplementation(async (...args) => {
+    await original(...args);
+    entered();
+    await barrier;
+  });
+  let owned = true;
+  const running = messages.process(route.topic, route.partition, message, () => owned, 10000);
+  try {
+    await started;
+    owned = false;
+    release();
+    await expect(running).rejects.toBeInstanceOf(StaleDeliveryError);
+    expect(await state()).toMatchObject({ tasks: 0, markers: 0, cursor: 0, stock: 10 });
+    expect((await recovery.inspect(id)).status).toBe('retry');
+  } finally {
+    release();
+    await Promise.allSettled([running]);
+  }
+});
+
+test('505 concurrent cleanup/export reports missing raw before authorization audit', async () => {
+  const { QuarantineCrypto } =
+    await import('@backend/infrastructure/kafka-consumer/quarantine-crypto');
+  const { QuarantineRepository } =
+    await import('@backend/infrastructure/kafka-consumer/repositories/quarantine.repository');
+  const { KafkaRecoveryService } =
+    await import('@backend/infrastructure/kafka-consumer/services/kafka-recovery.service');
+  const { AuditService } = await import('@backend/modules/audit/services/audit.service');
+  const { PermanentDeliveryError } = await import('@backend/infrastructure/worker/delivery-policy');
+  const { randomBytes } = await import('node:crypto');
+  const repository = new QuarantineRepository();
+  const recovery = new KafkaRecoveryService(
+    api.get(TRANSACTION_RUNNER),
+    repository,
+    api.get(AuditService),
+    new QuarantineCrypto(randomBytes(32), 'race-test'),
+  );
+  const event = await eventForReceipt();
+  const route = kafkaRoute(event);
+  const address = { topic: route.topic, partition: route.partition, offset: '77' };
+  const message = { ...record(event), offset: '77' };
+  await recovery.failed(address, message, new PermanentDeliveryError('HANDLER_REJECTED'));
+  const id = (
+    await database().connection.pool.query<{ id: string }>('select id from kafka_quarantine')
+  ).rows[0].id;
+  await recovery.retry({
+    id,
+    operatorId: randomUUID(),
+    reasonCode: 'fixed',
+    correlationId: randomUUID(),
+  });
+  const g = await graph();
+  await new KafkaMessageService(
+    g.app.get(TRANSACTION_RUNNER),
+    g.app.get(ApplicationConsumerService),
+    recovery,
+  ).process(route.topic, route.partition, message, () => true, 10000);
+  await database().connection.pool.query(
+    "update kafka_quarantine set resolved_at=clock_timestamp()-interval '8 days' where id=$1",
+    [id],
+  );
+  let entered!: () => void, release!: () => void;
+  const started = new Promise<void>((r) => {
+    entered = r;
+  });
+  const barrier = new Promise<void>((r) => {
+    release = r;
+  });
+  const original = repository.inspect.bind(repository);
+  jest.spyOn(repository, 'inspect').mockImplementation(async (...args) => {
+    const row = await original(...args);
+    entered();
+    await barrier;
+    return row;
+  });
+  const exporting = recovery.exportRaw({
+    id,
+    operatorId: randomUUID(),
+    reasonCode: 'export',
+    correlationId: randomUUID(),
+  });
+  try {
+    await started;
+    expect(
+      (
+        await recovery.cleanup({
+          id: randomUUID(),
+          operatorId: randomUUID(),
+          reasonCode: 'cleanup',
+          correlationId: randomUUID(),
+        })
+      ).deleted,
+    ).toBe(1);
+    release();
+    await expect(exporting).rejects.toThrow('not found');
+    expect(
+      (
+        await database().connection.pool.query(
+          "select count(*)::int n from audit_entries where action='kafka.quarantine-export-authorized'",
+        )
+      ).rows[0].n,
+    ).toBe(0);
+  } finally {
+    release();
+    await Promise.allSettled([exporting]);
+  }
+});
+
+test('505 automatic transient retry rolls back partial effects then applies once', async () => {
+  const { QuarantineCrypto } =
+    await import('@backend/infrastructure/kafka-consumer/quarantine-crypto');
+  const { QuarantineRepository } =
+    await import('@backend/infrastructure/kafka-consumer/repositories/quarantine.repository');
+  const { KafkaRecoveryService } =
+    await import('@backend/infrastructure/kafka-consumer/services/kafka-recovery.service');
+  const { AuditService } = await import('@backend/modules/audit/services/audit.service');
+  const { ReceivingPostedHandler } =
+    await import('@backend/infrastructure/worker/services/receiving-posted.handler');
+  const { randomBytes } = await import('node:crypto');
+  const recovery = new KafkaRecoveryService(
+    api.get(TRANSACTION_RUNNER),
+    new QuarantineRepository(),
+    api.get(AuditService),
+    new QuarantineCrypto(randomBytes(32), 'retry-test'),
+  );
+  const handler = (await graph()).app.get(ReceivingPostedHandler);
+  let attempts = 0;
+  const g = await graph(async (ctx, event) => {
+    await handler.handle(ctx, event);
+    if (++attempts < 3) throw new Error('DO_NOT_STORE_DRIVER_DETAILS');
+  });
+  const messages = new KafkaMessageService(
+    g.app.get(TRANSACTION_RUNNER),
+    g.app.get(ApplicationConsumerService),
+    recovery,
+  );
+  const consumer = new KafkaApplicationConsumer(config, messages, recovery);
+  cleanup.push(() => consumer.close());
+  await consumer.start();
+  const event = await eventForReceipt();
+  await publish([event]);
+  await until(async () => (await state()).markers === 1);
+  await until(
+    async () => (await offset(kafkaRoute(event).partition)) === (await currentMessageOffset(event)),
+  );
+  expect(attempts).toBe(3);
+  expect(await state()).toMatchObject({
+    tasks: 1,
+    markers: 1,
+    cursor: 1,
+    stock: 10,
+    movements: 1,
+    audit: 1,
+  });
+  const row = (
+    await database().connection.pool.query(
+      'select attempts,status,error_code,event_id from kafka_quarantine',
+    )
+  ).rows[0];
+  expect(row).toEqual({
+    attempts: 2,
+    status: 'resolved',
+    error_code: 'TRANSIENT_FAILURE',
+    event_id: event.eventId,
+  });
+});
+
+test('505 late transient failure cannot reopen permanent quarantine without admin retry', async () => {
+  const { QuarantineCrypto } =
+    await import('@backend/infrastructure/kafka-consumer/quarantine-crypto');
+  const { QuarantineRepository } =
+    await import('@backend/infrastructure/kafka-consumer/repositories/quarantine.repository');
+  const { KafkaRecoveryService } =
+    await import('@backend/infrastructure/kafka-consumer/services/kafka-recovery.service');
+  const { AuditService } = await import('@backend/modules/audit/services/audit.service');
+  const { PermanentDeliveryError } = await import('@backend/infrastructure/worker/delivery-policy');
+  const { randomBytes } = await import('node:crypto');
+  const runner: TransactionRunner = {
+    run: (work) =>
+      api.get<TransactionRunner>(TRANSACTION_RUNNER).run(async (ctx) => {
+        await transactionClient(ctx).execute(sql`set local role warehouse_app`);
+        return work(ctx);
+      }),
+  };
+  const recovery = new KafkaRecoveryService(
+    runner,
+    new QuarantineRepository(),
+    api.get(AuditService),
+    new QuarantineCrypto(randomBytes(32), 'late-test'),
+  );
+  const event = await eventForReceipt();
+  const route = kafkaRoute(event);
+  const address = { topic: route.topic, partition: route.partition, offset: '77' };
+  const message = { ...record(event), offset: '77' };
+  await recovery.failed(address, message, new PermanentDeliveryError('HANDLER_REJECTED'));
+  // Результат второго обработчика мог прийти после первого failure commit.
+  await recovery.failed(address, message, new Error('late transient'));
+  const row = (
+    await database().connection.pool.query(
+      'select status,attempts,error_code from kafka_quarantine',
+    )
+  ).rows[0];
+  expect(row).toEqual({ status: 'quarantine', attempts: 2, error_code: 'HANDLER_REJECTED' });
+  await expect(recovery.check(address)).rejects.toThrow('blocked');
+  await expect(
+    runner.run((ctx) =>
+      transactionClient(ctx).execute(
+        sql`update kafka_quarantine set status='retry' where source_offset=77`,
+      ),
+    ),
+  ).rejects.toThrow();
+  await expect(
+    runner.run((ctx) =>
+      transactionClient(ctx).execute(
+        sql`update kafka_quarantine set status='retry',retry_base=attempts where source_offset=77`,
+      ),
+    ),
+  ).rejects.toThrow();
+  await expect(
+    runner.run((ctx) =>
+      transactionClient(ctx).execute(
+        sql`update kafka_quarantine set status='resolved',resolved_at=clock_timestamp() where source_offset=77`,
+      ),
+    ),
+  ).rejects.toThrow();
 });

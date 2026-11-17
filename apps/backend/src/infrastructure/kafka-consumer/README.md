@@ -1,37 +1,41 @@
-# Kafka consumer inventory.putaway
+# Kafka consumer и recovery
 
 ## Для менеджера
 
-Получает факт проведённой приёмки и создаёт задания размещения через существующий
-InventoryService. Повтор сообщения не повторяет задания или начисление остатка.
-Проведение приёмки остаётся синхронной PostgreSQL-командой. Недоступность Kafka
-задерживает задания, но не отменяет уже подтверждённую приёмку.
+Consumer создаёт задания размещения через прежний InventoryService. Повтор не начисляет
+stock и не создаёт второе задание. Сбой Kafka не отменяет подтверждённую приёмку.
 
-Gap, неверное сообщение или DB ошибка останавливают consumer без подтверждения
-ошибочного offset. Автоматического пропуска нет; расследование обязательно.
+WMS-505 добавляет opt-in encrypted quarantine. Ошибка блокирует свою partition:
+другие документы в ней ждут, другие partitions продолжают работу. Оператор исправляет
+причину и явно разрешает retry; quarantine не является successful business fact.
 
 ## Для разработчика
 
-`consumer.ts` — отдельный opt-in executable. `KafkaConsumerModule` импортирует
-DatabaseModule/ApplicationConsumerModule и общий ApplicationConsumerService. Local WorkerLoop не
-запускается. `consumer.config.ts` проверяет opt-in/mTLS/budgets, `kafka-consumer.ts`
-владеет KafkaJS group/heartbeat/offset, `services/kafka-message.service.ts` — границей
-record → validated event → PostgreSQL transaction. Private worker repository не импортируется.
+KafkaConsumerModule подключает общую ApplicationConsumerModule и KafkaMessageService.
+KafkaRecoveryService владеет gate/failure/admin transactions; QuarantineRepository
+внутренний, AuditService импортируется публично. QuarantineCrypto выполняет fs/crypto
+до DB callback; raw запрещён в logger/stdout. Custom migration0034 владеет SQL-таблицей
+kafka_quarantine; ORM schema для неё не создаётся. Комментарии каждого поля находятся
+в migration. Это новые DDL; applied migrations не изменялись.
 
-Общий ReceivingPostedHandler вызывается через application service. Identity
-`inventory.putaway` совпадает с local destination и Kafka group; markers/cursor
-сохраняются. Нового DDL, изменения envelope и writer нет. Message сверяется с retained
-outbox: внешние producers с чужими событиями не поддерживаются.
+Существующий consumer без CONSUMER_RECOVERY_ENABLED сохраняет fail-stop WMS-504 и
+не требует encryption key. Существующие durable gates проверяются независимо от этого
+флага. Новый профиль явно включает encrypted failures, bounded retry и partition pause.
+Отключение флага не сбрасывает gate или markers/cursor.
 
-Полный flow, Mermaid, доверие к входу, пошаговые данные, ошибки, примеры и запуск —
-[Kafka consumer flow](../../../../../docs/flows/kafka-consumer.md). Решение и последствия —
-[ADR-0035](../../../../../docs/adr/0035-kafka-application-consumers.md).
+Полный flow, Mermaid, права, env, команды, rollback/rebalance и recovery:
+[владелец flow](../../../../../docs/flows/kafka-consumer.md). Согласованное исключение
+хранения raw — [ADR-0036](../../../../../docs/adr/0036-dev-kafka-quarantine-storage.md).
 
 ## Проверки
 
-`test/integration/kafka-consumer.spec.ts`: настоящий mTLS broker/PostgreSQL, business
-state, duplicate, marker failure rollback, gap, rebalance barrier, child SIGKILL,
-retained cursor N+1, root pnpm startup и Node SIGTERM exit0. Unit guards —
-`test/unit/kafka-consumer-config.spec.ts`; прежние worker/putaway suites проверяют
-общий application service на старом transport. Child-process исполнение отдельно
-не добавляется к Jest runtime coverage; это ограничение измерения, не отсутствие проверки.
+kafka-consumer.spec.ts использует настоящие Kafka mTLS/PostgreSQL и root pnpm commands:
+duplicate/crash/rebalance/N+1, poison isolation, restart с offset после заблокированного,
+retry с прежним eventId, audit rollback, export0600, cleanup и отсутствие body в logs.
+quarantine-crypto.spec.ts проверяет binary/null/headers, authenticated source address,
+лимит bytes и private key file. Native SDK mocks kafka-consumer-adapter.spec.ts проверяют
+узкие race/int64 cases; они не заменяют реальные migration/SQL/broker tests.
+
+Child-process coverage CLI не объединён с Jest V8; ручной review/commands и критерии —
+[отчёт WMS-505](../../../../../docs/reports/wms-505.md). Quarantine не является backup,
+production retention/storage/key custody требуют отдельного согласования.

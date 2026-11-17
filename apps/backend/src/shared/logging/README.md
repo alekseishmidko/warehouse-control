@@ -24,3 +24,7 @@ OTel и жизненный цикл sink принадлежат infrastructure, 
 infra config не передаёт в logger текст Error/env. Закрытый SAFE_ERROR_CODES Set создаётся
 один раз и сохраняет KAFKA_UNCONFIRMED, не разрешая неизвестные строки по префиксу.
 Regression: test/unit/logging.spec.ts проверяет реальный Pino JSON и canary rejection.
+
+WMS-505 добавляет server UUID quarantineId и integer partition0..2 в safe scalar fields.
+Они связывают durable failure с admin inspect; ciphertext/raw/headers/key по-прежнему
+не входят в контракт. Новые fixed events — consumer.partition_retry/partition_blocked.

@@ -92,6 +92,9 @@ WMS-403/404: k6 baseline и recovery drill.
 
 ## 5. Kafka
 
+WMS-505 реализует opt-in encrypted quarantine и partition recovery;
+[AC/evidence](reports/wms-505.md). Полная репетиция cutover остаётся WMS-506.
+
 Strimzi, publisher, consumer groups, AsyncAPI/Registry compatibility spike,
 схемы и retry/quarantine, сохранение idempotency и порядка.
 Готово после тестов broker outage, lost ack, rebalance и cutover по runbook.

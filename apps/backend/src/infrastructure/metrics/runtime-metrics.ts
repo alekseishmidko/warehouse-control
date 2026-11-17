@@ -10,6 +10,14 @@ let durationSum = 0,
 let role = 'api';
 let server: Server | undefined;
 const pools = new Set<Pool>();
+let kafkaMetrics: (() => string[]) | undefined;
+/** Read-only cached Kafka gauges: collector не вызывает broker из DB transaction/scrape. */
+export function registerKafkaMetrics(provider: () => string[]): () => void {
+  kafkaMetrics = provider;
+  return () => {
+    if (kafkaMetrics === provider) kafkaMetrics = undefined;
+  };
+}
 /** Метрики считаются независимо от доставки Pino/Loki; буфер транзакции вызывает после commit. */
 export function observeLogEvent(event: LogEvent, fields: LogFields): void {
   if (!server || !Object.hasOwn(LOG_EVENTS, event)) return;
@@ -40,9 +48,23 @@ async function outboxSnapshot(pool: Pool): Promise<string[]> {
     }>(`select d.status, count(*)::text count,
       greatest(0, extract(epoch from clock_timestamp()-min(e.created_at)))::text age
       from outbox_deliveries d join outbox_events e using(event_id) group by d.status`);
+    const kafka = await client.query<{ status: string; count: string; age: string }>(
+      `select status,count(*)::text count,greatest(0,extract(epoch from clock_timestamp()-min(created_at)))::text age from kafka_quarantine where status<>'resolved' group by status`,
+    );
+    const oldest = await client.query<{ age: string }>(
+      `select greatest(0,coalesce(extract(epoch from clock_timestamp()-min(e.created_at)),0))::text age from outbox_events e where e.aggregate_type='receipt' and not exists(select 1 from processed_events p where p.consumer_name='inventory.putaway' and p.event_id=e.event_id)`,
+    );
     await client.query('commit');
     return [
       'wms_outbox_scrape_success 1',
+      `wms_kafka_oldest_unprocessed_age_seconds ${Math.max(Number(oldest.rows[0].age), ...kafka.rows.map((r) => Number(r.age)))}`,
+      ...['retry', 'quarantine'].flatMap((status) => {
+        const row = kafka.rows.find((r) => r.status === status);
+        return [
+          `wms_kafka_records{status="${status}"} ${Number(row?.count ?? 0)}`,
+          `wms_kafka_oldest_blocked_age_seconds{status="${status}"} ${Number(row?.age ?? 0)}`,
+        ];
+      }),
       ...['pending', 'retry', 'processing', 'dead', 'completed'].flatMap((status) => {
         const row = result.rows.find((value) => value.status === status);
         return [
@@ -108,6 +130,7 @@ async function collectMetrics(): Promise<string> {
       lines.push('wms_outbox_scrape_success 0');
     }
   }
+  if (kafkaMetrics) lines.push(...kafkaMetrics());
   return lines.join('\n') + '\n';
 }
 let inFlight: Promise<string> | undefined;

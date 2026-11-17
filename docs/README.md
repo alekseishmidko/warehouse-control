@@ -227,3 +227,7 @@ Alloy JSONL collection, bounded HTTP/DB/outbox metrics, dashboards и local aler
 [AC и evidence](reports/wms-403.md). WMS-404 выполнена для локального dev-стенда: [runbook](runbooks/recovery-drill.md), [AC и evidence](reports/wms-404.md).
 
 Локальный engineering harness: [постановка, runner, evidence и критерии готовности](flows/engineering-harness.md).
+
+WMS-505: opt-in encrypted quarantine, durable partition gate и admin recovery.
+[Flow/команды](flows/kafka-consumer.md), [AC/review и источник evidence](reports/wms-505.md).
+Полное переключение рабочего стенда остаётся WMS-506.

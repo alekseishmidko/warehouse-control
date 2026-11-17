@@ -239,6 +239,13 @@
       "when": 1794678642278,
       "tag": "0033_kafka_publisher_destination",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1794850181044,
+      "tag": "0034_kafka_quarantine",
+      "breakpoints": true
     }
   ]
 }

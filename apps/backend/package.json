@@ -33,7 +33,8 @@
     "test:coverage": "pnpm test:prepare && jest --config jest.coverage.config.cjs --runInBand && node ../../scripts/quality/coverage.cjs",
     "test:web:gate": "pnpm test:prepare && jest --selectProjects integration --runInBand --runTestsByPath .test-dist/test/integration/web-gate.spec.js",
     "publisher": "node dist/publisher.js",
-    "consumer": "node dist/consumer.js"
+    "consumer": "node dist/consumer.js",
+    "kafka:admin": "node dist/infrastructure/kafka-consumer/kafka-admin.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",

@@ -66,3 +66,7 @@ Apicurio catalogue/validity, mandatory local transitive guard, AsyncAPI и consu
 stable Kafka epoch, read_committed и ack → SQL completion без обещания exactly once.
 
 [0035. Kafka application consumers](0035-kafka-application-consumers.md) — WMS-504: общий handler/marker/cursor, read_committed, offset после commit и fail-stop rebalance/gap policy.
+
+[0036. Dev Kafka quarantine storage](0036-dev-kafka-quarantine-storage.md) — согласованная dev-политика encrypted raw WMS-505; реализация — ADR-0037.
+
+[0037. Kafka partition recovery](0037-kafka-partition-recovery.md) — durable gate, bounded retries, admin audit и отсутствие offset/cursor bypass.

@@ -1360,5 +1360,47 @@
     "statements": 100,
     "functions": 100,
     "branches": 100
+  },
+  "src/infrastructure/kafka-consumer/kafka-admin.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/infrastructure/kafka-consumer/kafka-lag.metrics.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 95.65
+  },
+  "src/infrastructure/kafka-consumer/quarantine-crypto.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 92.3
+  },
+  "src/infrastructure/kafka-consumer/dto/quarantine.dto.ts": {
+    "lines": 0,
+    "statements": 0,
+    "functions": 0,
+    "branches": 100
+  },
+  "src/infrastructure/kafka-consumer/repositories/quarantine.repository.ts": {
+    "lines": 98.66,
+    "statements": 98.66,
+    "functions": 100,
+    "branches": 98.38
+  },
+  "src/infrastructure/kafka-consumer/services/kafka-recovery.service.ts": {
+    "lines": 95.1,
+    "statements": 95.1,
+    "functions": 100,
+    "branches": 91.07
+  },
+  "src/infrastructure/kafka-consumer/kafka-startup.ts": {
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 94.73
   }
 }

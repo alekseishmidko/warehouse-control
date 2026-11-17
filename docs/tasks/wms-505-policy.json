@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "id": "wms-505-policy",
+  "issuedBy": "Пользователь: согласование полного raw quarantine для dev WMS-505",
+  "request": "Зафиксировать согласованное исключение хранения encrypted raw record. Это подготовительная часть WMS-505, не реализация Kafka recovery.",
+  "base": "b71573db0de5435ace489f6c6ba00f74085cb9ec",
+  "criteria": [
+    {
+      "id": "POL-505-01",
+      "statement": "Ручное ревью согласованной политики: scope, encryption, access, limits, retention и отсутствие cursor bypass. Автоматические runtime AC WMS-505 не закрываются.",
+      "tests": ["docs/adr/0036-dev-kafka-quarantine-storage.md#Ручное ревью политики"],
+      "gates": ["pr"]
+    }
+  ]
+}

@@ -2,6 +2,8 @@
 import { isUuid } from '../validation/identifiers';
 /** Сообщения задаёт код, а не HTTP/event input или текст исключения. */
 export const LOG_EVENTS = {
+  'consumer.partition_blocked': ['error', 'Kafka partition blocked without offset acknowledgement'],
+  'consumer.partition_retry': ['warn', 'Kafka partition retry scheduled'],
   'consumer.halted': ['error', 'Kafka consumer halted without offset acknowledgement'],
   'consumer.ready': ['info', 'Kafka consumer ready'],
   'publisher.ready': ['info', 'Publisher ready'],
@@ -75,6 +77,8 @@ export interface LogFields {
   traceId?: string;
   spanId?: string;
   eventId?: string;
+  quarantineId?: string;
+  partition?: number;
   aggregateId?: string;
   attempt?: number;
   durationMs?: number;
@@ -147,7 +151,7 @@ export function safeLogFields(input: LogFields): LogFields {
   if (input.code && input.code === result.errorCode) result.code = input.code;
   if (input.module && (LOG_MODULES as readonly string[]).includes(input.module))
     result.module = input.module;
-  for (const key of ['correlationId', 'eventId', 'aggregateId'] as const) {
+  for (const key of ['correlationId', 'eventId', 'aggregateId', 'quarantineId'] as const) {
     const value = input[key];
     if (typeof value === 'string' && isUuid(value)) result[key] = value.toLowerCase();
   }
@@ -164,6 +168,8 @@ export function safeLogFields(input: LogFields): LogFields {
     )
       result[key] = value;
   }
+  if (Number.isInteger(input.partition) && input.partition! >= 0 && input.partition! <= 2)
+    result.partition = input.partition;
   if (Number.isSafeInteger(input.attempt) && input.attempt! >= 1) result.attempt = input.attempt;
   if (
     typeof input.durationMs === 'number' &&
