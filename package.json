@@ -89,7 +89,8 @@
     "harness:ready": "node scripts/harness/cli.cjs ready",
     "test:harness": "node --test scripts/harness/*.test.cjs",
     "consumer": "pnpm --filter @warehouse/backend consumer",
-    "kafka:admin": "pnpm --filter @warehouse/backend kafka:admin"
+    "kafka:admin": "pnpm --filter @warehouse/backend kafka:admin",
+    "cutover:drill": "pnpm --filter @warehouse/backend test:cutover"
   },
   "private": true,
   "devDependencies": {

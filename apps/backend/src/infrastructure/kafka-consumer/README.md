@@ -26,6 +26,8 @@ kafka_quarantine; ORM schema для неё не создаётся. Коммен
 Полный flow, Mermaid, права, env, команды, rollback/rebalance и recovery:
 [владелец flow](../../../../../docs/flows/kafka-consumer.md). Согласованное исключение
 хранения raw — [ADR-0036](../../../../../docs/adr/0036-dev-kafka-quarantine-storage.md).
+Переключение с local worker, backup/boundary и возврат после Kafka effects —
+[WMS-506 runbook](../../../../../docs/flows/transport-cutover.md).
 
 ## Проверки
 

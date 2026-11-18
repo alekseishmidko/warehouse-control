@@ -980,3 +980,15 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | `docs/reports/wms-505.md`                                                              | Traceability/review/evidence и ограничения                                                 |
 | `apps/backend/src/infrastructure/kafka-consumer/kafka-lag.metrics.ts`                  | Bounded cached broker lag observer, отдельный от обработки records                         |
 | `apps/backend/src/infrastructure/kafka-consumer/kafka-startup.ts`                      | Read-only cold coordinator readiness и allowlisted SDK failure reason                      |
+
+## WMS-506: репетиция переключения транспорта
+
+| Файл                                                  | Назначение                                                                                     |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `docs/tasks/wms-506.json`                             | Source task пользователя, стабильные AC и test references; harness читает без ручного evidence |
+| `docs/adr/0038-dev-transport-cutover.md`              | Freeze, retained replay, сохранение local deliveries и reverse с новым boundary                |
+| `docs/flows/transport-cutover.md`                     | Подробный operator runbook, Mermaid, команды, stop criteria и ограничения                      |
+| `docs/examples/transport-boundary.sql`                | Read-only snapshot identities/cursors/pending/inventory, без envelope/credentials              |
+| `docs/reports/wms-506.md`                             | AC → реализация → проверки, review/refactor и границы evidence                                 |
+| `apps/backend/test/support/cutover.fixture.ts`        | Test-only boundary, backup/restore и bounded broker pause/observation                          |
+| `apps/backend/test/integration/kafka-cutover.spec.ts` | Настоящий forward/reverse cutover, складской HTTP flow и отказ при активном claim              |

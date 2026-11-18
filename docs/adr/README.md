@@ -70,3 +70,6 @@ stable Kafka epoch, read_committed и ack → SQL completion без обещан
 [0036. Dev Kafka quarantine storage](0036-dev-kafka-quarantine-storage.md) — согласованная dev-политика encrypted raw WMS-505; реализация — ADR-0037.
 
 [0037. Kafka partition recovery](0037-kafka-partition-recovery.md) — durable gate, bounded retries, admin audit и отсутствие offset/cursor bypass.
+
+[0038. Dev transport cutover](0038-dev-transport-cutover.md) — frozen boundary/backup,
+retained replay и возврат с новым boundary без удаления local deliveries/markers.

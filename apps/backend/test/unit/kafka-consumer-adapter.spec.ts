@@ -373,6 +373,29 @@ test('505 startup waits for cold coordinator without joining or changing offsets
   }
 });
 
+test('506 coordinator deadline refuses startup without joining or acknowledging offsets', async () => {
+  const f = setup();
+  // Управляем монотонными часами, а не ждём реальные15s. Coordinator остаётся
+  // недоступным до deadline: это STOP condition cutover, а не разрешение открыть запись.
+  const clock = jest.spyOn(performance, 'now').mockReturnValue(0);
+  jest.spyOn(f.admin, 'fetchOffsets').mockImplementation(async () => {
+    clock.mockReturnValue(15000);
+    throw Object.assign(new Error('PRIVATE_SDK_TEXT'), { type: 'GROUP_LOAD_IN_PROGRESS' });
+  });
+  try {
+    await expect(f.adapter.start()).rejects.toThrow('Kafka coordinator startup timed out');
+    expect(f.adapter.ready).toBe(false);
+    expect(f.consumer.connect).not.toHaveBeenCalled();
+    expect(f.consumer.subscribe).not.toHaveBeenCalled();
+    expect(f.consumer.run).not.toHaveBeenCalled();
+    expect(f.process).not.toHaveBeenCalled();
+    expect(f.commits).not.toHaveBeenCalled();
+  } finally {
+    clock.mockRestore();
+    await f.adapter.close();
+  }
+});
+
 test('505 startup does not retry auth errors and SDK diagnosis never echoes raw message', async () => {
   const { kafkaFailureCode } = await import('@backend/infrastructure/kafka-consumer/kafka-startup');
   const f = setup();

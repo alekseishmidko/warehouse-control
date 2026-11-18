@@ -62,3 +62,10 @@ WMS-503: kafka.fixture запускает отдельный KRaft broker с о�
 publisher-child содержит только IPC crash barrier до send/после broker commit.
 Production entrypoint не получает fault injection flags. Ключи сертификатов временные;
 cleanup удаляет только созданный suite контейнер и каталог. Consumer read_committed.
+
+WMS-506: cutover.fixture выполняет общий operator SQL из docs/examples/transport-boundary.sql,
+проверяет checks и делает настоящий pg_dump/pg_restore в новую БД того же disposable
+server. Архив удаляется в finally, в evidence остаются только hash/размер и metadata.
+setCutoverBrokerPaused принимает только ID broker, принадлежащего suite; он не удаляет
+storage и позволяет проверить отказ сети. Rehearsal/stop criteria —
+[flow](../../../../docs/flows/transport-cutover.md). Это test-only admin helper, не runtime API.
