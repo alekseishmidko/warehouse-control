@@ -88,7 +88,8 @@ WMS-502 реализована для dev: [schema release/AsyncAPI](flows/schem
 Registry native compatibility2020-12 не используется: transitive release policy
 проверяет обязательный local guard. WMS-503 добавляет отдельный opt-in
 [publisher](flows/publisher.md); [AC и evidence](reports/wms-503.md). В рабочем стенде
-он автоматически не включается; Kafka consumer WMS-504 добавлен отдельным opt-in process; cutover остаётся WMS-506.
+он автоматически не включается; Kafka consumer WMS-504 добавлен отдельным opt-in process.
+WMS-506 добавляет [репетицию cutover и возврата](flows/transport-cutover.md) на disposable стенде.
 [Consumer flow](flows/kafka-consumer.md), [AC/review/evidence](reports/wms-504.md).
 WMS-503 выполнена:21publisher scenarios,659backend/54web tests; Docker/Helm/Strimzi
 gates и финальный check:pr прошли после снятия блокировки диска. Publisher остаётся opt-in.
@@ -134,7 +135,7 @@ gates и финальный check:pr прошли после снятия бло
 - WMS-302: API/worker в Kubernetes, pre-release migrations, Secret refs и local persistence проверены; [flow](flows/kubernetes-app.md).
 - WMS-303: static web image, NGF/Gateway/TLS и полный HTTPS UI gate проверены; [flow](flows/gateway-tls.md).
 - WMS-304: startup/ready/live API/worker, bounded drain, Pod kills и совместимый rolling release проверены.
-- Kafka dev platform, schema release и opt-in publisher реализованы; opt-in consumer реализован WMS-504; cutover и внешний CI/CD ещё не реализованы. Production deployment не выполнялся.
+- Kafka dev platform, schema release, opt-in publisher/consumer и recovery реализованы; WMS-506 добавляет isolated cutover/reverse drill. Рабочий стенд не переключён, внешний CI/CD ещё не реализован. Production deployment не выполнялся.
 - `ReceivingPosted v1` используется outbox/local worker; Kafka publisher не изменяет eventId/envelope и не заменяет local consumer.
 - Локальные schema/fixtures/generation проверки выполняются в unit suite;
   OpenAPI generation/diff готов локально; CI workflow и breaking-change comparison пока не настроены.
@@ -230,4 +231,8 @@ Alloy JSONL collection, bounded HTTP/DB/outbox metrics, dashboards и local aler
 
 WMS-505: opt-in encrypted quarantine, durable partition gate и admin recovery.
 [Flow/команды](flows/kafka-consumer.md), [AC/review и источник evidence](reports/wms-505.md).
-Полное переключение рабочего стенда остаётся WMS-506.
+WMS-506: [cutover/reverse runbook и Mermaid](flows/transport-cutover.md),
+[AC/review/evidence](reports/wms-506.md). `pnpm cutover:drill` проверяет backup/restore,
+freeze, сохранность markers/cursors, полный складской HTTP flow, broker outage,
+duplicate и возврат после новых Kafka effects. Рабочий стенд не переключался.
+Следующий этап плана — WMS-601, полные проверки изменений; он ещё не выполнен.

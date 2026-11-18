@@ -34,7 +34,8 @@
     "test:web:gate": "pnpm test:prepare && jest --selectProjects integration --runInBand --runTestsByPath .test-dist/test/integration/web-gate.spec.js",
     "publisher": "node dist/publisher.js",
     "consumer": "node dist/consumer.js",
-    "kafka:admin": "node dist/infrastructure/kafka-consumer/kafka-admin.js"
+    "kafka:admin": "node dist/infrastructure/kafka-consumer/kafka-admin.js",
+    "test:cutover": "pnpm test:prepare && jest --selectProjects integration --runInBand --runTestsByPath .test-dist/test/integration/kafka-cutover.spec.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",

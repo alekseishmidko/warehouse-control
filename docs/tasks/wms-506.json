@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "id": "wms-506",
+  "issuedBy": "Пользователь: взять следующий этап development-plan после WMS-505",
+  "request": "WMS-506: отрепетировать переключение local worker → Kafka и обратное переключение после новых эффектов; проверить backup/restore, boundary, сохранение eventId/markers/cursors, складской сценарий и сбой broker на изолированном dev-стенде. Рабочие данные и внешнее окружение не изменять.",
+  "base": "a09d0057ca4c934dc6d74c2ff0f2d4dba2c80eca",
+  "criteria": [
+    {
+      "id": "WMS-506.1",
+      "statement": "Consistent backup восстанавливается в отдельную БД; inventory/markers/cursors и точная граница отражены в отчёте.",
+      "tests": [
+        "apps/backend/test/integration/kafka-cutover.spec.ts#506 backup and bidirectional cutover"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-506.2",
+      "statement": "Запись закрыта остановкой API до boundary; завершён local worker drain, активных claims нет.",
+      "tests": [
+        "apps/backend/test/integration/kafka-cutover.spec.ts#506 backup and bidirectional cutover"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-506.3",
+      "statement": "Точный pending set передаётся Kafka без сброса identity/markers/cursors; historical replay не повторяет effects. N+1 продолжает local N.",
+      "tests": [
+        "apps/backend/test/integration/kafka-cutover.spec.ts#506 backup and bidirectional cutover",
+        "apps/backend/test/integration/kafka-consumer.spec.ts#504.6: Kafka starts at N+1 after local completion"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-506.4",
+      "statement": "Singleton publisher и consumer разгребают boundary backlog при закрытой записи; бизнес-эффекты сверены до открытия API.",
+      "tests": [
+        "apps/backend/test/integration/kafka-cutover.spec.ts#506 backup and bidirectional cutover",
+        "apps/backend/test/unit/kafka-consumer-adapter.spec.ts#506 coordinator deadline refuses startup without joining or acknowledging offsets"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-506.5",
+      "statement": "После открытия записи пройден складской flow через Kafka, broker outage не мешает business commit, duplicate не повторяет effect.",
+      "tests": [
+        "apps/backend/test/integration/kafka-cutover.spec.ts#506 backup and bidirectional cutover"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-506.6",
+      "statement": "Возврат к local worker после новых Kafka effects использует новый boundary; старые эффекты/идентификаторы сохранены, pending обработан однократно.",
+      "tests": [
+        "apps/backend/test/integration/kafka-cutover.spec.ts#506 backup and bidirectional cutover"
+      ],
+      "gates": ["pr"]
+    }
+  ]
+}

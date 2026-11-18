@@ -324,3 +324,9 @@ lease fencing проверяется test-only expiry под уже взятым
 WMS-302: serialized-migrations.spec.ts проверяет два DB lock waits перед journal,
 новый синтетический SQL ровно один раз, repeat и rollback DDL с освобождением lock.
 Kubernetes faults выполняет отдельная `pnpm kubernetes:gate`; [flow](../../../docs/flows/kubernetes-app.md).
+
+WMS-506: root `pnpm cutover:drill` (backend `test:cutover`) запускает отдельную
+kafka-cutover suite с настоящими PostgreSQL/Kafka. Проверяет backup/restore в новую
+БД, закрытие HTTP, остановку worker, pending handover, складской HTTP flow, outage,
+duplicate и обратное переключение после новых Kafka effects. Успех не переключает
+рабочий стенд. Private snapshots — artifacts/cutover. [Порядок](../../../docs/flows/transport-cutover.md).

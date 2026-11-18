@@ -17,6 +17,8 @@ At least once, порядок только внутри `(destination, aggregate
 Нет обещания exactly once или глобального порядка. Local worker не выполняет внешние эффекты; отдельный Kafka consumer WMS-504 использует тот же application service.
 Dead останавливает поток до управляемого восстановления WMS-111 через локальную role-checked CLI.
 Сохранённые receiving/stock данные от этого не откатываются.
+Репетиция переключения на Kafka и возврата с сохранёнными local deliveries —
+[runbook WMS-506](../../../../../docs/flows/transport-cutover.md).
 
 ## Для разработчика
 

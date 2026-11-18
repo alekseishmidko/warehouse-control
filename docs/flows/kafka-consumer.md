@@ -12,8 +12,9 @@ Kafka payload на основании TLS: каждый record проходит 
 PostgreSQL commit. Stock не начисляется повторно. Offset хранится отдельно в Kafka
 после DB commit. Transport at least once; общего commit двух систем нет.
 
-Вне WMS-504: автоматическое переключение рабочего worker, перенос backlog, HA,
-полная репетиция cutover WMS-506. Recovery WMS-505 описан ниже отдельным opt-in режимом.
+Автоматическое переключение рабочего worker и HA не реализованы.
+Перенос backlog и [репетиция cutover WMS-506](transport-cutover.md) описаны отдельно.
+Recovery WMS-505 описан ниже отдельным opt-in режимом.
 Opt-in consumer не включён в dev:all/Compose/Helm автоматически. Один backend image
 содержит `dist/consumer.js`; deployment adapter consumer пока не добавлен.
 

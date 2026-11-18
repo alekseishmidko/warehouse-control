@@ -598,12 +598,18 @@ Publisher включается явно; outbox/local worker сохранены,
 
 ### WMS-506. Переключение транспорта
 
-- [ ] **WMS-506.1** — Подготовить snapshot/backup, inventory сверку и cutover report с cursor каждого consumer.
-- [ ] **WMS-506.2** — Остановить изменяющие команды, дождаться/зафиксировать текущие локальные deliveries и остановить старых workers.
-- [ ] **WMS-506.3** — Определить точный boundary, передать только нужные незавершённые deliveries, сохранить eventId/markers и инициализировать consumer cursors.
-- [ ] **WMS-506.4** — Запустить singleton publisher и consumers при закрытой записи; проверить backlog и сверить эффекты.
-- [ ] **WMS-506.5** — Открыть запись и повторить полный складской сценарий, outage и дубликат.
-- [ ] **WMS-506.6** — Репетировать возврат с новым boundary после появления Kafka-эффектов; записать критерии продолжения/остановки и обновить runbook.
+Реализована isolated репетиция `pnpm cutover:drill`: [runbook/Mermaid](flows/transport-cutover.md),
+[решение](adr/0038-dev-transport-cutover.md), [AC/review/evidence](reports/wms-506.md).
+Рабочий стенд не переключался. Полный replay publisher сохранён; pending application
+effects передаются по прежним markers/cursors, local deliveries остаются для возврата.
+Readiness текущего snapshot: `pnpm harness:ready docs/tasks/wms-506.json`.
+
+- [x] **WMS-506.1** — Подготовить snapshot/backup, inventory сверку и cutover report с cursor каждого consumer.
+- [x] **WMS-506.2** — Остановить изменяющие команды, дождаться/зафиксировать текущие локальные deliveries и остановить старых workers.
+- [x] **WMS-506.3** — Определить точный boundary, передать только нужные незавершённые deliveries, сохранить eventId/markers и инициализировать consumer cursors.
+- [x] **WMS-506.4** — Запустить singleton publisher и consumers при закрытой записи; проверить backlog и сверить эффекты.
+- [x] **WMS-506.5** — Открыть запись и повторить полный складской сценарий, outage и дубликат.
+- [x] **WMS-506.6** — Репетировать возврат с новым boundary после появления Kafka-эффектов; записать критерии продолжения/остановки и обновить runbook.
 
 До cutover решить и проверить важный случай: после локального завершения версий
 1…N новый Kafka consumer получает N+1. Его cursor должен продолжаться от сохранённой
@@ -672,15 +678,15 @@ rollback приложения не выдаётся за rollback данных �
 
 ## Следующая задача для агента
 
-WMS-101–WMS-112 и **WMS-201** завершены. B1–B4 приняты владельцем продукта 2026-10-29.
-WMS-202 реализована: users/sessions/auth/ACL/CSRF/bootstrap и проверка отсутствия утечек.
-WMS-203 выполнена: размещение, парные movements и атомарное завершение.
-WMS-204–WMS-208 выполнены. WMS-304 выполнена: probes, bounded drain и Gate3 с Pod kills/совместимым rollout.
-Следующая задача — **WMS-401**, наблюдаемость. [Evidence](reports/wms-304.md). Перед запуском текущего API/operator
-bootstrap явно заполнить AUTH_ORIGIN и оба срока сессии, числовых defaults нет.
-Frontend, static web image и NGINX Gateway/TLS проверены в WMS-303; Kafka ещё не реализована. Складские applied migrations
-не переписывать; dev actor не возвращать как fallback. Публикация/внешний deploy требуют
-явно заданного окружения и TLS gateway.
+Этапы1–4 реализованы; B1–B4 приняты владельцем продукта2026-10-29.
+WMS-501–505 добавили dev Kafka/Registry, opt-in publisher/consumer и recovery.
+WMS-506 добавляет isolated cutover/reverse rehearsal: [flow](flows/transport-cutover.md),
+[проверки и ограничения](reports/wms-506.md). Рабочий стенд автоматически не переключён.
+Следующая задача — **WMS-601**, воспроизводимые полные проверки изменений. Внешний
+CI/CD ещё не настроен; размещение Git/registry и внешние deployment требуют отдельного
+подтверждённого окружения. Перед запуском API/operator bootstrap явно заполнить
+AUTH_ORIGIN и оба срока сессии, числовых defaults нет. Applied migrations не переписывать;
+dev actor не возвращать как fallback. Readiness этапа определяется текущим harness evidence.
 
 ## Требования к review реализации
 

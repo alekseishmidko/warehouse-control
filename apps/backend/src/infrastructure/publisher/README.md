@@ -4,6 +4,8 @@
 
 Надёжная доставка retained событий в Kafka без зависимости складского commit от
 broker. Не выполняет складские эффекты и не заменяет local worker до cutover.
+Репетиция переключения и возврата с полным retained replay —
+[WMS-506 runbook](../../../../../docs/flows/transport-cutover.md).
 
 ## Техническое устройство
 

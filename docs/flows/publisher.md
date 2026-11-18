@@ -154,13 +154,14 @@ where locktype='advisory' and classid=1464685363 and objid=503;
    один раз при startup: после ротации Secret нужен restart/Recreate, одного обновления
    projected files недостаточно. Stable transactionalId сохраняется. Retry использует
    тот же eventId и прежний cursor; проверить completed и последовательность records.
-4. Dead не сбрасывать SQL вручную. Текущий recovery CLI ориентирован на local consumer;
-   retry/quarantine transport будет расширен в WMS-505. До него остановить publisher,
+4. Dead не сбрасывать SQL вручную. Local recovery CLI и Kafka quarantine CLI WMS-505
+   не открывают budget publisher destination. Для publisher dead остановить процесс,
    сохранить evidence и устранить причину в отдельном reviewed recovery изменении.
 
 Не удалять outbox, delivery rows, sequence или PVC ради устранения ошибки. Old local
 worker продолжает работать; он не является Kafka consumer. Cutover/перенос незавершённых
-local deliveries и HA publisher не входят в503. Single broker RF1/ISR1 не является HA.
+local deliveries описан в [WMS-506 runbook](transport-cutover.md); HA publisher не входит в503.
+Single broker RF1/ISR1 не является HA.
 
 ## Evidence
 
