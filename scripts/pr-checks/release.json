@@ -1,5 +1,5 @@
 {
   "version": 1,
-  "baseCommit": "e79cb2fddf3125894decb0b9ef20988726732d45",
-  "description": "Согласованный пользователем начальный dev checkpoint WMS-506; release tags пока отсутствуют. Изменение baseline требует явного review, а не автоматического обновления после failure."
+  "baseCommit": "80f602502a5d0d4541da5e4839fe77a3a534d180",
+  "description": "Dev checkpoint WMS-506: ancestor 80f6025 имеет тот же tree 60460890ad2d9a91ec48d740da7ed2cbe18473f0, что прежний e79cb2fddf3125894decb0b9ef20988726732d45 после переписывания истории. Содержимое baseline не изменено; review WMS-602. Release tags отсутствуют."
 }

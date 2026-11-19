@@ -96,7 +96,8 @@
     "check:docs": "node scripts/pr-checks/documentation.cjs",
     "check:compatibility": "node scripts/pr-checks/compatibility.cjs",
     "check:helm": "node scripts/pr-checks/helm.cjs",
-    "test:pr-checks": "node --test scripts/pr-checks/*.test.cjs"
+    "test:pr-checks": "node --test scripts/pr-checks/*.test.cjs",
+    "images:scan": "node scripts/image-release/scan.cjs"
   },
   "private": true,
   "devDependencies": {

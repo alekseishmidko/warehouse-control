@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "id": "wms-602",
+  "issuedBy": "Пользователь: выполнить следующий этап, описать код, документацию, ревью и рефакторинг",
+  "request": "Пользователь поручил завершить WMS-602 реальной публикацией в GitHub Actions/GHCR: получить immutable digests backend/web, связать их с проверенным commit и проверить registry pull из согласованного целевого окружения. Предыдущее ограничение «без публикации» снято этим поручением. Развёртывание приложения/изменение рабочих данных не требуется. Ранее подготовленные runtime, policy, review и tests сохраняются; целевое окружение для pull уточняется отдельно.",
+  "base": "110929386f9900bf51ae096f74dda7abc07d427d",
+  "criteria": [
+    {
+      "id": "WMS-602.3",
+      "statement": "Локальный scan проверяет оба runtime image, запрещает HIGH/CRITICAL включая unfixed, сохраняет полный JSON и привязывает evidence к image ID; ошибка scanner/report не даёт passed. Это часть WMS-602, не подтверждение внешнего release.",
+      "tests": [
+        "scripts/pr-checks/checks.test.cjs#image scan policy fails closed and binds findings to the inspected image"
+      ],
+      "gates": ["pr", "image", "webImage", "imageScan"]
+    },
+    {
+      "id": "WMS-602.PREP",
+      "statement": "Подготовлены Actions/GHCR: PR read-only, ручной default-branch release, protected environment prerequisite, передача проверенных images без rebuild, unique tags/digests и registry pull. Внешнее выполнение и целевой cluster остаются непроверенными.",
+      "tests": [
+        "scripts/pr-checks/checks.test.cjs#release workflows isolate publication from untrusted validation"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-602.RUNTIME",
+      "statement": "Оба runtime используют обновлённый pinned Node/Debian; npm/tooling отсутствуют в итоговых layers. Node PID1, uid1000, read-only startup и штатный SIGTERM сохранены.",
+      "tests": [
+        "scripts/pr-checks/checks.test.cjs#runtime policy rejects unrelated expired and altered advisory exceptions"
+      ],
+      "gates": ["pr", "image", "webImage", "imageScan", "docker"]
+    },
+    {
+      "id": "WMS-602.RELEASE",
+      "statement": "Реальный разрешённый workflow публикует проверенные images без rebuild; artifact связывает commit/run/image/digest; pull по digest подтверждён целевым окружением, credentials не входят в Git/layers/logs. Внешнее evidence записывается после фактического run; локальный harness сам его не доказывает.",
+      "tests": [
+        "scripts/pr-checks/checks.test.cjs#release workflows isolate publication from untrusted validation"
+      ],
+      "gates": ["pr", "image", "webImage", "imageScan", "docker"]
+    }
+  ]
+}

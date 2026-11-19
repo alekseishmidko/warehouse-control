@@ -16,6 +16,7 @@ const { tmpdir } = require('node:os');
 const { resolve, join, dirname } = require('node:path');
 const { randomUUID } = require('node:crypto');
 const assert = require('node:assert/strict');
+const { verifyRuntime } = require('./image-release/runtime.cjs');
 const root = resolve(__dirname, '..');
 const web = process.argv.includes('--web');
 const app = web ? 'web' : 'backend';
@@ -100,6 +101,13 @@ async function main() {
       }),
     );
     assert.equal(info.User, 'node');
+    const runtimeId = execFileSync('docker', ['image', 'inspect', image, '--format', '{{.Id}}'], {
+      encoding: 'utf8',
+    }).trim();
+    verifyRuntime(runtimeId);
+    console.log(
+      'PASS pinned minimal runtime, uid1000, no npm/shell/package manager/native addons or shared OpenSSL',
+    );
     assert.deepEqual(info.Entrypoint, web ? ['node', 'server/static-server.cjs'] : ['node']);
     if (!web) assert.deepEqual(info.Cmd, ['dist/main.js']);
     assert.ok(

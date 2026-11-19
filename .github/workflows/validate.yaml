@@ -1,0 +1,76 @@
+# WMS-602: PR/reusable validation без registry write. Полный harness проверяет тот же checkout.
+name: Validate
+on:
+  pull_request:
+  workflow_call:
+    inputs:
+      export-images:
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.22.3
+      # Tools загружаются с exact versions/checksums; credentials не нужны.
+      - name: Install tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@10.18.3 --activate
+          curl --fail --location --retry 3 https://get.helm.sh/helm-v3.22.0-linux-amd64.tar.gz -o "$RUNNER_TEMP/helm.tar.gz"
+          echo "1e4ab49e429626cf6c6958d914248b78c9730803c2751b87627e171dc800e7bb  $RUNNER_TEMP/helm.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/helm.tar.gz" -C "$RUNNER_TEMP" linux-amd64/helm
+          curl --fail --location --retry 3 https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_Linux-64bit.tar.gz -o "$RUNNER_TEMP/trivy.tar.gz"
+          echo "bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf  $RUNNER_TEMP/trivy.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/wms-tools"
+          tar -xzf "$RUNNER_TEMP/trivy.tar.gz" -C "$RUNNER_TEMP/wms-tools" trivy
+          cp "$RUNNER_TEMP/linux-amd64/helm" "$RUNNER_TEMP/wms-tools/helm"
+          echo "$RUNNER_TEMP/wms-tools" >> "$GITHUB_PATH"
+      - name: Install frozen dependencies and Chromium
+        run: |
+          pnpm deps:check
+          pnpm exec playwright install --with-deps chromium
+      - name: Validate snapshot and scan images
+        run: |
+          pnpm harness:plan docs/tasks/wms-602.json
+          pnpm harness:run docs/tasks/wms-602.json
+          pnpm harness:ready docs/tasks/wms-602.json
+      # Передаются именно проверенные локальные images. Publish job не пересобирает их.
+      - name: Export checked images
+        if: inputs.export-images
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/release
+          docker save -o artifacts/release/backend.tar warehouse-backend:local
+          docker save -o artifacts/release/web.tar warehouse-web:local
+          printf '%s\n' "$GITHUB_SHA" > artifacts/release/commit.txt
+          cd artifacts/release
+          sha256sum backend.tar web.tar commit.txt > SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: inputs.export-images
+        with:
+          name: checked-images
+          path: artifacts/release/
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: validation-evidence
+          path: |
+            artifacts/harness/
+            artifacts/image-scan/**/*.json
+          if-no-files-found: warn
+          retention-days: 7

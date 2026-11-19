@@ -1018,3 +1018,25 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | `apps/backend/drizzle/meta/0035_snapshot.json`                | Generated custom snapshot; drizzle-kit generate --custom --name=immutable_picking_composition.    |
 | `docs/tasks/picking-plan-integrity.json`                      | Source task и критерии PICK-IMM-01–03 для исправления подтверждённого P2.                         |
 | `docs/reports/picking-plan-integrity.md`                      | Границы, AC → SQL → tests, red/green, повторное review и evidence.                                |
+
+## Подготовка поставки WMS-602
+
+| Файл                              | Назначение                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------------ |
+| `scripts/image-release/scan.cjs`  | Docker export точного image ID, Trivy scan, строгая policy и private evidence. |
+| `scripts/image-release/README.md` | Установка scanner, команды, policy, структура artifacts и границы поставки.    |
+| `docs/tasks/wms-602.json`         | Source task локальной подготовки WMS-602.3; внешние AC остаются открытыми.     |
+| `docs/flows/image-scan.md`        | Mermaid, доверие к scanner, шаги данных, ошибки и ограничения.                 |
+| `docs/reports/wms-602.md`         | Требования, AC, review/refactor и фактические проверки подготовки.             |
+
+| Файл                                    | Назначение                                                                   |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| `.github/workflows/validate.yaml`       | PR/reusable read-only harness, scan и передача проверенных images.           |
+| `.github/workflows/release-images.yaml` | Ручная поставка проверенных tar в GHCR с digest report; пока не запускалась. |
+
+| Файл                                    | Назначение                                                                                          |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `scripts/image-release/policy.cjs`      | Проверка scan report и точных, ограниченных сроком advisory exceptions.                             |
+| `scripts/image-release/runtime.cjs`     | Общие runtime probes image gate/scanner: Node/uid, tooling, native addons и OpenSSL.                |
+| `scripts/image-release/exceptions.json` | Пять reviewed UNKNOWN exceptions с CVE/package/version/OS/base/Node, сроком и первичным источником. |
+| `docs/adr/0039-minimal-node-runtime.md` | Решение о минимальном Node/Debian13 runtime и границах исключений.                                  |

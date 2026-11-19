@@ -50,6 +50,7 @@ backend/web image checks. WMS-601 добавляет alias `pnpm pr:pipeline <ta
 правила policy.cjs: Dockerfile/.dockerignore/Compose и package manifests/lock → backend
 и web image-check + Docker gate; Helm/Kubernetes → kubernetes:gate; Kafka resources,
 topology и gate script → kafka:gate; Registry tools/resources/event schemas → registry:gate.
+WMS-602 добавляет opt-in `imageScan` после backend/web image checks: он требует Trivy и не публикует images.
 AC могут расширять этот набор только известными IDs. Произвольный executable, argv,
 shell script или внешний deployment через task не задаётся. Семантическое покрытие
 AC остаётся обязанностью автора/reviewer: ссылка file#test — трассировка, не oracle.

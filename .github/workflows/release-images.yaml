@@ -1,0 +1,64 @@
+# WMS-602: только ручной запуск на default branch; environment ghcr-release требует внешней настройки reviewers.
+# Ручной запуск требует явного поручения оператора и approval environment; WMS-602 release разрешён пользователем.
+name: Release images
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ghcr-release
+  cancel-in-progress: false
+jobs:
+  validate:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    uses: ./.github/workflows/validate.yaml
+    with:
+      export-images: true
+  publish:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: ghcr-release
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      # Нет checkout и исполнения candidate scripts с packages:write token.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: checked-images
+          path: release
+      - name: Publish exact checked images and verify registry pull
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd release
+          sha256sum --check SHA256SUMS
+          test "$(cat commit.txt)" = "$GITHUB_SHA"
+          export DOCKER_CONFIG="$RUNNER_TEMP/ghcr-config"
+          mkdir -p "$DOCKER_CONFIG"
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true; rm -rf "$DOCKER_CONFIG"' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          printf 'commit\timage\tdigest\n' > digests.tsv
+          for app in backend web; do
+            docker load -i "$app.tar"
+            source_id="$(docker image inspect "warehouse-$app:local" --format '{{.Id}}')"
+            image="ghcr.io/${GITHUB_REPOSITORY,,}/$app"
+            tag="sha-$GITHUB_SHA-run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+            docker tag "$source_id" "$image:$tag"
+            docker push "$image:$tag"
+            canonical="$(docker image inspect "$image:$tag" --format '{{index .RepoDigests 0}}')"
+            test "${canonical%@*}" = "$image"
+            [[ "${canonical#*@}" =~ ^sha256:[a-f0-9]{64}$ ]]
+            docker pull "$canonical"
+            printf '%s\t%s\t%s\n' "$GITHUB_SHA" "$image" "${canonical#*@}" >> digests.tsv
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: release-digests
+          path: release/digests.tsv
+          if-no-files-found: warn
+          retention-days: 90

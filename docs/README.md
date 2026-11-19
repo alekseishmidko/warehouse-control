@@ -240,3 +240,7 @@ WMS-601: [полный локальный PR pipeline](flows/pr-pipeline.md),
 [review/исправления/evidence](reports/wms-601.md). Frozen install, pinned compatibility,
 реальный baseline upgrade, docs/catalog/JSDoc и Helm/image gates включены в проверку.
 Следующая задача — WMS-602 при подтверждённом Git hosting; внешний CI/CD пока не настроен.
+
+WMS-602 в работе: [локальный image scan](flows/image-scan.md),
+[требования и ограничения](reports/wms-602.md). GitHub Actions + GHCR подтверждены для подготовки
+без публикации. Workflows подготовлены; внешние runs/целевой pull не выполнены.
