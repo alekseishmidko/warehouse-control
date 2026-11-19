@@ -251,3 +251,260 @@ test('frozen install rejects changed manifest without rewriting lockfile', () =>
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('image scan policy fails closed and binds findings to the inspected image', () => {
+  const { validateReport } = require('../image-release/scan.cjs');
+  const imageId = 'sha256:' + 'a'.repeat(64);
+  const report = () => ({
+    SchemaVersion: 2,
+    ArtifactType: 'container_image',
+    Metadata: { ImageID: imageId },
+    Results: [{ Target: 'Debian', Class: 'os-pkgs', Vulnerabilities: [] }],
+  });
+  assert.equal(validateReport(report(), imageId).HIGH, 0);
+  for (const severity of ['HIGH', 'CRITICAL', 'UNKNOWN', 'unexpected']) {
+    const candidate = report();
+    // FixedVersion отсутствует: unfixed advisory также блокирует release.
+    candidate.Results[0].Vulnerabilities.push({
+      VulnerabilityID: 'CVE-test',
+      PkgName: 'lib',
+      Severity: severity,
+    });
+    assert.throws(() => validateReport(candidate, imageId));
+  }
+  const low = report();
+  low.Results[0].Vulnerabilities.push({
+    VulnerabilityID: 'CVE-test',
+    PkgName: 'lib',
+    Severity: 'LOW',
+  });
+  assert.equal(validateReport(low, imageId).LOW, 1);
+  for (const mutate of [
+    (r) => {
+      r.Metadata.ImageID = 'sha256:' + 'b'.repeat(64);
+    },
+    (r) => {
+      r.Results = [];
+    },
+    (r) => {
+      delete r.Metadata;
+    },
+    (r) => {
+      r.Results[0].Vulnerabilities = {};
+    },
+    (r) => {
+      r.Results.push(null);
+    },
+    (r) => {
+      r.SchemaVersion = 1;
+    },
+  ]) {
+    const candidate = report();
+    mutate(candidate);
+    assert.throws(() => validateReport(candidate, imageId));
+  }
+  assert.throws(() => validateReport({}, imageId));
+  assert.throws(() => validateReport(null, imageId));
+});
+
+// Overrides scanner не должны превращать advisory в чистый отчёт.
+test('image scanner discards ambient policy overrides', () => {
+  const { scannerEnvironment } = require('../image-release/scan.cjs');
+  assert.deepEqual(
+    scannerEnvironment({
+      PATH: '/bin',
+      HTTPS_PROXY: 'proxy',
+      TRIVY_SEVERITY: 'LOW',
+      TRIVY_SKIP_DB_UPDATE: 'true',
+      TRIVY_IGNORE_STATUS: 'affected',
+    }),
+    { PATH: '/bin', HTTPS_PROXY: 'proxy' },
+  );
+});
+
+// Docker Desktop inspect ID может быть OCI index; scanner возвращает digest config bytes.
+test('image archive identity uses config bytes and rejects ambiguous manifests', () => {
+  const { archiveConfigId } = require('../image-release/scan.cjs');
+  const { createHash } = require('node:crypto');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wms-image-'));
+  try {
+    const config = '{"architecture":"arm64"}';
+    const hash = createHash('sha256').update(config).digest('hex');
+    fs.writeFileSync(path.join(root, hash + '.json'), config);
+    fs.writeFileSync(
+      path.join(root, 'manifest.json'),
+      JSON.stringify([{ Config: hash + '.json' }]),
+    );
+    const archive = path.join(root, 'image.tar');
+    execFileSync('tar', ['-cf', archive, '-C', root, 'manifest.json', hash + '.json']);
+    assert.equal(archiveConfigId(archive), 'sha256:' + hash);
+    fs.writeFileSync(path.join(root, 'manifest.json'), '[{"Config":"../../outside"}]');
+    execFileSync('tar', ['-cf', archive, '-C', root, 'manifest.json']);
+    assert.throws(() => archiveConfigId(archive));
+    fs.writeFileSync(path.join(root, 'manifest.json'), '[{},{}]');
+    execFileSync('tar', ['-cf', archive, '-C', root, 'manifest.json']);
+    assert.throws(() => archiveConfigId(archive));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// Проверяем реальный YAML: PR не получает registry write, publisher не выполняет candidate source.
+test('release workflows isolate publication from untrusted validation', () => {
+  const yaml = require('node:module').createRequire(require.resolve('@asyncapi/parser'))('js-yaml');
+  const read = (name) =>
+    yaml.load(fs.readFileSync(path.join(__dirname, '../../.github/workflows', name), 'utf8'));
+  const validation = read('validate.yaml');
+  const release = read('release-images.yaml');
+  assert.deepEqual(Object.keys(validation.on).sort(), ['pull_request', 'workflow_call']);
+  assert.equal(validation.jobs.validate['runs-on'], 'ubuntu-24.04-arm');
+  assert.equal(release.jobs.publish['runs-on'], 'ubuntu-24.04-arm');
+  assert.deepEqual(validation.permissions, { contents: 'read' });
+  assert.equal(validation.jobs.validate.permissions, undefined);
+  const commands = validation.jobs.validate.steps.map((s) => s.run || '').join('\n');
+  for (const phase of ['harness:plan', 'harness:run', 'harness:ready'])
+    assert.ok(commands.includes(phase));
+  assert.deepEqual(Object.keys(release.on), ['workflow_dispatch']);
+  assert.ok(release.jobs.validate.if.includes('default_branch'));
+  assert.equal(release.jobs.publish.needs, 'validate');
+  assert.equal(release.jobs.publish.environment, 'ghcr-release');
+  assert.equal(release.jobs['verify-pull'].needs, 'publish');
+  assert.equal(release.jobs['verify-pull']['runs-on'], 'ubuntu-24.04-arm');
+  assert.deepEqual(release.jobs['verify-pull'].permissions, { contents: 'read', packages: 'read' });
+  assert.deepEqual(release.jobs.publish.permissions, { contents: 'read', packages: 'write' });
+  const publishSteps = release.jobs.publish.steps;
+  assert.ok(!publishSteps.some((s) => s.uses?.startsWith('actions/checkout')));
+  const publish = publishSteps.map((s) => s.run || '').join('\n');
+  assert.ok(publish.includes('sha256sum --check SHA256SUMS'));
+  assert.ok(publish.includes('docker pull "$canonical"'));
+  assert.ok(publish.includes('GITHUB_RUN_ATTEMPT'));
+  assert.ok(!publish.includes('docker build'));
+  for (const workflow of [validation, release])
+    for (const job of Object.values(workflow.jobs))
+      for (const step of job.steps || []) if (step.uses) assert.match(step.uses, /@[a-f0-9]{40}$/);
+});
+
+// Закрепляем content baseline после переписывания commit metadata, без продвижения release content.
+test('release checkpoint retains the accepted WMS-506 tree', () => {
+  const root = path.resolve(__dirname, '../..');
+  const base = require('./compatibility.cjs').releaseBase(root);
+  assert.equal(
+    execFileSync('git', ['rev-parse', base + '^{tree}'], { cwd: root, encoding: 'utf8' }).trim(),
+    '60460890ad2d9a91ec48d740da7ed2cbe18473f0',
+  );
+});
+
+// Адресное исключение нельзя применить к другому пакету/version/OS, новому риску или после срока.
+test('runtime policy rejects unrelated expired and altered advisory exceptions', () => {
+  const { validateReport, validateExceptions } = require('../image-release/policy.cjs');
+  const { runtimeBase, nodeVersion } = require('../image-release/runtime.cjs');
+  const exceptions = require('../image-release/exceptions.json');
+  const now = Date.parse('2026-11-20T00:00:00Z');
+  const imageId = 'sha256:' + 'c'.repeat(64);
+  const proof = {
+    base: runtimeBase,
+    nodeVersion,
+    jsOnly: true,
+    toolingAbsent: true,
+    sharedOpenSSL: false,
+  };
+  const report = () => ({
+    SchemaVersion: 2,
+    ArtifactType: 'container_image',
+    Metadata: { ImageID: imageId, OS: { Family: 'debian', Name: '13.7' } },
+    Results: [
+      {
+        Target: 'Debian',
+        Class: 'os-pkgs',
+        Type: 'debian',
+        Vulnerabilities: exceptions.map((e) => ({
+          VulnerabilityID: e.id,
+          PkgName: e.package,
+          InstalledVersion: e.version,
+          Severity: e.severity,
+          Status: e.status,
+        })),
+      },
+    ],
+  });
+  const options = { exceptions, proof, now };
+  assert.equal(validateReport(report(), imageId, options).waived.length, 5);
+  for (const mutate of [
+    (r) => {
+      r.Results[0].Vulnerabilities[0].PkgName += '-other';
+    },
+    (r) => {
+      r.Results[0].Vulnerabilities[0].InstalledVersion += '1';
+    },
+    (r) => {
+      r.Results[0].Vulnerabilities[0].Severity = 'HIGH';
+    },
+    (r) => {
+      r.Results[0].Vulnerabilities[0].Status = 'fixed';
+    },
+    (r) => {
+      r.Results[0].Vulnerabilities[0].FixedVersion = 'next';
+    },
+    (r) => {
+      r.Results[0].Vulnerabilities[0].VulnerabilityID = 'CVE-2026-9999999';
+    },
+    (r) => {
+      r.Results[0].Type = 'node-pkg';
+    },
+    (r) => {
+      r.Metadata.OS.Name = '12.15';
+    },
+  ]) {
+    const candidate = report();
+    mutate(candidate);
+    assert.throws(() => validateReport(candidate, imageId, options));
+  }
+  for (const badProof of [
+    undefined,
+    { ...proof, base: 'other' },
+    { ...proof, jsOnly: false },
+    { ...proof, toolingAbsent: false },
+    { ...proof, sharedOpenSSL: true },
+  ])
+    assert.throws(() => validateReport(report(), imageId, { ...options, proof: badProof }));
+  assert.throws(() =>
+    validateReport(report(), imageId, { ...options, now: Date.parse('2026-12-20T00:00:00Z') }),
+  );
+  for (const mutate of [
+    (e) => {
+      e[0].reason = '';
+    },
+    (e) => {
+      e[0].severity = 'HIGH';
+    },
+    (e) => {
+      e[0].source = 'https://unreviewed.example';
+    },
+    (e) => {
+      e[0].expires = 'invalid';
+    },
+    (e) => {
+      e.push(e[0]);
+    },
+  ]) {
+    const candidate = structuredClone(exceptions);
+    mutate(candidate);
+    assert.throws(() => validateExceptions(candidate, now));
+  }
+});
+
+// Target pull принимает только согласованный GHCR repository и digest, без mutable tag/чужих images.
+test('target pull rejects tags foreign repositories and malformed digests', () => {
+  const { parseReleaseRef } = require('../image-release/pull-kind.cjs');
+  const repository = 'alekseishmidko/warehouse-control';
+  const ref = 'ghcr.io/' + repository + '/backend@sha256:' + 'a'.repeat(64);
+  assert.equal(parseReleaseRef(ref, repository, 'backend'), ref);
+  for (const candidate of [
+    ref.replace('@sha256:', ':'),
+    ref + ';echo bad',
+    ref.replace('/backend', '/web'),
+    ref.replace('warehouse-control', 'other'),
+    undefined,
+  ])
+    assert.throws(() => parseReleaseRef(candidate, repository, 'backend'));
+});

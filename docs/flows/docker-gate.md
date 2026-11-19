@@ -26,17 +26,17 @@ Build input — только собственные manifest/lock/config/src/dri
 schemas уже находятся в src; Docker не читает docs, .env, test, host dist/node_modules
 или Git. **Новый workspace dependency или build input требует обновить allowlist и
 Dockerfile.** Не добавлять общий COPY . . ради удобства.
-Node 24.22.1 bookworm-slim закреплён digest, pnpm 10.18.3 — явно в tooling stage.
+Node 24.22.3 trixie-slim закреплён digest, pnpm 10.18.3 — явно в tooling stage.
 Frozen install не изменяет lockfile. Production-dependencies делает отдельный prod
 install (132 packages на проверенном lockfile); build stage ставит dev dependencies
-и выполняет Nest build. Runtime начинается с чистого Node base, получает только
+и выполняет Nest build. Runtime начинается с pinned distroless cc-debian13, получает только Node binary, passwd/group (node uid1000),
 production node_modules, dist и drizzle с journal/snapshots/SQL. Host artifacts не нужны.
 Обновление base digest/lockfile — отдельное осознанное изменение с повтором проверок.
 
 Image не содержит DATABASE_URL или паролей. Runtime URL передаётся средой Compose;
 docker inspect/config способны его показать локальному Docker-администратору.
 Секреты не передаются build args, ENV Dockerfile, bind mounts или исходниками.
-Docker secret manager, image signing и vulnerability scanner этим этапом не добавлены.
+Secret manager/image signing не добавлены. WMS-602 добавляет [vulnerability scan](image-scan.md) и [минимальный runtime](../adr/0039-minimal-node-runtime.md) без npm/shell.
 
 ## Запуск разработчиком
 

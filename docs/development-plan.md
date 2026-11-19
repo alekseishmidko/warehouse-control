@@ -654,9 +654,14 @@ Frozen install, docs/catalog/JSDoc, pinned contracts/migrations, Helm и image g
 
 ### WMS-602. Образы и registry
 
+В работе: независимый [локальный scan](flows/image-scan.md) и
+[policy/review](reports/wms-602.md). Пользователь подтвердил GitHub Actions + GHCR и новым поручением разрешил реальную публикацию и проверку pull.
+Workflows добавлены; внешние runs, permissions/целевой cluster не проверены.
+Runtime обновлён: [ADR-0039](adr/0039-minimal-node-runtime.md), scan использует адресные исключения с runtime probes. Этап не завершён.
+
 - [ ] **WMS-602.1** — Подтвердить Git hosting, доступы и целевые окружения; выбрать Actions/GHCR только при соответствующем размещении.
-- [ ] **WMS-602.2** — Разделить PR validation и разрешённую публикацию release images, задать минимальные permissions.
-- [ ] **WMS-602.3** — Настроить image scan и политику обработки найденных уязвимостей с документированными исключениями.
+- [x] **WMS-602.2** — Разделить PR validation и разрешённую публикацию release images, задать минимальные permissions.
+- [x] **WMS-602.3** — Настроить image scan и политику обработки найденных уязвимостей с документированными исключениями.
 - [ ] **WMS-602.4** — Публиковать immutable image и фиксировать digest, commit и результаты проверок; не передавать secrets в build layers.
 - [ ] **WMS-602.5** — Проверить pull образа целевым окружением и трассируемость digest к проверенному commit.
 

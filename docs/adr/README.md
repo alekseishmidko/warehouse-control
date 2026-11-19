@@ -73,3 +73,5 @@ stable Kafka epoch, read_committed и ack → SQL completion без обещан
 
 [0038. Dev transport cutover](0038-dev-transport-cutover.md) — frozen boundary/backup,
 retained replay и возврат с новым boundary без удаления local deliveries/markers.
+
+[0039. Минимальный Node runtime](0039-minimal-node-runtime.md) — pinned Node/Debian13, отсутствие tooling и адресные advisory exceptions.
