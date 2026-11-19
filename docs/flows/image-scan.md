@@ -73,3 +73,32 @@ run URL, pull identity и exit status без credentials. Этот шаг сей
 
 Подход согласован с [GitHub GHCR documentation](https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images)
 и [Trivy filtering](https://trivy.dev/docs/latest/configuration/filtering/).
+
+## Разрешённый выпуск ARM64
+
+Пользователь согласовал полный путь: source branch → PR → CI → merge → manual release
+→ pull в отдельном kind ARM64. Validation и publisher используют ubuntu-24.04-arm;
+Helm/Trivy закреплены Linux ARM64 checksums. Это single-platform linux/arm64 release,
+не multiarch manifest и не обещание запуска на amd64. Перед publish проверяются именно
+переданные tar; последующий kind pull использует GHCR digest, без kind load/local cache.
+Приложение/БД не разворачиваются: smoke Pods проверяют Node/uid и соответствие imageID.
+Credentials передаются через private temporary registry Secret и удаляются с cluster.
+
+```mermaid
+flowchart LR
+  PR[Source PR] --> CI[ARM64 validation/harness]
+  CI --> M[Согласованный merge]
+  M --> V[Manual release: повтор validation]
+  V --> A[Approval ghcr-release]
+  A --> P[Publish checked tar и digests.tsv]
+  P --> K[Fresh ARM64 verify-pull: packages read]
+  K --> C[New kind: cache empty, Secret через stdin]
+  C --> S[Pods pull digest, CRI identity и Node smoke]
+  S --> E[Cleanup и target-pull-evidence]
+```
+
+verify-pull получает refs через job outputs publisher. Перед download tools сверяются
+SHA256; kubeconfig временный и не входит в artifacts. Только evidence.json сохраняет
+commit/run/reference/CRI identity и runtime facts. Ошибка pull/identity/smoke/cleanup
+делает release workflow failed; успешно опубликованный image при таком отказе не
+считается прошедшим target validation. Повтор получает новый run attempt/tag.

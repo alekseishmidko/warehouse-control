@@ -2,7 +2,7 @@
   "version": 1,
   "id": "wms-602",
   "issuedBy": "Пользователь: выполнить следующий этап, описать код, документацию, ревью и рефакторинг",
-  "request": "Пользователь поручил завершить WMS-602 реальной публикацией в GitHub Actions/GHCR: получить immutable digests backend/web, связать их с проверенным commit и проверить registry pull из согласованного целевого окружения. Предыдущее ограничение «без публикации» снято этим поручением. Развёртывание приложения/изменение рабочих данных не требуется. Ранее подготовленные runtime, policy, review и tests сохраняются; целевое окружение для pull уточняется отдельно.",
+  "request": "Пользователь поручил выполнить согласованный план WMS-602: linux/arm64 native GitHub runner; source в отдельную ветку и PR в main; review и успешный CI перед разрешённым merge; ручной release с approval ghcr-release; публикация backend/web в GHCR и сохранение digests/commit/run evidence; pull по digest в новом отдельном kind ARM64 в свежем GitHub Actions job с packages:read без загрузки local images, с временным registry credential, smoke Pods и удалением cluster. Явно разрешены source push ветки, создание PR, merge после зелёных gates, workflow dispatch и публикация. Полный deployment приложения/БД и рабочие данные не затрагиваются.",
   "base": "110929386f9900bf51ae096f74dda7abc07d427d",
   "criteria": [
     {
@@ -15,7 +15,7 @@
     },
     {
       "id": "WMS-602.PREP",
-      "statement": "Подготовлены Actions/GHCR: PR read-only, ручной default-branch release, protected environment prerequisite, передача проверенных images без rebuild, unique tags/digests и registry pull. Внешнее выполнение и целевой cluster остаются непроверенными.",
+      "statement": "Подготовлены Actions/GHCR: PR read-only, ручной default-branch release, protected environment prerequisite, передача проверенных images без rebuild, unique tags/digests и registry pull. Внешнее evidence проверяется отдельными RELEASE/PULL criteria.",
       "tests": [
         "scripts/pr-checks/checks.test.cjs#release workflows isolate publication from untrusted validation"
       ],
@@ -36,6 +36,15 @@
         "scripts/pr-checks/checks.test.cjs#release workflows isolate publication from untrusted validation"
       ],
       "gates": ["pr", "image", "webImage", "imageScan", "docker"]
+    },
+    {
+      "id": "WMS-602.PULL",
+      "statement": "Отдельный ARM64 verify-pull job с packages:read создаёт новый kind без release cache/import, тянет exact GHCR digests и связывает Pod imageID через CRI repoDigests; Node version/uid проверены, cluster/Secret/kubeconfig удалены. Внешний job artifact является фактическим evidence.",
+      "tests": [
+        "scripts/pr-checks/checks.test.cjs#target pull rejects tags foreign repositories and malformed digests",
+        "scripts/pr-checks/checks.test.cjs#release workflows isolate publication from untrusted validation"
+      ],
+      "gates": ["pr"]
     }
   ]
 }

@@ -16,9 +16,12 @@ jobs:
       export-images: true
   publish:
     needs: validate
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     environment: ghcr-release
+    outputs:
+      backend: ${{ steps.publish.outputs.backend }}
+      web: ${{ steps.publish.outputs.web }}
     permissions:
       contents: read
       packages: write
@@ -29,6 +32,7 @@ jobs:
           name: checked-images
           path: release
       - name: Publish exact checked images and verify registry pull
+        id: publish
         shell: bash
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,6 +57,7 @@ jobs:
             test "${canonical%@*}" = "$image"
             [[ "${canonical#*@}" =~ ^sha256:[a-f0-9]{64}$ ]]
             docker pull "$canonical"
+            printf '%s=%s\n' "$app" "$canonical" >> "$GITHUB_OUTPUT"
             printf '%s\t%s\t%s\n' "$GITHUB_SHA" "$image" "${canonical#*@}" >> digests.tsv
           done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -60,5 +65,45 @@ jobs:
         with:
           name: release-digests
           path: release/digests.tsv
+          if-no-files-found: warn
+          retention-days: 90
+
+  verify-pull:
+    needs: publish
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.22.3
+      - name: Install pinned ARM64 pull tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/pull-tools"
+          curl --fail --location --retry 3 https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-arm64 -o "$RUNNER_TEMP/pull-tools/kind"
+          echo "20022bee6cfcd5086cb7234d218e3454e6090022f2a8f55d1fa7fcf42c3867a2  $RUNNER_TEMP/pull-tools/kind" | sha256sum --check
+          curl --fail --location --retry 3 https://dl.k8s.io/release/v1.37.0/bin/linux/arm64/kubectl -o "$RUNNER_TEMP/pull-tools/kubectl"
+          echo "922df28df248cc00a9e025f947704f1d1482de64ece54cfe57e61f19eaf1eef3  $RUNNER_TEMP/pull-tools/kubectl" | sha256sum --check
+          chmod +x "$RUNNER_TEMP/pull-tools/kind" "$RUNNER_TEMP/pull-tools/kubectl"
+          echo "$RUNNER_TEMP/pull-tools" >> "$GITHUB_PATH"
+      # Новая VM и новый cluster; никаких local images/import. Token имеет только packages:read.
+      - name: Verify fresh kind registry pull and cleanup
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_BACKEND_REF: ${{ needs.publish.outputs.backend }}
+          RELEASE_WEB_REF: ${{ needs.publish.outputs.web }}
+        run: node scripts/image-release/pull-kind.cjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: target-pull-evidence
+          path: artifacts/release-pull/evidence.json
           if-no-files-found: warn
           retention-days: 90

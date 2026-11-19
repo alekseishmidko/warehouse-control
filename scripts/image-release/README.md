@@ -66,3 +66,16 @@ Gconv/libssl остаются в filesystem и полном JSON. Это не у
 Остаточный риск: новый JS/native consumer или внешние mounts могут изменить применимость;
 такие изменения требуют review policy до release, source-bound harness не заменяет его.
 Regression: `runtime policy rejects unrelated expired and altered advisory exceptions`.
+
+## Проверка целевого pull
+
+После publish job отдельный verify-pull на новой ARM64 VM получает только packages:read.
+`pull-kind.cjs` принимает RELEASE_BACKEND_REF/RELEASE_WEB_REF, GITHUB_REPOSITORY/SHA/ACTOR
+и short-lived GITHUB_TOKEN. Только exact GHCR repository/app@sha256 разрешены. Скрипт
+создаёт UUID kind cluster с отдельным private kubeconfig, проверяет ARM64 и отсутствие
+release images в CRI cache. Registry Secret передаётся через stdin; Pods не получают
+Secret mount или service-account token. imagePullPolicy Always, read-only rootfs, uid1000,
+capabilities drop ALL; Node smoke сверяет version/arch/uid. CRI repoDigests связывает
+requested digest с фактическим Pod imageID/config. Finally удаляет только свой cluster
+и kubeconfig; cleanup failure запрещает passed. Evidence не содержит auth data.
+Это не установка WMS/БД и не проверка production target.

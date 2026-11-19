@@ -357,6 +357,8 @@ test('release workflows isolate publication from untrusted validation', () => {
   const validation = read('validate.yaml');
   const release = read('release-images.yaml');
   assert.deepEqual(Object.keys(validation.on).sort(), ['pull_request', 'workflow_call']);
+  assert.equal(validation.jobs.validate['runs-on'], 'ubuntu-24.04-arm');
+  assert.equal(release.jobs.publish['runs-on'], 'ubuntu-24.04-arm');
   assert.deepEqual(validation.permissions, { contents: 'read' });
   assert.equal(validation.jobs.validate.permissions, undefined);
   const commands = validation.jobs.validate.steps.map((s) => s.run || '').join('\n');
@@ -366,6 +368,9 @@ test('release workflows isolate publication from untrusted validation', () => {
   assert.ok(release.jobs.validate.if.includes('default_branch'));
   assert.equal(release.jobs.publish.needs, 'validate');
   assert.equal(release.jobs.publish.environment, 'ghcr-release');
+  assert.equal(release.jobs['verify-pull'].needs, 'publish');
+  assert.equal(release.jobs['verify-pull']['runs-on'], 'ubuntu-24.04-arm');
+  assert.deepEqual(release.jobs['verify-pull'].permissions, { contents: 'read', packages: 'read' });
   assert.deepEqual(release.jobs.publish.permissions, { contents: 'read', packages: 'write' });
   const publishSteps = release.jobs.publish.steps;
   assert.ok(!publishSteps.some((s) => s.uses?.startsWith('actions/checkout')));
@@ -486,4 +491,20 @@ test('runtime policy rejects unrelated expired and altered advisory exceptions',
     mutate(candidate);
     assert.throws(() => validateExceptions(candidate, now));
   }
+});
+
+// Target pull принимает только согласованный GHCR repository и digest, без mutable tag/чужих images.
+test('target pull rejects tags foreign repositories and malformed digests', () => {
+  const { parseReleaseRef } = require('../image-release/pull-kind.cjs');
+  const repository = 'alekseishmidko/warehouse-control';
+  const ref = 'ghcr.io/' + repository + '/backend@sha256:' + 'a'.repeat(64);
+  assert.equal(parseReleaseRef(ref, repository, 'backend'), ref);
+  for (const candidate of [
+    ref.replace('@sha256:', ':'),
+    ref + ';echo bad',
+    ref.replace('/backend', '/web'),
+    ref.replace('warehouse-control', 'other'),
+    undefined,
+  ])
+    assert.throws(() => parseReleaseRef(candidate, repository, 'backend'));
 });

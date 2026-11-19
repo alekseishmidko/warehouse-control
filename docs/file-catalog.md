@@ -1040,3 +1040,7 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | `scripts/image-release/runtime.cjs`     | Общие runtime probes image gate/scanner: Node/uid, tooling, native addons и OpenSSL.                |
 | `scripts/image-release/exceptions.json` | Пять reviewed UNKNOWN exceptions с CVE/package/version/OS/base/Node, сроком и первичным источником. |
 | `docs/adr/0039-minimal-node-runtime.md` | Решение о минимальном Node/Debian13 runtime и границах исключений.                                  |
+
+| Файл                                  | Назначение                                                                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `scripts/image-release/pull-kind.cjs` | Opt-in pull immutable GHCR refs в свежем ARM64 kind, smoke/CRI proof и гарантированная очистка private credentials. |

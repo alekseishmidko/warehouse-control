@@ -11,7 +11,7 @@ permissions:
   contents: read
 jobs:
   validate:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -21,6 +21,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24.22.3
+      # ARM64 совпадает с целевым kind на macOS arm64; emulation не используется.
       # Tools загружаются с exact versions/checksums; credentials не нужны.
       - name: Install tools
         shell: bash
@@ -28,14 +29,14 @@ jobs:
           set -euo pipefail
           corepack enable
           corepack prepare pnpm@10.18.3 --activate
-          curl --fail --location --retry 3 https://get.helm.sh/helm-v3.22.0-linux-amd64.tar.gz -o "$RUNNER_TEMP/helm.tar.gz"
-          echo "1e4ab49e429626cf6c6958d914248b78c9730803c2751b87627e171dc800e7bb  $RUNNER_TEMP/helm.tar.gz" | sha256sum --check
-          tar -xzf "$RUNNER_TEMP/helm.tar.gz" -C "$RUNNER_TEMP" linux-amd64/helm
-          curl --fail --location --retry 3 https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_Linux-64bit.tar.gz -o "$RUNNER_TEMP/trivy.tar.gz"
-          echo "bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf  $RUNNER_TEMP/trivy.tar.gz" | sha256sum --check
+          curl --fail --location --retry 3 https://get.helm.sh/helm-v3.22.0-linux-arm64.tar.gz -o "$RUNNER_TEMP/helm.tar.gz"
+          echo "f14e804dfee240f55525b667488fe9adca349e63e00c9af634c0beb1421ac310  $RUNNER_TEMP/helm.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/helm.tar.gz" -C "$RUNNER_TEMP" linux-arm64/helm
+          curl --fail --location --retry 3 https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_Linux-ARM64.tar.gz -o "$RUNNER_TEMP/trivy.tar.gz"
+          echo "ab9d51f86e6a5fb936f605faff6b593ac51bc378fff4d3e8b9d58358b9c367c3  $RUNNER_TEMP/trivy.tar.gz" | sha256sum --check
           mkdir -p "$RUNNER_TEMP/wms-tools"
           tar -xzf "$RUNNER_TEMP/trivy.tar.gz" -C "$RUNNER_TEMP/wms-tools" trivy
-          cp "$RUNNER_TEMP/linux-amd64/helm" "$RUNNER_TEMP/wms-tools/helm"
+          cp "$RUNNER_TEMP/linux-arm64/helm" "$RUNNER_TEMP/wms-tools/helm"
           echo "$RUNNER_TEMP/wms-tools" >> "$GITHUB_PATH"
       - name: Install frozen dependencies and Chromium
         run: |
