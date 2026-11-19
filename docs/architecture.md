@@ -14,7 +14,7 @@
 | ---------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
 | Workspace        | pnpm + TypeScript                                            | Реализован                                                                                   |
 | Backend          | NestJS                                                       | WMS-202–207: auth/ACL, складские команды и read API                                          |
-| Данные           | PostgreSQL + Drizzle + SQL                                   | Stock/allocations/receiving/fulfillment/audit/outbox/quarantine; migrations до0034           |
+| Данные           | PostgreSQL + Drizzle + SQL                                   | Stock/allocations/receiving/fulfillment/audit/outbox/quarantine; migrations до0035           |
 | Надёжные события | PostgreSQL transactional outbox                              | WMS-110 writer/worker/putaway handler готовы                                                 |
 | Event transport  | Kafka + Apicurio catalogue                                   | Dev platform/release/publisher/consumer/recovery WMS-501–505; isolated cutover drill WMS-506 |
 | UI               | Solid, TypeScript, Vite, Solid Router, Solid Query, Tailwind | SPA WMS-208; static web image и TLS hosting WMS-303                                          |

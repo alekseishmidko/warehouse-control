@@ -24,3 +24,7 @@ Unit/integration control tests используют настоящие врем�
 child processes. Минимальные fixture gates проверяют runner, не подменяют production
 check:pr и не засчитываются как проверки приложения. Native fs.watch требует доступа
 ОС; ошибка watcher запрещает passed/ready, sandbox fallback не включён.
+
+WMS-601: frozen install запускается первым; pr и backend/web image checks обязательны
+для каждого task. Root alias pr:pipeline вызывает этот же runner. Дополнительные gates
+по-прежнему выбираются по diff/AC. [Полный flow](../../docs/flows/pr-pipeline.md).

@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { git } = require('./snapshot.cjs');
 const gates = {
+  install: ['deps:check'],
   pr: ['check:pr'],
   image: ['docker:image-check'],
   webImage: ['docker:image-check', '--web'],
@@ -95,7 +96,13 @@ function plan(root, task, inputs) {
     .split('\0')
     .filter(Boolean))
     changed.add(file);
-  const required = new Set(['pr', ...task.criteria.flatMap((ac) => ac.gates)]);
+  const required = new Set([
+    'install',
+    'pr',
+    'image',
+    'webImage',
+    ...task.criteria.flatMap((ac) => ac.gates),
+  ]);
   for (const file of changed) {
     if (
       /(^|\/)Dockerfile$|^\.dockerignore$|^infra\/compose\/|^(?:apps\/(?:backend|web)\/)?package.json$|^pnpm-lock.yaml$/.test(

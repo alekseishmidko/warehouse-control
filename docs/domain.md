@@ -110,7 +110,8 @@ request/key; явный повтор использует тот же key и з�
 эффекта. Общий лимит сообщения262144 UTF-8 bytes включает envelope/extensions;
 ReceivingPosted v1 содержит1..1000 строк. Delivery at least once; effect/marker/cursors/
 ack — один commit. Нет обещания exactly-once, общего порядка всех агрегатов или атомарности
-PostgreSQL+Kafka. Kafka пока не подключена. [Контракты](contracts/README.md), [outbox](outbox.md).
+PostgreSQL+Kafka. Opt-in Kafka publisher/consumer и recovery реализованы;
+переключение в обе стороны проверяет [локальный drill](flows/transport-cutover.md). [Контракты](contracts/README.md), [outbox](outbox.md).
 
 ## Авторизация, аудит и история
 

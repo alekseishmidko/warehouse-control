@@ -75,8 +75,13 @@ async function boundedCleanup(cleanup: () => Promise<unknown>): Promise<void> {
   }
 }
 
-/** Запускает новую БД и SQL migrations. Ошибка Docker/setup падает явно; skip/fallback на dev БД нет. */
-export async function createDatabaseHarness(): Promise<DatabaseHarness> {
+/** Запускает новую БД и SQL migrations. Ошибка Docker/setup падает явно; skip/fallback на dev БД нет.
+ * @param migrationsFolder Доверенная release-папка SQL/journal. По умолчанию candidate;
+ * upgrade suite явно передаёт экспортированный baseline, затем применяет candidate к той же disposable БД.
+ */
+export async function createDatabaseHarness(
+  migrationsFolder = resolve('drizzle'),
+): Promise<DatabaseHarness> {
   let container: StartedPostgreSqlContainer | undefined;
   let connection: ReturnType<typeof createDatabaseConnection> | undefined;
   const cleanups: Array<() => Promise<unknown>> = [];
@@ -115,7 +120,7 @@ export async function createDatabaseHarness(): Promise<DatabaseHarness> {
     connection = createDatabaseConnection(config.databaseUrl);
     const database = connection;
     cleanups.push(() => database.pool.end());
-    await migrate(database.db, { migrationsFolder: resolve('drizzle') });
+    await migrate(database.db, { migrationsFolder });
 
     return {
       connection: database,

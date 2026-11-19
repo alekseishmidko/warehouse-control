@@ -228,6 +228,59 @@ ready/in_progress/shortage плана откатывается на commit. Пр
 В [picking.spec.ts](../../apps/backend/test/integration/picking.spec.ts) добавлены проверки
 runtime release для всех трёх открытых состояний. Тест отмечает завершение callback,
 затем ожидает отказ commit и сверяет неизменность active/released/status и общий ledger.
+
+## Неизменность состава плана
+
+Сохранённый PickingTask содержит полный состав источников на момент создания.
+Новый reserve того же заказа разрешён, но не дополняет прежний план. Для него нужен
+следующий план после завершения текущего. Право order/pick и warehouse ACL остаются
+на HTTP-границе. SQL роль warehouse_app сама по себе не является HTTP-пользователем.
+
+Review обнаружил дефект guard0027: ready проверялся обычным SELECT, а INSERT был
+возможен и после commit создания task. В гонке INSERT читал ready, затем ждал FK lock;
+параллельный startTask коммитил in_progress, после чего INSERT продолжался с прежней
+проверкой. Исполнитель получал план5, а последующее чтение показывало10.
+Это воспроизведённый дефект DB-guard; HTTP endpoint добавления строк отсутствует.
+
+Migration0035 добавляет guard_picking_line_creation_transaction:
+
+1. PostgreSQL вызывает новый BEFORE INSERT trigger раньше picking_line_guard.
+2. Guard читает xmin header по NEW.task_id. Это внутренняя metadata PostgreSQL;
+   значение не приходит из HTTP DTO, не сохраняется в событии и не выдаётся клиенту.
+3. Header должен принадлежать текущей транзакции pg_current_xact_id()::xid.
+   Production runner создаёт header и lines отдельными awaited statements в одном
+   context, без nested transactions/savepoints. Поэтому обычное создание проходит.
+4. Поздний INSERT получает42501 до FK wait. Никакой task lock или дополнительный
+   порядок locks для отказа не вводится. Совпадения ready недостаточно.
+5. Прежние guards проверяют существование header, свой order/allocation, storage,
+   количество, уникальность и итоговую сверку. UPDATE pickedTotal/cancelledUnpicked
+   остаётся частью штатных confirm/cancel операций.
+6. Ошибка выходит до владельца transaction. Callback/SQL изменения откатываются;
+   успешное создание по HTTP сохраняет план, аудит, outbox и saved response одним commit.
+
+```mermaid
+flowchart TD
+  I[INSERT picking line: taskId и allocation] --> X[Прочитать xmin header]
+  X --> C{Header создан текущей transaction?}
+  C -->|Нет| R[42501: отказ и rollback]
+  C -->|Да| G[Прежние source и lifecycle guards]
+  G --> D[FK, UNIQUE и deferred reconciliation]
+  D --> A[Общий commit: header, полный план, audit, outbox, result]
+```
+
+Пример: заказ10, резерв5, план5, дополнительный резерв5. План остаётся5. Runtime
+INSERT строки дополнительного allocation в этот task отклоняется. Конкурентный start
+и следующий confirm5 работают с тем же составом; новые5 остаются в storage reserve.
+
+Применение — штатный `pnpm db:migrate` в явно выбранной оператором БД. При проверках
+используется только новая disposable PostgreSQL. Миграция additive: старые SQL не
+редактируются, данные не удаляются, старые API/worker совместимы. Она запрещает будущие
+дополнения, но не доказывает исходный состав старых задач: точный исторический план
+после прежнего позднего INSERT без отдельного основания восстановить нельзя.
+DBA способен обойти guards. Runtime creation через savepoints этим port не поддерживается.
+
+Критерии PICK-IMM-01–03, red/green воспроизведение, тестовые barrier/cleanup и
+команды описаны в [отчёте исправления](../reports/picking-plan-integrity.md).
 Отдельно подтверждены release → cancel → commit и остановка реального preflight SQL
 на искусственном legacy mismatch. Отключение trigger для legacy setup допустимо только
 в disposable admin-БД теста. Комментарий reservedShipping в OrderLineDto исправлен:

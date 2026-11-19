@@ -3,8 +3,19 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { ESLint } = require('eslint');
+/** lintText подаёт виртуальный текст, а не disk source. CI single-run Program
+ * immutable и может вернуть AST исходного файла. Watch-capable mode нужен только
+ * этим API probes; production CLI lint и набор правил не меняются.
+ */
+function createProbeLinter() {
+  return new ESLint({
+    overrideConfig: {
+      languageOptions: { parserOptions: { disallowAutomaticSingleRunInference: true } },
+    },
+  });
+}
 test('floating Promise, explicit any и ts-ignore блокируются', async () => {
-  const linter = new ESLint();
+  const linter = createProbeLinter();
   // Настоящий путь включает config/project typing; виртуальный текст не сохраняется в рабочие исходники.
   const [result] = await linter.lintText(
     'async function operation(): Promise<void> {}\noperation();\nconst value: any = 1;\n// @ts-ignore\nvalue.foo();\n',
@@ -18,7 +29,7 @@ test('floating Promise, explicit any и ts-ignore блокируются', async
 });
 
 test('Solid source rejects React/backend imports', async () => {
-  const [result] = await new ESLint().lintText(
+  const [result] = await createProbeLinter().lintText(
     "import React from 'react';\nimport {AppModule} from '../../../backend/src/app.module';",
     { filePath: path.resolve('apps/web/src/api/client.ts') },
   );

@@ -328,6 +328,10 @@ balances, включая отсутствие allocation history; mismatch су�
 менеджер создаёт план. [Исполнение](flows/picking.md), [ADR-0023](adr/0023-picking-execution.md),
 [проверки](reports/wms-205.md). Физический возврат после переноса и отгрузка остаются WMS-206.
 
+Review целостности: migration0035 запрещает поздний INSERT строк в сохранённый план,
+включая гонку со startTask. [AC, повторное review и проверки](reports/picking-plan-integrity.md),
+[владелец подробного flow](flows/picking.md#неизменность-состава-плана).
+
 - [x] **WMS-205.1** — Создать PickingTask/строки и правила назначения задания из зарезервированного заказа.
 - [x] **WMS-205.2** — Реализовать команды начала/фиксации фактической сборки и доступ исполнителя.
 - [x] **WMS-205.3** — Переносить quantity и allocation в ячейку отгрузки атомарно через inventory.
@@ -635,11 +639,18 @@ lost ack, падение consumer после DB commit до offset commit и reb
 
 ### WMS-601. Полные проверки изменений
 
-- [ ] **WMS-601.1** — Собрать существующие локальные команды в воспроизводимый pipeline с frozen install.
-- [ ] **WMS-601.2** — Подключить build/typecheck, unit/integration/contracts с реальными services и сохранением диагностических artifacts.
-- [ ] **WMS-601.3** — Проверять generation diff, breaking API/events и совместимость migrations с предыдущим релизом.
-- [ ] **WMS-601.4** — Добавить проверку ссылок, покрытия file catalog и наличия file/module docs; содержательность остаётся review.
-- [ ] **WMS-601.5** — Проверять Helm lint/template и Docker build; подтвердить, что намеренно сломанный контракт останавливает pipeline.
+Реализован локальный pipeline `pnpm pr:pipeline docs/tasks/wms-601.json`:
+[flow/Mermaid](flows/pr-pipeline.md), [AC/review/evidence](reports/wms-601.md).
+Frozen install, docs/catalog/JSDoc, pinned contracts/migrations, Helm и image gates
+дополняют прежний полный check:pr. Baseline — проверенный dev checkpoint WMS-506,
+не production release. Техническая готовность текущего snapshot — только
+`pnpm harness:ready docs/tasks/wms-601.json`. Внешний CI относится к следующим задачам.
+
+- [x] **WMS-601.1** — Собрать существующие локальные команды в воспроизводимый pipeline с frozen install.
+- [x] **WMS-601.2** — Подключить build/typecheck, unit/integration/contracts с реальными services и сохранением диагностических artifacts.
+- [x] **WMS-601.3** — Проверять generation diff, breaking API/events и совместимость migrations с предыдущим релизом.
+- [x] **WMS-601.4** — Добавить проверку ссылок, покрытия file catalog и наличия file/module docs; содержательность остаётся review.
+- [x] **WMS-601.5** — Проверять Helm lint/template и Docker build; подтвердить, что намеренно сломанный контракт останавливает pipeline.
 
 ### WMS-602. Образы и registry
 
@@ -682,7 +693,8 @@ rollback приложения не выдаётся за rollback данных �
 WMS-501–505 добавили dev Kafka/Registry, opt-in publisher/consumer и recovery.
 WMS-506 добавляет isolated cutover/reverse rehearsal: [flow](flows/transport-cutover.md),
 [проверки и ограничения](reports/wms-506.md). Рабочий стенд автоматически не переключён.
-Следующая задача — **WMS-601**, воспроизводимые полные проверки изменений. Внешний
+WMS-601 добавляет полный локальный pipeline, docs/compatibility/migration/image gates.
+Следующая задача — **WMS-602**, поставка образов при подтверждённом Git hosting. Внешний
 CI/CD ещё не настроен; размещение Git/registry и внешние deployment требуют отдельного
 подтверждённого окружения. Перед запуском API/operator bootstrap явно заполнить
 AUTH_ORIGIN и оба срока сессии, числовых defaults нет. Applied migrations не переписывать;

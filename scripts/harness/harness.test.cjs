@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
-const { snapshot } = require('./snapshot.cjs');
+const { snapshot, watchInputs } = require('./snapshot.cjs');
 const { plan, readTask } = require('./policy.cjs');
 const cli = path.resolve(__dirname, 'cli.cjs');
 function fixture(script = 'node -e "console.log(123)"') {
@@ -21,7 +21,15 @@ function fixture(script = 'node -e "console.log(123)"') {
   fs.writeFileSync(path.join(root, 'spec.cjs'), '// fixture evidence reference\n');
   fs.writeFileSync(
     path.join(root, 'package.json'),
-    JSON.stringify({ packageManager: 'pnpm@10.18.3', scripts: { 'check:pr': script } }),
+    JSON.stringify({
+      packageManager: 'pnpm@10.18.3',
+      scripts: {
+        'deps:check': 'node -e "process.exit(0)"',
+        'check:pr': script,
+        'docker:image-check': 'node spec.cjs',
+        'docker:gate': 'node spec.cjs',
+      },
+    }),
   );
   git('init');
   git('config', 'user.email', 'fixture@example.invalid');
@@ -89,7 +97,7 @@ test('task cannot disable mandatory gates or omit AC references', () => {
     fs.writeFileSync(path.join(f.root, 'infra', 'kafka', 'dev.yaml'), '# fixture');
     a.deepEqual(
       plan(f.root, f.task, snapshot(f.root)).map((g) => g.id),
-      ['pr', 'kafka'],
+      ['install', 'pr', 'image', 'webImage', 'kafka'],
     );
     f.task.criteria[0].tests = [];
     fs.writeFileSync(path.join(f.root, 'task.json'), JSON.stringify(f.task));
@@ -175,5 +183,83 @@ test('malformed task JSON does not echo input into CLI errors', () => {
     a.ok(!(result.stderr + result.stdout).includes('HARNESS_PRIVATE_CANARY'));
   } finally {
     f.close();
+  }
+});
+
+/** Frozen install идёт до pr: ненулевой exit не должен запускать тесты поверх неизвестных dependencies. */
+test('failed dependency gate prevents PR and image commands', () => {
+  const f = fixture();
+  try {
+    const file = path.join(f.root, 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(file));
+    pkg.scripts['deps:check'] = 'node -e "process.exit(9)"';
+    fs.writeFileSync(file, JSON.stringify(pkg));
+    a.notEqual(f.invoke('run').status, 0);
+    const state = JSON.parse(
+      fs.readFileSync(path.join(f.root, 'artifacts/harness/test-task/latest.json')),
+    );
+    a.deepEqual(
+      state.results.map((result) => result.id),
+      ['install'],
+    );
+    a.equal(state.results[0].code, 9);
+    a.equal(state.status, 'failed');
+    a.notEqual(f.invoke('ready').status, 0);
+  } finally {
+    f.close();
+  }
+});
+
+/** Только исчезнувший неизвестный pnpm probe допустим; write/revert source и persistent files не теряются. */
+test('dependency probes are transient but source writes still invalidate install evidence', async () => {
+  const probe = '_tmp_12345_' + 'a'.repeat(32);
+  for (const [script, expected, knownProbe] of [
+    [
+      `node -e "const fs=require('node:fs');fs.writeFileSync('${probe}','probe');fs.unlinkSync('${probe}')"`,
+      'passed',
+    ],
+    [`node -e "const fs=require('node:fs');fs.writeFileSync('${probe}','persistent')"`, 'stale'],
+    [
+      `node -e "const fs=require('node:fs');fs.writeFileSync('input.txt','v2');setTimeout(()=>fs.writeFileSync('input.txt','v1'),100)"`,
+      'stale',
+    ],
+    [
+      `node -e "const fs=require('node:fs');fs.writeFileSync('${probe}','v2');setTimeout(()=>fs.writeFileSync('${probe}','original'),100)"`,
+      'stale',
+      true,
+    ],
+  ]) {
+    const f = fixture();
+    try {
+      if (knownProbe) fs.writeFileSync(path.join(f.root, probe), 'original');
+      const pkg = JSON.parse(fs.readFileSync(path.join(f.root, 'package.json')));
+      pkg.scripts['deps:check'] = script;
+      fs.writeFileSync(path.join(f.root, 'package.json'), JSON.stringify(pkg));
+      const result = f.invoke('run');
+      const state = JSON.parse(
+        fs.readFileSync(path.join(f.root, 'artifacts/harness/test-task/latest.json')),
+      );
+      a.equal(state.status, expected, result.stdout + result.stderr);
+      a.equal(result.status === 0, expected === 'passed');
+    } finally {
+      f.close();
+    }
+  }
+  const ordinary = fixture();
+  const watch = watchInputs(ordinary.root, snapshot(ordinary.root));
+  try {
+    // FSEvents может объединить мгновенный create/unlink. Удерживаем файл до
+    // наблюдаемого watcher event: тест доказывает policy, а не случайную скорость ОС.
+    fs.writeFileSync(path.join(ordinary.root, probe), 'ordinary gate input');
+    const deadline = Date.now() + 5000;
+    while (!watch.changed()) {
+      if (Date.now() > deadline) throw new Error('ordinary gate probe was not observed');
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    fs.unlinkSync(path.join(ordinary.root, probe));
+    a.equal(watch.changed(), true);
+  } finally {
+    watch.close();
+    ordinary.close();
   }
 });

@@ -10,7 +10,7 @@ const { readTask, plan } = require('./policy.cjs');
 function environment() {
   const relevant = Object.entries(process.env)
     .filter(([key]) =>
-      /^(PATH$|NODE_|CI$|DOCKER_|WMS_|LOG_|OTEL_|AUTH_|DATABASE_|POSTGRES_|PUBLISHER_|CONSUMER_)/.test(
+      /^(PATH$|NODE_|TSESTREE_|CI$|DOCKER_|WMS_|LOG_|OTEL_|AUTH_|DATABASE_|POSTGRES_|PUBLISHER_|CONSUMER_)/.test(
         key,
       ),
     )
@@ -193,7 +193,7 @@ async function main() {
     await writeAtomicJson(latest, state);
     for (const gate of required) {
       console.log('RUN ' + gate.id);
-      const watch = watchInputs(root, inputs);
+      const watch = watchInputs(root, inputs, { installingDependencies: gate.id === 'install' });
       let result;
       try {
         result = await execute(root, gate, path.join(runDir, gate.id + '.log'), 1800000);

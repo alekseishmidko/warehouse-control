@@ -7,6 +7,7 @@ import request from 'supertest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import type { INestApplication, INestApplicationContext } from '@nestjs/common';
 import { useDatabaseSuite } from '../support/database-harness';
 import { reservedPickingFixture } from '../support/reserved-picking.fixture';
@@ -31,7 +32,7 @@ function command(path: string, actor: TestIdentity, body: object = {}, key = ran
     .send(body);
 }
 /** Receipt → worker → placement → order → reserve → plan. Бизнес-логику в fixture не копируем. */
-const setup = () => reservedPickingFixture(app, worker, db());
+const setup = (reserveQuantity = 10) => reservedPickingFixture(app, worker, db(), reserveQuantity);
 /** Наблюдаемый ledger: каждый balance сверяется с независимой суммой активных allocations. */
 async function reconcile() {
   expect(
@@ -507,4 +508,186 @@ test('migration preflight rejects an existing unbacked plan without repairing hi
   expect(
     (await pool.query('select status from picking_tasks where id=$1', [x.task.id])).rows,
   ).toEqual([{ status: 'ready' }]);
+});
+
+/** Дополнительный reserve допустим, но не расширяет сохранённый план. Источник новой строки
+ * получаем из штатного HTTP-ответа: тест не создаёт allocations или stock собственным SQL.
+ */
+async function reserveOutsidePickingPlan(x: Awaited<ReturnType<typeof setup>>) {
+  const reserved = await command(`orders/${x.order.id}/reserve`, x.manager, {
+    lines: [{ lineId: x.order.lines[0].id, quantity: 5 }],
+  }).expect(200);
+  const order = reserved.body as Awaited<ReturnType<FulfillmentService['read']>>;
+  const extra = order.lines[0].allocations.find(
+    (allocation) =>
+      !x.task.lines.some((line: { allocationId: string }) => line.allocationId === allocation.id),
+  );
+  if (!extra) throw new Error('Additional reservation was not created');
+  return extra.id;
+}
+
+/** Независимый SQL snapshot подтверждает отсутствие незаметных изменений при отказе guard. */
+async function pickingIntegritySnapshot() {
+  const pool = db().connection.pool;
+  return Promise.all([
+    pool.query('select * from picking_tasks order by id').then((r) => r.rows),
+    pool.query('select * from picking_lines order by id').then((r) => r.rows),
+    pool.query('select * from stock_balances order by id').then((r) => r.rows),
+    pool.query('select * from stock_allocations order by id').then((r) => r.rows),
+    pool
+      .query(
+        `select (select count(*) from stock_movements) movements,
+      (select count(*) from audit_entries) audits,(select count(*) from outbox_events) events,
+      (select count(*) from http_idempotency) commands`,
+      )
+      .then((r) => r.rows),
+  ]);
+}
+
+test('runtime cannot append a line after picking plan creation committed', async () => {
+  const x = await setup(5);
+  const allocationId = await reserveOutsidePickingPlan(x);
+  const before = await pickingIntegritySnapshot();
+  const client = await db().connection.pool.connect();
+  try {
+    await client.query('begin');
+    await client.query('set local role warehouse_app');
+    // Это валидный storage allocation того же active заказа. Отказ должен защищать
+    // именно границу создания состава, а не возникать из-за случайного FK/quantity mismatch.
+    await expect(
+      client.query(
+        'insert into picking_lines(id,task_id,allocation_id,planned) values($1,$2,$3,5)',
+        [randomUUID(), x.task.id, allocationId],
+      ),
+    ).rejects.toMatchObject({ code: '42501' });
+  } finally {
+    await client.query('rollback');
+    client.release();
+  }
+  expect(await pickingIntegritySnapshot()).toEqual(before);
+  await reconcile();
+});
+
+test('concurrent start cannot admit a late picking line validated against ready state', async () => {
+  const x = await setup(5);
+  const allocationId = await reserveOutsidePickingPlan(x);
+  const pool = db().connection.pool;
+  // Test-only BEFORE UPDATE barrier удерживает start после order/task locks, до смены
+  // ready. Все production guards активны. Старый INSERT читал ready и затем ждал FK lock;
+  // после commit start он продолжался без повторной lifecycle-проверки.
+  await pool.query(`create function public.test_picking_start_barrier() returns trigger language plpgsql as $$
+    begin perform pg_advisory_xact_lock(205,35); return NEW; end $$`);
+  await pool.query(`create trigger test_picking_start_barrier before update on picking_tasks
+    for each row when (OLD.status='ready' and NEW.status='in_progress')
+    execute function public.test_picking_start_barrier()`);
+  const blocker = await pool.connect();
+  const client = await pool.connect();
+  let startOutcome: Promise<PromiseSettledResult<request.Response>[]> | undefined;
+  let insertOutcome: Promise<PromiseSettledResult<unknown>[]> | undefined;
+  try {
+    await blocker.query('select pg_advisory_lock(205,35)');
+    startOutcome = Promise.allSettled([
+      command(`picking-tasks/${x.task.id}/start`, x.picker).then((r) => r),
+    ]);
+    await waitForDatabaseLock(db(), 'update picking_tasks');
+    await client.query('begin');
+    await client.query('set local role warehouse_app');
+    const pid = (await client.query<{ pid: number }>('select pg_backend_pid() pid')).rows[0].pid;
+    let settled = false;
+    insertOutcome = Promise.allSettled([
+      client
+        .query('insert into picking_lines(id,task_id,allocation_id,planned) values($1,$2,$3,5)', [
+          randomUUID(),
+          x.task.id,
+          allocationId,
+        ])
+        .then(() => client.query('commit')),
+    ]).then((outcome) => {
+      settled = true;
+      return outcome;
+    });
+    // Снимаем barrier только после отказа INSERT либо доказанного ожидания его FK lock.
+    // Poll timeout означает провал теста; фиксированная задержка не считается evidence гонки.
+    const deadline = Date.now() + 5000;
+    while (!settled) {
+      const state = await pool.query<{ blocked: boolean }>(
+        "select wait_event_type='Lock' and cardinality(pg_blocking_pids(pid))>0 as blocked from pg_stat_activity where pid=$1",
+        [pid],
+      );
+      if (state.rows[0]?.blocked) break;
+      if (Date.now() >= deadline) throw new Error('Late insert did not finish or wait on lock');
+      await delay(10);
+    }
+    await blocker.query('select pg_advisory_unlock(205,35)');
+    const [started] = await startOutcome;
+    if (started.status === 'rejected') throw started.reason;
+    expect(started.value.status).toBe(200);
+    const [inserted] = await insertOutcome;
+    expect(inserted).toMatchObject({ status: 'rejected', reason: { code: '42501' } });
+    const current = await withIdentity(
+      request(app.getHttpServer()).get(`/api/v1/picking-tasks/${x.task.id}`),
+      x.picker,
+    ).expect(200);
+    expect(current.body).toEqual(started.value.body);
+    expect(current.body.lines).toHaveLength(1);
+    expect(current.body.lines[0].planned).toBe(5);
+    const confirmed = await pick(x, 5).expect(200);
+    expect(confirmed.body.status).toBe('completed');
+    expect(
+      (await pool.query('select active from stock_allocations where id=$1', [allocationId])).rows,
+    ).toEqual([{ active: 5 }]);
+    await reconcile();
+  } finally {
+    try {
+      await blocker.query('select pg_advisory_unlock(205,35)');
+      await Promise.all([startOutcome, insertOutcome]);
+      await client.query('rollback');
+    } finally {
+      // Destroy освобождает SQL locks даже при ошибке ROLLBACK или разрыве соединения.
+      client.release(true);
+      blocker.release(true);
+      await pool.query('drop trigger test_picking_start_barrier on picking_tasks');
+      await pool.query('drop function public.test_picking_start_barrier()');
+    }
+  }
+});
+
+test('runtime creates and executes a picking plan in its creation transaction', async () => {
+  const x = await setup(5);
+  const runner = app.get<TransactionRunner>(TRANSACTION_RUNNER);
+  const task = await runner.run(async (c) => {
+    await transactionClient(c).execute(sql`set local role warehouse_app`);
+    const service = app.get(FulfillmentService);
+    const order = await service.create(
+      c,
+      {
+        warehouseId: x.fixture.warehouse.id,
+        lines: [{ productId: x.fixture.product.id, quantity: 5 }],
+      },
+      x.fixture.metadata,
+    );
+    await service.change(c, order.id, 'confirm', undefined, x.fixture.metadata);
+    await service.change(
+      c,
+      order.id,
+      'reserve',
+      {
+        lines: [{ lineId: order.lines[0].id, quantity: 5 }],
+      },
+      x.fixture.metadata,
+    );
+    return app.get(PickingService).createTaskFromOrder(c, order.id, x.fixture.metadata);
+  });
+  expect(task.lines).toHaveLength(1);
+  expect(task.lines[0].planned).toBe(5);
+  await command(`picking-tasks/${task.id}/start`, x.picker).expect(200);
+  const completed = await command(`picking-tasks/${task.id}/confirm`, x.picker, {
+    taskLineId: task.lines[0].id,
+    actualQuantity: 5,
+    targetLocationId: x.fixture.shipping.id,
+    shortage: false,
+  }).expect(200);
+  expect(completed.body.status).toBe('completed');
+  expect(completed.body.lines[0]).toMatchObject({ planned: 5, pickedTotal: 5, remaining: 0 });
+  await reconcile();
 });

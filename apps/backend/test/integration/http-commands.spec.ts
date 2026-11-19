@@ -15,6 +15,7 @@ import { applicationMetadata } from '@backend/infrastructure/database/schema';
 import { auditEntries } from '@backend/modules/audit/audit.schema';
 import { outboxEvents } from '@backend/infrastructure/outbox/outbox.schema';
 import { createOpenApiDocument } from '@backend/infrastructure/http/openapi';
+import { transactionClient } from '@backend/infrastructure/database/postgres-transaction-runner';
 import { HttpCommandsService } from '@backend/infrastructure/idempotency/services/http-commands.service';
 
 const database = useDatabaseSuite();
@@ -463,4 +464,37 @@ test('large server snapshot commits and replays without weakening request finger
     commands.execute({ ...scope, key: randomUUID() }, { input: 'x'.repeat(262145) }, work),
   ).rejects.toMatchObject({ code: 'REQUEST_TOO_LARGE' });
   expect(await database().connection.db.select().from(httpIdempotency)).toHaveLength(1);
+});
+
+/** Server-owned header тоже требует runtime проверки: RegExp.test приводит array к string.
+ * Неверный Location должен откатить work, а не сохранить иной wire type для replay. */
+test.each([
+  [['/api/v1/receipts/test']],
+  ['/api/v1/receipts/test\n'],
+  ['/api/v1/receipts/test\r'],
+  ['/api/v1/receipts/test\u2028'],
+  ['/api/v1/receipts/test\u2029'],
+])('601 invalid Location rolls back effect and saved result: %j', async (location) => {
+  const invalid = { statusCode: 200, body: {}, headers: { location } };
+  const commands = app.get(HttpCommandsService);
+  await expect(
+    commands.execute(
+      {
+        actorType: 'user',
+        actorId,
+        operation: 'test.invalid-header',
+        key: randomUUID(),
+        correlationId: randomUUID(),
+      },
+      {},
+      async (context) => {
+        await transactionClient(context)
+          .insert(applicationMetadata)
+          .values({ key: 'invalid-header', value: 'must rollback' });
+        return invalid as unknown as import('@backend/shared/operations/dto/command-scope.dto').CommandResult;
+      },
+    ),
+  ).rejects.toThrow('Invalid command headers');
+  expect(await database().connection.db.select().from(httpIdempotency)).toEqual([]);
+  expect(await database().connection.db.select().from(applicationMetadata)).toEqual([]);
 });

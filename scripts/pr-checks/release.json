@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "baseCommit": "e79cb2fddf3125894decb0b9ef20988726732d45",
+  "description": "Согласованный пользователем начальный dev checkpoint WMS-506; release tags пока отсутствуют. Изменение baseline требует явного review, а не автоматического обновления после failure."
+}

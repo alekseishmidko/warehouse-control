@@ -105,6 +105,11 @@ Strimzi, publisher, consumer groups, AsyncAPI/Registry compatibility spike,
 
 ## 6. Поставка
 
+WMS-601 реализует полный локальный source-bound pipeline с frozen install, contracts/
+migration compatibility, docs/JSDoc/catalog, Helm и Docker checks.
+[Flow](flows/pr-pipeline.md), [review и evidence](reports/wms-601.md).
+Внешний CI/CD и публикация по-прежнему относятся к WMS-602–604.
+
 GitHub Actions/GHCR при подтверждённом хостинге, Argo CD,
 автоматические gates, image scan, секреты и rollback drill.
 Готово, когда выпуск воспроизводим и восстановление проверено.
@@ -154,6 +159,8 @@ Identity: собственные admin-операции получают user UP
 WMS-205 завершена: [PickingTask и сборка](flows/picking.md), частичное подтверждение,
 shortage и перенос allocations. Самоназначение исполнителя утверждено 2026-11-01.
 [Проверки](reports/wms-205.md). Отгрузка и физический возврат реализованы WMS-206.
+Migration0035 закрывает позднее дополнение состава picking task и гонку со start;
+[критерии и evidence](reports/picking-plan-integrity.md).
 
 WMS-205 review: guard обеспечения плана расширен на изменения allocations миграцией 0028;
 добавлены runtime-role проверки rollback и согласованной отмены. Следующий этап — WMS-206.

@@ -992,3 +992,29 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | `docs/reports/wms-506.md`                             | AC → реализация → проверки, review/refactor и границы evidence                                 |
 | `apps/backend/test/support/cutover.fixture.ts`        | Test-only boundary, backup/restore и bounded broker pause/observation                          |
 | `apps/backend/test/integration/kafka-cutover.spec.ts` | Настоящий forward/reverse cutover, складской HTTP flow и отказ при активном claim              |
+
+## WMS-601: полный локальный PR pipeline
+
+| Файл                                                       | Назначение                                                                                |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `scripts/pr-checks/README.md`                              | Карта локальных PR guards, команды и консервативные границы compatibility.                |
+| `scripts/pr-checks/release.json`                           | Exact dev release checkpoint для API/events/migrations; source policy, не evidence.       |
+| `scripts/pr-checks/source-inventory.cjs`                   | Общий Git inventory собственных файлов для docs/compatibility.                            |
+| `scripts/pr-checks/compatibility.cjs`                      | Полный baseline diff API/event schemas/topology и immutable migration history.            |
+| `scripts/pr-checks/documentation.cjs`                      | Syntax, local links/anchors, explicit catalog и structural file/public/module docs.       |
+| `scripts/pr-checks/helm.cjs`                               | Pinned offline lint/template base/dev/optional Helm profiles.                             |
+| `scripts/pr-checks/checks.test.cjs`                        | Negative proof guards/frozen install/настоящий fail-closed runner на disposable Git.      |
+| `apps/backend/test/integration/release-migrations.spec.ts` | Прежняя schema → candidate upgrade и совместимый старый/новый runtime на реальной БД.     |
+| `apps/backend/test/support/release-runtime.fixture.ts`     | Child-only прежние API services/worker из отдельного release build без обхода owners.     |
+| `docs/tasks/wms-601.json`                                  | Source task/AC пользователя для полного pipeline, review/refactor и regression.           |
+| `docs/flows/pr-pipeline.md`                                | Mermaid и подробный local PR/release validation flow, роль оператора и ограничения.       |
+| `docs/reports/wms-601.md`                                  | Review всех подсистем, воспроизведённый defect, refactor, traceability и evidence limits. |
+
+## Неизменность состава picking task
+
+| Файл                                                          | Назначение                                                                                        |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `apps/backend/drizzle/0035_immutable_picking_composition.sql` | Custom INSERT guard: только транзакция создания task, отказ позднего дополнения и гонки со start. |
+| `apps/backend/drizzle/meta/0035_snapshot.json`                | Generated custom snapshot; drizzle-kit generate --custom --name=immutable_picking_composition.    |
+| `docs/tasks/picking-plan-integrity.json`                      | Source task и критерии PICK-IMM-01–03 для исправления подтверждённого P2.                         |
+| `docs/reports/picking-plan-integrity.md`                      | Границы, AC → SQL → tests, red/green, повторное review и evidence.                                |
