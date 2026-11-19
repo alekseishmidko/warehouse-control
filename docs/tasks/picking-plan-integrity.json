@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "id": "picking-plan-integrity",
+  "issuedBy": "Пользователь: выполнить фикс замечания P2 из ревью консистентности и гонок",
+  "request": "Закрыть поздний INSERT в immutable состав picking task, включая конкуренцию со startTask. Использовать новую migration без изменения applied SQL, сохранить создание и выполнение плана прежними application owners, добавить regression tests, документацию и повторное review. Рабочую БД и внешние deployment не менять.",
+  "base": "e79cb2fddf3125894decb0b9ef20988726732d45",
+  "criteria": [
+    {
+      "id": "PICK-IMM-01",
+      "statement": "Runtime роль не может дополнить состав сохранённого ready задания: отказ не меняет план, остатки, allocations и историю.",
+      "tests": [
+        "apps/backend/test/integration/picking.spec.ts#runtime cannot append a line after picking plan creation committed"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "PICK-IMM-02",
+      "statement": "При конкуренции позднего INSERT со startTask план остаётся прежним; start и последующий confirm выполняются без скрытого расширения задания.",
+      "tests": [
+        "apps/backend/test/integration/picking.spec.ts#concurrent start cannot admit a late picking line validated against ready state"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "PICK-IMM-03",
+      "statement": "Runtime создание header и lines в одной transaction, затем start/confirm остаются работоспособны. Миграция добавляется к сохранённой истории и совместима с прежним runtime.",
+      "tests": [
+        "apps/backend/test/integration/picking.spec.ts#runtime creates and executes a picking plan in its creation transaction",
+        "apps/backend/test/integration/release-migrations.spec.ts#previous release upgrades without losing operations"
+      ],
+      "gates": ["pr"]
+    }
+  ]
+}

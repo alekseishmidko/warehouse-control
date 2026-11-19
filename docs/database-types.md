@@ -103,7 +103,7 @@ grants реализованы SQL-миграциями; DBA способен и�
 users, sessions, warehouse_roles, auth_login_windows и identity_bootstrap. В них подробнее
 описаны UUID vs capability, password hash vs token digest, отсутствие default TTL,
 nullable revoked_at, deadline CHECK, составные grants и retained one-time marker.
-Карта всех файлов — [README identity](../apps/backend/src/modules/identity/README.md#schemas-одна-таблица-один-файл).
+Карта всех файлов — [README identity](../apps/backend/src/modules/identity/README.md#schemas-одна-таблица--один-файл).
 Суммарно в backend 23 таблицы/15 собственных schema-файлов; разбиение не меняет DDL.
 
 WMS-203 сохраняет 23 таблицы/int4. В task добавлены четыре nullable completion поля

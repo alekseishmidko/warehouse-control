@@ -142,3 +142,8 @@ Server result копируется через canonicalSnapshotJson, а не ч�
 история allocations может превышать 256 КиБ при небольшом входном запросе. JSON safety
 сохраняется; request/fingerprint по-прежнему ограничены 256 КиБ. Regression проверяет
 реальный commit/replay большого JSONB snapshot без повторного callback.
+
+Saved result validation выполняет private prepareSavedResult до repository.complete.
+Location проверяется и по типу string, и по relative URL pattern: RegExp coercion
+массива недопустима. Ошибка откатывает callback effect и saved response;
+PostgreSQL regression — http-commands.spec, `601 invalid Location`.

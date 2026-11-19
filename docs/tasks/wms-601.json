@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "id": "wms-601",
+  "issuedBy": "Пользователь: WMS-601, ревью всего приложения, JSDoc, рефакторинг и проверка всего кода",
+  "request": "Собрать воспроизводимый локальный PR pipeline с frozen install, реальными services и artifacts; проверять API/events/migrations относительно закреплённого baseline, документацию/каталог, Helm/Docker; провести сквозное review backend/web/infra/scripts, исправить подтверждённые дефекты и улучшить пояснения к сложному коду. Внешний CI/CD и публикация не входят в WMS-601.",
+  "base": "e79cb2fddf3125894decb0b9ef20988726732d45",
+  "criteria": [
+    {
+      "id": "WMS-601.1",
+      "statement": "Frozen install обязателен до всех gates; pipeline последовательный, source-bound и fail closed.",
+      "tests": [
+        "scripts/harness/harness.test.cjs#task cannot disable mandatory gates or omit AC references"
+      ],
+      "gates": ["pr", "image", "webImage", "docker"]
+    },
+    {
+      "id": "WMS-601.2",
+      "statement": "Полный check:pr использует реальные PostgreSQL/Kafka/Chromium и сохраняет diagnostics через harness.",
+      "tests": [
+        "scripts/harness/harness.test.cjs#input write and revert during gate invalidates evidence"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-601.3",
+      "statement": "Generated drift, breaking API/events и изменение applied migrations отклоняются; base schema обновляется реальными migrations с проверкой старого runtime.",
+      "tests": [
+        "scripts/pr-checks/checks.test.cjs#breaking contracts stop the pipeline",
+        "apps/backend/test/integration/release-migrations.spec.ts#previous release upgrades without losing operations"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-601.4",
+      "statement": "Local links/anchors, каталог собственных файлов и наличие file/module docs проверяются автоматически, смысл документации проверяется review.",
+      "tests": [
+        "scripts/pr-checks/checks.test.cjs#documentation detects missing links catalog and file docs"
+      ],
+      "gates": ["pr"]
+    },
+    {
+      "id": "WMS-601.5",
+      "statement": "Helm lint/template обоих профилей и Docker builds обязательны; намеренно сломанный контракт даёт nonzero и запрещает дальнейшие steps.",
+      "tests": ["scripts/pr-checks/checks.test.cjs#breaking contracts stop the pipeline"],
+      "gates": ["pr", "image", "webImage", "docker"]
+    },
+    {
+      "id": "REV-601",
+      "statement": "Сквозное review backend/web/infra/scripts, содержательные комментарии и рефакторинг; подтверждённый invalid Location не сохраняет HTTP result или business effect.",
+      "tests": [
+        "apps/backend/test/integration/http-commands.spec.ts#601 invalid Location rolls back effect and saved result"
+      ],
+      "gates": ["pr"]
+    }
+  ]
+}

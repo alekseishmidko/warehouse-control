@@ -1,10 +1,17 @@
 # Проверка функционала перед PR
 
-Перед каждым PR из корня выполнить:
+Для полного source-bound pipeline из корня выполнить:
 
 ```sh
-pnpm check:pr
+pnpm pr:pipeline docs/tasks/<task>.json
+pnpm harness:ready docs/tasks/<task>.json
 ```
+
+Пользователь задаёт задачу/AC, агент оформляет source task. Pipeline использует
+существующий harness, обязательный frozen install и backend/web image checks.
+[Подробные шаги и Mermaid](flows/pr-pipeline.md), [WMS-601 review/evidence](reports/wms-601.md).
+`pnpm check:pr` остаётся внутренним проверочным шагом и удобной standalone командой;
+полные install/image gates и private logs добавляет pipeline.
 
 Команда останавливается на первом неуспешном шаге. Ненулевой exit code запрещает
 считать проверку завершённой. После изменения поведения нужно повторить запуск
@@ -41,6 +48,14 @@ forceExit не включены. Без успешного integration прог�
 будущим CI без изменения состава проверок.
 
 ## Что выполняется
+
+WMS-601 добавляет обязательные `test:pr-checks`, `check:docs`, `check:compatibility`,
+`check:helm` перед прежней цепочкой. Они проверяют negative fixtures, весь source
+inventory/local links/JSDoc/catalog, wire contracts/applied migrations против exact
+checkpoint и Helm3.22.0 base/dev/optional profiles. Dependency frozen install и image
+checks выполняет внешний harness. Реальный baseline→candidate migrations/старый
+runtime regression входит в backend Jest suites. Содержание docs и SQL safety
+дополнительно проверяются review. [Границы policy](../scripts/pr-checks/README.md).
 
 Native `pnpm test:load` входит в gate и проверяет guardrails/измерения нагрузочного
 driver. Реальный `pnpm load:baseline` выполняется отдельно на чистых локальных

@@ -90,37 +90,9 @@ export class HttpCommandsService {
                 headers: previous.headers ?? {},
               };
             }
-            // Результат копируется до записи; будущие мутации исходного body не меняют сохранённый response.
-            const candidate = await work(context);
-            let result: CommandResult;
-            // Canonical serializer отклоняет non-JSON/нестабильные значения и делает копию.
-            // Неверный ответ сформировал сервер, поэтому его ошибка не должна стать HTTP 400 клиента.
-            try {
-              result = JSON.parse(canonicalSnapshotJson(candidate)) as CommandResult;
-            } catch {
-              throw new Error('Invalid command result');
-            }
-            if (!result || typeof result !== 'object' || Array.isArray(result))
-              throw new Error('Invalid command result');
-            if (
-              ![200, 201, 202].includes(result.statusCode) ||
-              !Object.hasOwn(result, 'body') ||
-              Object.keys(result).some((key) => !['statusCode', 'body', 'headers'].includes(key))
-            )
-              throw new Error('Invalid command result');
-            // Сохраняем только относительный Location: replay не должен повторять cookies,
-            // credentials или произвольные transport headers предыдущего HTTP запроса.
-            if (
-              result.headers !== undefined &&
-              (!result.headers ||
-                typeof result.headers !== 'object' ||
-                Array.isArray(result.headers) ||
-                Object.keys(result.headers).some((key) => key !== 'location') ||
-                (result.headers.location !== undefined &&
-                  !/^\/api\/v1\/[A-Za-z0-9/._~-]{1,480}$/.test(result.headers.location)))
-            )
-              throw new Error('Invalid command headers');
-            const snapshot = { ...result, headers: result.headers ?? {} };
+            // Сначала изолируем и валидируем server-owned snapshot. Ошибка этого шага
+            // выходит до runner и откатывает также уже выполненный business callback.
+            const snapshot = this.prepareSavedResult(await work(context));
             // Это UPDATE в ещё открытой транзакции, не самостоятельное подтверждение команды.
             // Текущий X-Correlation-Id добавит HTTP adapter, он не часть сохранённого response.
             await this.repository.complete(context, scope, snapshot);
@@ -142,5 +114,43 @@ export class HttpCommandsService {
         }
       }),
     );
+  }
+  /** Проверяет wire-форму результата до записи immutable saved response.
+   * JSON snapshot исключает будущие мутации caller. Location допускается только строкой:
+   * RegExp.test самостоятельно приводит array к string и не является проверкой типа.
+   * Абсолютный конец input проверяется отдельно: JS $ допускает позицию перед финальным newline.
+   * Ошибки сервера остаются Error, а не клиентским400. I/O и commit здесь отсутствуют.
+   */
+  private prepareSavedResult(candidate: CommandResult): CommandResult {
+    let result: CommandResult;
+    // Canonical serializer отклоняет non-JSON/нестабильные значения и делает копию.
+    // Неверный ответ сформировал сервер, поэтому его ошибка не должна стать HTTP 400 клиента.
+    try {
+      result = JSON.parse(canonicalSnapshotJson(candidate)) as CommandResult;
+    } catch {
+      throw new Error('Invalid command result');
+    }
+    if (!result || typeof result !== 'object' || Array.isArray(result))
+      throw new Error('Invalid command result');
+    if (
+      ![200, 201, 202].includes(result.statusCode) ||
+      !Object.hasOwn(result, 'body') ||
+      Object.keys(result).some((key) => !['statusCode', 'body', 'headers'].includes(key))
+    )
+      throw new Error('Invalid command result');
+    // Сохраняем только относительный Location: replay не должен повторять cookies,
+    // credentials или произвольные transport headers предыдущего HTTP запроса.
+    if (
+      result.headers !== undefined &&
+      (!result.headers ||
+        typeof result.headers !== 'object' ||
+        Array.isArray(result.headers) ||
+        Object.keys(result.headers).some((key) => key !== 'location') ||
+        (result.headers.location !== undefined &&
+          (typeof result.headers.location !== 'string' ||
+            !/^\/api\/v1\/[A-Za-z0-9/._~-]{1,480}(?![\s\S])/.test(result.headers.location))))
+    )
+      throw new Error('Invalid command headers');
+    return { ...result, headers: result.headers ?? {} };
   }
 }

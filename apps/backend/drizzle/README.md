@@ -235,3 +235,18 @@ ciphertext читает только admin role. Все поля описаны 
 параметризованным SQL capability, не Drizzle ORM table schema. Snapshot/journal созданы
 `pnpm --filter @warehouse/backend exec drizzle-kit generate --custom --name kafka_quarantine`.
 Custom SQL заполнен до release; прошлые applied migrations не менялись.
+
+## Неизменность состава picking task
+
+0035_immutable_picking_composition.sql добавляет INSERT guard без изменения старых
+SQL и таблиц. Header/lines создаются одной transaction; xmin header сравнивается с
+pg_current_xact_id()::xid, как в0031 для shipment. Поздний INSERT отклоняется с42501
+до ожидания FK lock. Прежние lifecycle/FK/deferred guards остаются активны.
+UPDATE фактических/отменённых количеств и выполнение сохранённых заданий разрешены.
+
+Scaffold, meta/0035_snapshot.json и journal создаёт Drizzle Kit:
+`pnpm --filter @warehouse/backend exec drizzle-kit generate --custom --name=immutable_picking_composition`.
+Snapshot/journal вручную не редактируются. Миграция не меняет существующие наборы
+строк и не восстанавливает неизвестный исходный план исторически дополненных заданий.
+Старый runtime уже создаёт header/lines в одном borrowed context и совместим с guard.
+[Flow, ошибки, применение и проверки](../../../docs/flows/picking.md#неизменность-состава-плана).

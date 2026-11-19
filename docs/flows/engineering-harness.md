@@ -44,7 +44,9 @@ flowchart TD
 
 ## Какие команды обязательны
 
-Всегда выполняется check:pr, включая native harness regressions. Дополнительные
+Всегда выполняются frozen install, check:pr (включая native harness regressions) и
+backend/web image checks. WMS-601 добавляет alias `pnpm pr:pipeline <task.json>`
+без второго runner; [состав полного pipeline](pr-pipeline.md). Дополнительные
 правила policy.cjs: Dockerfile/.dockerignore/Compose и package manifests/lock → backend
 и web image-check + Docker gate; Helm/Kubernetes → kubernetes:gate; Kafka resources,
 topology и gate script → kafka:gate; Registry tools/resources/event schemas → registry:gate.
@@ -103,3 +105,10 @@ HAR-01: изменения content/untracked/deleted/env делают прежн
 HAR-02: mandatory gates не отключаются; missing/failed/tampered logs и lock отклоняются.
 HAR-03: write/revert во время gate не получает passed. Тесты — harness.test.cjs;
 source task — docs/tasks/harness-runner.json. Results не являются бизнес-приёмкой.
+
+На install pnpm создаёт root filesystem probe `_tmp_<pid>_<32hex>` и удаляет его.
+WMS-601 игнорирует только этот неизвестный transient path на install и macOS
+self-notification каталога. Известный source проверяется раньше исключения, а
+оставшийся новый файл меняет итоговый snapshot. На остальных gates temp writes
+не исключаются. Source write/revert на install также обесценивает evidence;
+regression — `dependency probes are transient but source writes still invalidate install evidence`.

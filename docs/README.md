@@ -191,7 +191,8 @@ Identity: порядок блокировок собственных админ�
 
 WMS-205 реализована: [сборка заказа](flows/picking.md), самоназначение исполнителя,
 частичная сборка и атомарный перенос резерва. [Отчёт](reports/wms-205.md).
-Следующая задача — WMS-206: отгрузка и физические компенсации.
+Состав плана защищён от позднего INSERT и гонки со start новой migration0035:
+[исправление P2, критерии и проверки](reports/picking-plan-integrity.md).
 
 Review WMS-205 исправлен новой миграцией 0028: allocation update проверяет обеспечение
 открытого плана. Preflight сохраняет существующее расхождение для разбора и останавливает
@@ -235,4 +236,7 @@ WMS-506: [cutover/reverse runbook и Mermaid](flows/transport-cutover.md),
 [AC/review/evidence](reports/wms-506.md). `pnpm cutover:drill` проверяет backup/restore,
 freeze, сохранность markers/cursors, полный складской HTTP flow, broker outage,
 duplicate и возврат после новых Kafka effects. Рабочий стенд не переключался.
-Следующий этап плана — WMS-601, полные проверки изменений; он ещё не выполнен.
+WMS-601: [полный локальный PR pipeline](flows/pr-pipeline.md),
+[review/исправления/evidence](reports/wms-601.md). Frozen install, pinned compatibility,
+реальный baseline upgrade, docs/catalog/JSDoc и Helm/image gates включены в проверку.
+Следующая задача — WMS-602 при подтверждённом Git hosting; внешний CI/CD пока не настроен.

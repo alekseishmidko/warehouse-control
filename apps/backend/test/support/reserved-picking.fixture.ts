@@ -23,11 +23,14 @@ export function warehouseCommand(
     .set('Idempotency-Key', key)
     .send(body);
 }
-/** Настоящие интерфейсы владельцев; fixture не вычисляет balance/reservation бизнес-правила. */
+/** Настоящие интерфейсы владельцев; fixture не вычисляет balance/reservation бизнес-правила.
+ * reserveQuantity позволяет оставить часть заказа из10штук открытой для следующей reserve-команды.
+ */
 export async function reservedPickingFixture(
   app: INestApplication,
   worker: INestApplicationContext,
   database: DatabaseHarness,
+  reserveQuantity = 10,
 ) {
   const x = await postedReceiptFixture(app, 10);
   const [claim] = await worker.get(WorkerService).claim();
@@ -59,7 +62,7 @@ export async function reservedPickingFixture(
   }).expect(201);
   await warehouseCommand(app, `orders/${o.body.id}/confirm`, manager).expect(200);
   await warehouseCommand(app, `orders/${o.body.id}/reserve`, manager, {
-    lines: [{ lineId: o.body.lines[0].id, quantity: 10 }],
+    lines: [{ lineId: o.body.lines[0].id, quantity: reserveQuantity }],
   }).expect(200);
   const p = await warehouseCommand(app, `orders/${o.body.id}/picking-tasks`, manager).expect(201);
   return { ...x, manager, picker, order: o.body, task: p.body };

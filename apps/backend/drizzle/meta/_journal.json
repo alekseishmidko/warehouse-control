@@ -246,6 +246,13 @@
       "when": 1794850181044,
       "tag": "0034_kafka_quarantine",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1795027110310,
+      "tag": "0035_immutable_picking_composition",
+      "breakpoints": true
     }
   ]
 }

@@ -32,6 +32,12 @@ Promise await/return/catch обязательны; void сам по себе н�
 
 ## Автоматические проверки
 
+WMS-601 добавляет source-bound `pnpm pr:pipeline <task.json>`: frozen install,
+полный check:pr и обязательные backend/web image gates. В check:pr включены
+local docs/catalog/JSDoc/syntax, pinned release compatibility и Helm lint/template.
+Baseline migrations/old runtime проверяются PostgreSQL integration suite.
+[Состав и ограничения](flows/pr-pipeline.md); gates не заменяют смысловое review.
+
 `pnpm test:postgres:readiness` входит в check:pr и docker:gate: настоящий Compose
 с новым volume/initdb barrier не должен считать Unix socket готовностью TCP.
 Без Docker проверка падает; skip/fallback не предусмотрены.

@@ -47,7 +47,7 @@ function snapshot(root) {
 /** Запись input во время команды консервативно делает результат stale, даже если байты вернули назад.
  * Watch не является защитой от привилегированного противника/ненадёжного network FS.
  */
-function watchInputs(root, inputs) {
+function watchInputs(root, inputs, { installingDependencies = false } = {}) {
   const known = new Set(inputs.files.map((row) => row[0]));
   let changed = false;
   let failed = false;
@@ -62,6 +62,13 @@ function watchInputs(root, inputs) {
       changed = true;
       return;
     }
+    // macOS FSEvents иногда называет сам наблюдаемый root. Это не дочерний input;
+    // существующий одноимённый source выше уже проверен через known.
+    if (file === path.basename(root) && !fs.existsSync(path.join(root, file))) return;
+    // pnpm проверяет filesystem временным root probe. Только install может создать
+    // такой НЕИЗВЕСТНЫЙ input и удалить его. Tracked/существующий до run файл всегда
+    // попадает в known выше; оставшийся probe изменит финальный content snapshot.
+    if (installingDependencies && /^_tmp_\d+_[a-f0-9]{32}$/.test(file)) return;
     if (
       file
         .split('/')

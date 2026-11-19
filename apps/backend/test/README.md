@@ -32,6 +32,9 @@ pnpm test:web        # frontend unit/components; без Docker
 Jest читает compiled tests; @backend/* отображается в настоящий production dist,
 поэтому тесты не исполняют вторую копию приложения из test output.
 Без --passWithNoTests и --forceExit: пустая suite или незакрытые ресурсы не скрываются.
+Picking regression tests дополнительно проверяют неизменность состава под warehouse_app,
+гонку позднего INSERT со start через наблюдаемые DB waits и допустимое создание header/lines
+в одной transaction: [PICK-IMM criteria/evidence](../../../docs/reports/picking-plan-integrity.md).
 Не запускать одновременно несколько test:prepare в одном checkout: они очищают output.
 Параллельность поддерживается между suites внутри одного Jest-прогона.
 
@@ -330,3 +333,8 @@ kafka-cutover suite с настоящими PostgreSQL/Kafka. Проверяет
 БД, закрытие HTTP, остановку worker, pending handover, складской HTTP flow, outage,
 duplicate и обратное переключение после новых Kafka effects. Успех не переключает
 рабочий стенд. Private snapshots — artifacts/cutover. [Порядок](../../../docs/flows/transport-cutover.md).
+
+WMS-601: release-migrations.spec экспортирует pinned baseline, ставит его dependencies
+frozen, строит backend, затем проверяет старые API services/worker до и после candidate
+migrations и текущий build. createDatabaseHarness принимает trusted migration folder
+только для disposable upgrade suite. [Flow/ограничения](../../../docs/flows/pr-pipeline.md).

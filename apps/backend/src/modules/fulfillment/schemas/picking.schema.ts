@@ -61,7 +61,10 @@ export const pickingLines = pgTable(
     /** UUID сервера, PK без default/NULL, идентифицирует строку HTTP-команды. */ id: uuid(
       'id',
     ).primaryKey(),
-    /** Обязательный UUID/FK задания; история не удаляется каскадно. */ taskId: uuid('task_id')
+    /** Обязательный UUID/FK задания; история не удаляется каскадно.
+     * INSERT разрешён только в транзакции создания task (guard migration0035),
+     * чтобы ready не разрешал незаметно дополнить уже сохранённый план.
+     */ taskId: uuid('task_id')
       .notNull()
       .references(() => pickingTasks.id),
     /** Обязательный UUID/FK исходного storage allocation. Quantity и SKU не задаются повторно клиентом. */ allocationId:
