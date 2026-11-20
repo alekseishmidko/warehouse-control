@@ -1,0 +1,93 @@
+{
+  "status": "passed",
+  "scannerVersion": "0.76.2",
+  "policySha256": "20e358d8bb356792813268a899a40dca31f7a931aca571af9f851bbd94f775e6",
+  "startedAt": "2026-11-20T05:22:44.322Z",
+  "commit": "70ee66e962735bf231eed15a6cf3924d4227494f",
+  "images": [
+    {
+      "app": "backend",
+      "imageId": "sha256:88b17c1ea2f6b075341c59c3c2db71325536f2ccb4b5d9791ac3d5ef6f41dad0",
+      "configId": "sha256:88b17c1ea2f6b075341c59c3c2db71325536f2ccb4b5d9791ac3d5ef6f41dad0",
+      "counts": {
+        "LOW": 13,
+        "MEDIUM": 49,
+        "HIGH": 0,
+        "CRITICAL": 0,
+        "UNKNOWN": 4,
+        "waived": [
+          {
+            "id": "CVE-2026-121757",
+            "package": "libc6",
+            "expires": "2026-12-20"
+          },
+          {
+            "id": "CVE-2026-121758",
+            "package": "libc6",
+            "expires": "2026-12-20"
+          },
+          {
+            "id": "CVE-2026-124024",
+            "package": "libc6",
+            "expires": "2026-12-20"
+          },
+          {
+            "id": "CVE-2026-126765",
+            "package": "libc6",
+            "expires": "2026-12-20"
+          }
+        ]
+      },
+      "runtimeProof": {
+        "base": "sha256:cb87acc574abe719b6e5c547384defa2f7b1f24af9605d3f618cf852495d8be2",
+        "nodeVersion": "v24.22.3",
+        "jsOnly": true,
+        "sharedOpenSSL": false,
+        "toolingAbsent": true
+      },
+      "reportSha256": "fe10543c3b2636dea8ba31c1f30d26846f2eebadfe317969403ba0c2ea7167e8"
+    },
+    {
+      "app": "web",
+      "imageId": "sha256:47acb7b16e9f0311c96d84d63f1636a381a598271616a789293ecc218d8f175b",
+      "configId": "sha256:47acb7b16e9f0311c96d84d63f1636a381a598271616a789293ecc218d8f175b",
+      "counts": {
+        "LOW": 13,
+        "MEDIUM": 49,
+        "HIGH": 0,
+        "CRITICAL": 0,
+        "UNKNOWN": 4,
+        "waived": [
+          {
+            "id": "CVE-2026-121757",
+            "package": "libc6",
+            "expires": "2026-12-20"
+          },
+          {
+            "id": "CVE-2026-121758",
+            "package": "libc6",
+            "expires": "2026-12-20"
+          },
+          {
+            "id": "CVE-2026-124024",
+            "package": "libc6",
+            "expires": "2026-12-20"
+          },
+          {
+            "id": "CVE-2026-126765",
+            "package": "libc6",
+            "expires": "2026-12-20"
+          }
+        ]
+      },
+      "runtimeProof": {
+        "base": "sha256:cb87acc574abe719b6e5c547384defa2f7b1f24af9605d3f618cf852495d8be2",
+        "nodeVersion": "v24.22.3",
+        "jsOnly": true,
+        "sharedOpenSSL": false,
+        "toolingAbsent": true
+      },
+      "reportSha256": "4cb7d7b09ad4d542ce3f0e0f92b748bd41d7338021c8773c9f9de9d5c577fc6d"
+    }
+  ]
+}

@@ -161,7 +161,7 @@ Warehouse Controller — учебная WMS: приёмка, размещени�
 - Перед PR выполнить pnpm check:pr на итоговом diff. Он включает формат, typed lint,
   architecture guard/self-tests, typecheck/build/contracts/OpenAPI, unit/integration
   web generation/build/Vitest, Chromium gate и coverage обоих приложений с отдельными
-  baseline. Ревью команда не заменяет. Внешний CI не настроен.
+  baseline. Ревью команда не заменяет. GitHub Actions выполняет harness WMS-602; branch protection с required checks отдельно не настроена.
 - Docker и установленный Playwright Chromium обязательны для integration;
   `pnpm exec playwright install chromium` выполняется до первого прогона.
   Skip/fallback/forceExit запрещены. Не запускать

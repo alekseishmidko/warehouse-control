@@ -1,15 +1,16 @@
 {
   "status": "passed",
-  "commit": "d075f689a0fd8468cf275235eb59057655512691",
-  "runId": "44601420726",
+  "commit": "70ee66e962735bf231eed15a6cf3924d4227494f",
+  "runId": "44679042019",
   "architecture": "arm64",
-  "cluster": "wms602-pull-30ad8c78",
+  "cluster": "wms602-pull-26a255e7",
   "images": [
     {
       "app": "backend",
-      "reference": "ghcr.io/alekseishmidko/warehouse-control/backend@sha256:9aeb9c88a4505fc821413e0df95db72c2a00fa1af082a5246001e6bc9b38ef51",
-      "imageID": "ghcr.io/alekseishmidko/warehouse-control/backend@sha256:9aeb9c88a4505fc821413e0df95db72c2a00fa1af082a5246001e6bc9b38ef51",
-      "criImageID": "sha256:7e795743511fdb457d723958e0d812b742608ba0c76b2bd9e7d3d89eb83d8619",
+      "reference": "ghcr.io/alekseishmidko/warehouse-control/backend@sha256:16620956a0998523cc311b3832b42ed1792ae3553fd308442fda34c6c0331fa8",
+      "imageID": "ghcr.io/alekseishmidko/warehouse-control/backend@sha256:16620956a0998523cc311b3832b42ed1792ae3553fd308442fda34c6c0331fa8",
+      "criImageID": "sha256:88b17c1ea2f6b075341c59c3c2db71325536f2ccb4b5d9791ac3d5ef6f41dad0",
+      "checkedConfigId": "sha256:88b17c1ea2f6b075341c59c3c2db71325536f2ccb4b5d9791ac3d5ef6f41dad0",
       "runtime": {
         "version": "v24.22.3",
         "architecture": "arm64",
@@ -18,9 +19,10 @@
     },
     {
       "app": "web",
-      "reference": "ghcr.io/alekseishmidko/warehouse-control/web@sha256:91ad31bcd082cb2412fbc013d737bcfe77c47762fa63064b5dd8023c80cd1783",
-      "imageID": "ghcr.io/alekseishmidko/warehouse-control/web@sha256:91ad31bcd082cb2412fbc013d737bcfe77c47762fa63064b5dd8023c80cd1783",
-      "criImageID": "sha256:674e37a85efde497cf14135d91e0fef1928d1071657d2537d2deb3035b04ea25",
+      "reference": "ghcr.io/alekseishmidko/warehouse-control/web@sha256:bc6930a741f0e1599ab5f18c70b828b2699d0d086f076637a71d5f48f8302693",
+      "imageID": "ghcr.io/alekseishmidko/warehouse-control/web@sha256:bc6930a741f0e1599ab5f18c70b828b2699d0d086f076637a71d5f48f8302693",
+      "criImageID": "sha256:47acb7b16e9f0311c96d84d63f1636a381a598271616a789293ecc218d8f175b",
+      "checkedConfigId": "sha256:47acb7b16e9f0311c96d84d63f1636a381a598271616a789293ecc218d8f175b",
       "runtime": {
         "version": "v24.22.3",
         "architecture": "arm64",

@@ -1025,21 +1025,21 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | --------------------------------- | ------------------------------------------------------------------------------ |
 | `scripts/image-release/scan.cjs`  | Docker export точного image ID, Trivy scan, строгая policy и private evidence. |
 | `scripts/image-release/README.md` | Установка scanner, команды, policy, структура artifacts и границы поставки.    |
-| `docs/tasks/wms-602.json`         | Source task локальной подготовки WMS-602.3; внешние AC остаются открытыми.     |
+| `docs/tasks/wms-602.json`         | Source task согласованных validation/release/pull и identity AC WMS-602.       |
 | `docs/flows/image-scan.md`        | Mermaid, доверие к scanner, шаги данных, ошибки и ограничения.                 |
-| `docs/reports/wms-602.md`         | Требования, AC, review/refactor и фактические проверки подготовки.             |
+| `docs/reports/wms-602.md`         | AC, review/refactor, реальные CI/release и scan/export/target identity.        |
 
-| Файл                                    | Назначение                                                                   |
-| --------------------------------------- | ---------------------------------------------------------------------------- |
-| `.github/workflows/validate.yaml`       | PR/reusable read-only harness, scan и передача проверенных images.           |
-| `.github/workflows/release-images.yaml` | Ручная поставка проверенных tar в GHCR с digest report; пока не запускалась. |
+| Файл                                    | Назначение                                                                 |
+| --------------------------------------- | -------------------------------------------------------------------------- |
+| `.github/workflows/validate.yaml`       | PR/reusable read-only harness, scan и передача проверенных images.         |
+| `.github/workflows/release-images.yaml` | Ручная поставка проверенных tar в GHCR и fresh kind pull с config binding. |
 
-| Файл                                    | Назначение                                                                                          |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `scripts/image-release/policy.cjs`      | Проверка scan report и точных, ограниченных сроком advisory exceptions.                             |
-| `scripts/image-release/runtime.cjs`     | Общие runtime probes image gate/scanner: Node/uid, tooling, native addons и OpenSSL.                |
-| `scripts/image-release/exceptions.json` | Пять reviewed UNKNOWN exceptions с CVE/package/version/OS/base/Node, сроком и первичным источником. |
-| `docs/adr/0039-minimal-node-runtime.md` | Решение о минимальном Node/Debian13 runtime и границах исключений.                                  |
+| Файл                                    | Назначение                                                                                           |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `scripts/image-release/policy.cjs`      | Проверка scan report и точных, ограниченных сроком advisory exceptions.                              |
+| `scripts/image-release/runtime.cjs`     | Общие runtime probes image gate/scanner: Node/uid, tooling, native addons и OpenSSL.                 |
+| `scripts/image-release/exceptions.json` | Шесть reviewed UNKNOWN exceptions с CVE/package/version/OS/base/Node, сроком и первичным источником. |
+| `docs/adr/0039-minimal-node-runtime.md` | Решение о минимальном Node/Debian13 runtime и границах исключений.                                   |
 
 | Файл                                  | Назначение                                                                                                          |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -1052,3 +1052,11 @@ test:functional через прежний test:prepare/Jest. JSON не подд�
 | Файл                               | Назначение                                                                                                |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `scripts/image-release/export.cjs` | Экспорт только финальных scanned bytes с log/report hashes, tag/config guard и checked identity metadata. |
+
+| Файл                                      | Назначение                                                                                        |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `docs/reports/wms-602-scan-evidence.json` | Generated byte-for-byte копия accepted scan artifact; источник, hash и поля в reports/wms-602.md. |
+
+| Файл                                        | Назначение                                                                                          |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `docs/reports/wms-602-export-evidence.json` | Generated byte-for-byte копия accepted export artifact; источник, hash и поля в reports/wms-602.md. |

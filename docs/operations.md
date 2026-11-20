@@ -82,7 +82,7 @@ task: source FK приводит к permanent dead. Исправление пр�
 
 `pnpm check:pr` реализован локально: format/typed lint/architecture/self-tests,
 typecheck/build/contracts/OpenAPI/web generation, Vitest, реальные PostgreSQL/Chromium
-и отдельные coverage guards. Это не внешний CI trigger или required status check.
+и отдельные coverage guards. Тот же harness запускается GitHub Actions на PR; required status checks в branch protection отдельно не настроены.
 `pnpm test:postgres:readiness` входит в check:pr и docker:gate; skip/fallback запрещены.
 [Команды и правила](pr-checks.md), [coverage](quality.md).
 

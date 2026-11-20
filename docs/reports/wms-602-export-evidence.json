@@ -1,0 +1,19 @@
+{
+  "commit": "70ee66e962735bf231eed15a6cf3924d4227494f",
+  "harnessRun": "d871bc7c-861f-4fd2-b0c6-503a2c140c5d",
+  "scanSha256": "de86b92c2ca3169f0c37cc143291690878322e95b115058ca832c9cdf736dd87",
+  "images": [
+    {
+      "app": "backend",
+      "imageId": "sha256:88b17c1ea2f6b075341c59c3c2db71325536f2ccb4b5d9791ac3d5ef6f41dad0",
+      "configId": "sha256:88b17c1ea2f6b075341c59c3c2db71325536f2ccb4b5d9791ac3d5ef6f41dad0",
+      "archiveSha256": "c69da6066d1b7e4ea5ecb746302565674d2caa76b230b8f31eb964ebfa110768"
+    },
+    {
+      "app": "web",
+      "imageId": "sha256:47acb7b16e9f0311c96d84d63f1636a381a598271616a789293ecc218d8f175b",
+      "configId": "sha256:47acb7b16e9f0311c96d84d63f1636a381a598271616a789293ecc218d8f175b",
+      "archiveSha256": "78b8403f0eb669c4662c70be8eed990faf36c9d8c2a7e4cb213617e564f8963f"
+    }
+  ]
+}
