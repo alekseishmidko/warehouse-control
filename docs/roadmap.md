@@ -108,9 +108,10 @@ Strimzi, publisher, consumer groups, AsyncAPI/Registry compatibility spike,
 WMS-601 реализует полный локальный source-bound pipeline с frozen install, contracts/
 migration compatibility, docs/JSDoc/catalog, Helm и Docker checks.
 [Flow](flows/pr-pipeline.md), [review и evidence](reports/wms-601.md).
-Внешний CI/CD и публикация по-прежнему относятся к WMS-602–604.
+WMS-602 реализовала реальный GitHub Actions/GHCR release и isolated ARM64 kind pull:
+[AC/evidence](reports/wms-602.md). GitOps/release-recovery остаются WMS-603–604.
 
-GitHub Actions/GHCR при подтверждённом хостинге, Argo CD,
+GitHub Actions/GHCR подтверждены и проверены; далее Argo CD,
 автоматические gates, image scan, секреты и rollback drill.
 Готово, когда выпуск воспроизводим и восстановление проверено.
 
@@ -172,7 +173,7 @@ Review WMS-206 исправил позднее дополнение draft и о�
 Новый guard — migration 0031. Следующий этап WMS-207 не менялся.
 
 Для каждого PR добавлен локальный pnpm check:pr с полным unit/integration прогоном.
-[Порядок](pr-checks.md). Внешние CI triggers и required status checks ещё не настроены.
+[Порядок](pr-checks.md). PR triggers работают в GitHub Actions WMS-602; branch protection с required status checks отдельно не настраивалась.
 
 WMS-207 реализована: [складские списки и история](flows/warehouse-reads.md),
 явные DTO, filters/keyset pagination, read/audit ACL, migration 0032 и PostgreSQL

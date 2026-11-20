@@ -135,10 +135,10 @@ gates и финальный check:pr прошли после снятия бло
 - WMS-302: API/worker в Kubernetes, pre-release migrations, Secret refs и local persistence проверены; [flow](flows/kubernetes-app.md).
 - WMS-303: static web image, NGF/Gateway/TLS и полный HTTPS UI gate проверены; [flow](flows/gateway-tls.md).
 - WMS-304: startup/ready/live API/worker, bounded drain, Pod kills и совместимый rolling release проверены.
-- Kafka dev platform, schema release, opt-in publisher/consumer и recovery реализованы; WMS-506 добавляет isolated cutover/reverse drill. Рабочий стенд не переключён, внешний CI/CD ещё не реализован. Production deployment не выполнялся.
+- Kafka dev platform, schema release, opt-in publisher/consumer и recovery реализованы; WMS-506 добавляет isolated cutover/reverse drill. Рабочий стенд не переключён; GitHub Actions/GHCR реализованы WMS-602, GitOps — следующая WMS-603. Production deployment не выполнялся.
 - `ReceivingPosted v1` используется outbox/local worker; Kafka publisher не изменяет eventId/envelope и не заменяет local consumer.
 - Локальные schema/fixtures/generation проверки выполняются в unit suite;
-  OpenAPI generation/diff готов локально; CI workflow и breaking-change comparison пока не настроены.
+  OpenAPI generation/diff готов локально; Actions workflow и pinned contracts/migrations comparison реализованы WMS-601/602.
 
 WMS-203: [подробный flow размещения](flows/putaway-execution.md),
 [ADR-0021](adr/0021-putaway-execution.md), [отчёт](reports/wms-203.md).
@@ -239,8 +239,8 @@ duplicate и возврат после новых Kafka effects. Рабочий 
 WMS-601: [полный локальный PR pipeline](flows/pr-pipeline.md),
 [review/исправления/evidence](reports/wms-601.md). Frozen install, pinned compatibility,
 реальный baseline upgrade, docs/catalog/JSDoc и Helm/image gates включены в проверку.
-Следующая задача — WMS-602 при подтверждённом Git hosting; внешний CI/CD пока не настроен.
+WMS-602 выполнила GitHub Actions/GHCR ARM64 delivery; следующая задача — WMS-603 (GitOps/secrets).
 
-WMS-602 в работе: [локальный image scan](flows/image-scan.md),
-[требования и ограничения](reports/wms-602.md). GitHub Actions + GHCR подтверждены для подготовки
-без публикации. Workflows подготовлены; внешние runs/целевой pull не выполнены.
+WMS-602 выполнена: [image delivery/target pull](flows/image-scan.md),
+[AC/review/evidence](reports/wms-602.md). Проверенные ARM64 backend/web images опубликованы
+в GHCR; свежий kind скачал их по digest и удалён. Полный production rollout не выполнялся.

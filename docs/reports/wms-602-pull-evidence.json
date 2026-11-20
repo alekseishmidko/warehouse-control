@@ -1,0 +1,33 @@
+{
+  "status": "passed",
+  "commit": "d075f689a0fd8468cf275235eb59057655512691",
+  "runId": "44601420726",
+  "architecture": "arm64",
+  "cluster": "wms602-pull-30ad8c78",
+  "images": [
+    {
+      "app": "backend",
+      "reference": "ghcr.io/alekseishmidko/warehouse-control/backend@sha256:9aeb9c88a4505fc821413e0df95db72c2a00fa1af082a5246001e6bc9b38ef51",
+      "imageID": "ghcr.io/alekseishmidko/warehouse-control/backend@sha256:9aeb9c88a4505fc821413e0df95db72c2a00fa1af082a5246001e6bc9b38ef51",
+      "criImageID": "sha256:7e795743511fdb457d723958e0d812b742608ba0c76b2bd9e7d3d89eb83d8619",
+      "runtime": {
+        "version": "v24.22.3",
+        "architecture": "arm64",
+        "uid": 1000
+      }
+    },
+    {
+      "app": "web",
+      "reference": "ghcr.io/alekseishmidko/warehouse-control/web@sha256:91ad31bcd082cb2412fbc013d737bcfe77c47762fa63064b5dd8023c80cd1783",
+      "imageID": "ghcr.io/alekseishmidko/warehouse-control/web@sha256:91ad31bcd082cb2412fbc013d737bcfe77c47762fa63064b5dd8023c80cd1783",
+      "criImageID": "sha256:674e37a85efde497cf14135d91e0fef1928d1071657d2537d2deb3035b04ea25",
+      "runtime": {
+        "version": "v24.22.3",
+        "architecture": "arm64",
+        "uid": 1000
+      }
+    }
+  ],
+  "initialReleaseCacheEmpty": true,
+  "cleanup": "passed"
+}

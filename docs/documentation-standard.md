@@ -189,7 +189,7 @@ AGENTS.md хранит рабочие ограничения и навигаци
 Локальный `pnpm check:docs` (WMS-601) проверяет весь source inventory, каталог,
 local links/anchors, file-level @file и public TS JSDoc/module README.
 Содержательность, корректность пояснений и полнота контрактов остаются review.
-Внешний CI не настроен. [Точная область и ограничения](flows/pr-pipeline.md).
+WMS-602 выполняет те же проверки в GitHub Actions. [Точная область и ограничения](flows/pr-pipeline.md).
 
 ## Форматирование
 

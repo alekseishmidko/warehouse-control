@@ -5,7 +5,8 @@
 Доступны host dev, Compose backend и single-node kind. Kubernetes manifests, Helm chart
 API/worker/web и NGINX Gateway Fabric/TLS реализованы WMS-301–303. Это локальные стенды;
 локальная observability WMS-402 реализована отдельным profile; внешний production
-deployment, Kafka и CI/CD pipelines не настроены.
+deployment/GitOps не настроены. Dev Kafka готова WMS-501–506; GitHub Actions/GHCR
+pipeline и isolated target pull выполнены WMS-602. [Delivery evidence](reports/wms-602.md).
 Фактический статус — [карта](README.md), открытые findings — [отчёт ревью](reports/project-review-2026-11-07.md).
 
 | Режим                | Запуск и владелец инструкции                                                                                 | Данные и границы                                                              |
@@ -53,7 +54,8 @@ DATABASE_URL и TLS key; private values не включаются в rendered co
 Kubernetes ServiceAccounts не получают автоматический API token или RBAC grants.
 Runtime DB login отделён от DDL owner; dev Compose по-прежнему использует local admin.
 Secret base64 не является шифрованием или защитой от администратора cluster.
-SOPS/age, signing, внешний registry delivery и production credential provisioning не настроены.
+Registry delivery в GHCR и disposable pull проверены WMS-602. SOPS/age, signing
+и production credential provisioning не настроены.
 
 Session/warehouse ACL обязательны; dev actor удалён. Production API требует HTTPS
 AUTH_ORIGIN и явные absolute/idle seconds. TLS завершает NGF; /api сохраняется, / идёт

@@ -2,7 +2,7 @@
 
 Независимая подготовка поставки: скрипт не обращается к целевому registry и не публикует
 images. Владелец подробного процесса — [image scan flow](../../docs/flows/image-scan.md).
-Пользователь подтвердил подготовку GitHub Actions/GHCR без публикации. Доступы и целевой cluster ещё не проверены.
+Пользователь разрешил PR/CI/merge/release и isolated ARM64 target pull; реальные jobs прошли. [Evidence](../../docs/reports/wms-602.md).
 
 `scan.cjs` использует Docker CLI и Trivy 0.76.2, создаёт private UUID-каталог
 artifacts/image-scan и удаляет экспортированный tar в finally. Общий atomic-json

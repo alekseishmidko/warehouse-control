@@ -1,8 +1,8 @@
 # Локальный image scan: вход, эффекты и отказы
 
 WMS-602.3 реализует локальную подготовку поставки. Пользователь подтвердил GitHub Actions + GHCR; после локальной подготовки новым поручением разрешил реальный release и проверку pull.
-Доступы и целевой cluster не проверены. Внешние Actions,
-публикация и registry pull не выполнены. [Команды и установка](../../scripts/image-release/README.md),
+Реальный PR/CI/release выполнен; ARM64 target kind скачал оба digest из GHCR и удалён.
+[Source copy целевого proof](../reports/wms-602-pull-evidence.json). [Команды и установка](../../scripts/image-release/README.md),
 [AC и review](../reports/wms-602.md).
 
 ```mermaid
@@ -67,7 +67,7 @@ read:packages credential через Secret вне Git. Runner pull не дока
 одного run; сверить commit с проверенным checkout; получить `IMAGE@sha256:...` из TSV;
 в целевом окружении выполнить `docker pull IMAGE@sha256:...` либо проверить Pod
 imageID при отдельно разрешённом rollout. Зафиксировать architecture, digest, commit,
-run URL, pull identity и exit status без credentials. Этот шаг сейчас не выполняется.
+run URL, pull identity и exit status без credentials. WMS-602 выполнила этот шаг в disposable Actions kind; production target не проверялся.
 Частичный push backend до отказа web не откатывается: не считать такую пару release;
 сохранить digests/logs, исправить причину и повторить validation с новым unique tag.
 
