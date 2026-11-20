@@ -431,7 +431,26 @@ test('runtime policy rejects unrelated expired and altered advisory exceptions',
     ],
   });
   const options = { exceptions, proof, now };
-  assert.equal(validateReport(report(), imageId, options).waived.length, 5);
+  assert.equal(validateReport(report(), imageId, options).waived.length, exceptions.length);
+  // Новая glob advisory допускается только в точной reviewed области; FixedVersion/HIGH её отменяют.
+  const globReport = report();
+  globReport.Results[0].Vulnerabilities = [
+    {
+      VulnerabilityID: 'CVE-2026-126765',
+      PkgName: 'libc6',
+      InstalledVersion: '2.41-12+deb13u4',
+      Severity: 'UNKNOWN',
+      Status: 'affected',
+    },
+  ];
+  assert.deepEqual(validateReport(globReport, imageId, options).waived, [
+    { id: 'CVE-2026-126765', package: 'libc6', expires: '2026-12-20' },
+  ]);
+  for (const change of [{ FixedVersion: 'next' }, { Severity: 'HIGH' }]) {
+    const candidate = structuredClone(globReport);
+    Object.assign(candidate.Results[0].Vulnerabilities[0], change);
+    assert.throws(() => validateReport(candidate, imageId, options));
+  }
   for (const mutate of [
     (r) => {
       r.Results[0].Vulnerabilities[0].PkgName += '-other';
