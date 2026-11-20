@@ -654,20 +654,22 @@ Frozen install, docs/catalog/JSDoc, pinned contracts/migrations, Helm и image g
 
 ### WMS-602. Образы и registry
 
-В работе: повторный linux/arm64 release после исправления scan/export identity. Предыдущий release/pull сохранён как история: [flow](flows/image-scan.md), [AC/review/evidence](reports/wms-602.md).
-[PR36](https://github.com/alekseishmidko/warehouse-control/pull/36) прошёл реальный CI и merge;
-[release44601420726](https://github.com/alekseishmidko/warehouse-control/actions/runs/44601420726)
-опубликовал проверенные backend/web images. Новый kind скачал оба digest из GHCR,
-проверил CRI identity/Node/uid и удалён. [Raw pull proof](reports/wms-602-pull-evidence.json).
-Runtime — [ADR-0039](adr/0039-minimal-node-runtime.md); адресные UNKNOWN exceptions до2026-12-20.
-Production deployment/GitOps не выполнялись. Readiness текущего snapshot —
+Выполнена для linux/arm64: [flow](flows/image-scan.md), [AC/review/evidence](reports/wms-602.md).
+[PR37](https://github.com/alekseishmidko/warehouse-control/pull/37) исправил scan/export identity;
+[release 44679042019](https://github.com/alekseishmidko/warehouse-control/actions/runs/44679042019)
+опубликовал backend/web без rebuild. Свежий kind скачал оба digest из GHCR, сверил
+scan = exported tar = target CRI config, проверил Node/uid и удалён.
+[Raw scan](reports/wms-602-scan-evidence.json), [export](reports/wms-602-export-evidence.json),
+[pull proof](reports/wms-602-pull-evidence.json). Первоначальный выпуск с identity gap не принят.
+Runtime — [ADR-0039](adr/0039-minimal-node-runtime.md); exact exceptions до2026-12-20.
+Production deployment/GitOps не выполнялись. Текущая readiness —
 `pnpm harness:ready docs/tasks/wms-602.json`.
 
 - [x] **WMS-602.1** — Подтвердить Git hosting, доступы и целевые окружения; выбрать Actions/GHCR только при соответствующем размещении.
 - [x] **WMS-602.2** — Разделить PR validation и разрешённую публикацию release images, задать минимальные permissions.
 - [x] **WMS-602.3** — Настроить image scan и политику обработки найденных уязвимостей с документированными исключениями.
-- [ ] **WMS-602.4** — Публиковать immutable image и фиксировать digest, commit и результаты проверок; не передавать secrets в build layers.
-- [ ] **WMS-602.5** — Проверить pull образа целевым окружением и трассируемость digest к проверенному commit.
+- [x] **WMS-602.4** — Публиковать immutable image и фиксировать digest, commit и результаты проверок; не передавать secrets в build layers.
+- [x] **WMS-602.5** — Проверить pull образа целевым окружением и трассируемость digest к проверенному commit.
 
 ### WMS-603. GitOps и секреты
 

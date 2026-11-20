@@ -42,3 +42,8 @@ docs/reports/wms-404-evidence.json
 
 # Generated AsyncAPI: pnpm asyncapi:generate, exact diff проверяет schemas:check.
 docs/contracts/asyncapi.json
+
+# Generated release evidence сохраняет точные server bytes и SHA256; владелец docs/reports/wms-602.md.
+docs/reports/wms-602-scan-evidence.json
+docs/reports/wms-602-export-evidence.json
+docs/reports/wms-602-pull-evidence.json

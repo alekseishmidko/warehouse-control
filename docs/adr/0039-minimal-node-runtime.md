@@ -19,8 +19,8 @@ passwd/group (прежний node uid1000) и application artifacts. Npm/Corepac
 package manager не входят в исходные runtime layers. API/worker/migrate и web сохраняют
 exec entrypoints, порты, uid1000, read-only rootfs и SIGTERM. Host dev не меняется.
 
-Policy блокирует все HIGH/CRITICAL и новые UNKNOWN, включая unfixed. Только пять
-точных UNKNOWN для libc6/libssl3t64 допускаются по review до2026-12-20. Область:
+Policy блокирует все HIGH/CRITICAL и новые UNKNOWN, включая unfixed. Только адресные
+UNKNOWN для libc6/libssl3t64 допускаются по review до2026-12-20. Область:
 CVE+package+version+severity+status+OS+base digest+Node. FixedVersion, новая severity,
 обновление пакета/base/Node или истечение срока требуют нового review.
 
@@ -47,7 +47,7 @@ Shell debugging внутри runtime отсутствует: пользоват�
 `pnpm docker:image-check`, `pnpm docker:image-check --web`, `pnpm images:scan`,
 `pnpm docker:gate`, полный harness. Содержание и границы exceptions:
 [владелец policy](../../scripts/image-release/README.md),
-[AC/review](../reports/wms-602.md). Внешний выпуск/целевой pull не выполняются.
+[AC/review](../reports/wms-602.md). Первоначальная проверка не публиковала images; последующий разрешённый выпуск и целевой pull выполнены WMS-602, evidence находится в отчёте.
 
 Источники: [distroless](https://github.com/GoogleContainerTools/distroless),
 [Node Intl/ICU](https://nodejs.org/api/intl.html),

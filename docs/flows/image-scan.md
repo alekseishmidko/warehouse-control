@@ -32,7 +32,7 @@ flowchart TD
 5. `verifyRuntime` проверяет exact base/Node/uid, отсутствие tooling/native addons и shared OpenSSL.
    Исключения применяются только при этих условиях. `validateReport` проверяет schema v2, container_image, Metadata.ImageID, равное config digest archive bytes,
    непустой OS result и структуру vulnerabilities. Например, HIGH CVE без FixedVersion
-   даёт отказ; LOW остаётся в отчёте и counts. Только пять адресных UNKNOWN могут получить waiver по [review policy](../../scripts/image-release/README.md#runtime-и-review-исключений). Чужой image ID даёт отказ даже без CVE.
+   даёт отказ; LOW остаётся в отчёте и counts. Только адресные UNKNOWN могут получить waiver по [review policy](../../scripts/image-release/README.md#runtime-и-review-исключений). Чужой image ID даёт отказ даже без CVE.
 6. Успешный результат включает image ID, исходные counts, waived entries, runtime proof, hash policy и SHA-256 JSON. Ошибка прерывает
    следующие images, сохраняет JSON и summary failed; tar удаляется finally.
    После устранения причины нужно повторить всю команду. Старый passed не используется.
@@ -40,7 +40,7 @@ flowchart TD
 Нет общей транзакции image/registry: локальный scan не доказывает внешний push/pull,
 соответствие опубликованного manifest проверенному commit или отсутствие всех уязвимостей.
 Inspect ID может быть OCI index; Trivy ImageID проверяется по config bytes. Registry manifest digest и целевой pull относятся
-к открытым WMS-602.4–602.5. Автоматический внешний rollout в эту подготовку не входит.
+к WMS-602.4–602.5; фактическое выполнение описано в отчёте. Автоматический внешний rollout в эту подготовку не входит.
 
 ## Подготовленные GitHub Actions и GHCR
 
@@ -107,4 +107,4 @@ commit/run/reference/CRI identity и runtime facts. Ошибка pull/identity/s
 final imageScan → checked export. Экспорт не полагается на tag: проверяет inspect ID,
 raw report hash и config bytes архива, сохраняет checked config IDs в artifact.
 Target verifier сравнивает CRI id с этими IDs. Старый release44601420726 имел backend
-scan/export mismatch и не является accepted final evidence; новый release обязателен.
+scan/export mismatch и не является accepted final evidence; новый принятый release с полной цепочкой identity приведён в отчёте.
