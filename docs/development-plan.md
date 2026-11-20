@@ -654,7 +654,7 @@ Frozen install, docs/catalog/JSDoc, pinned contracts/migrations, Helm и image g
 
 ### WMS-602. Образы и registry
 
-Выполнена для linux/arm64: [flow](flows/image-scan.md), [AC/review/evidence](reports/wms-602.md).
+В работе: повторный linux/arm64 release после исправления scan/export identity. Предыдущий release/pull сохранён как история: [flow](flows/image-scan.md), [AC/review/evidence](reports/wms-602.md).
 [PR36](https://github.com/alekseishmidko/warehouse-control/pull/36) прошёл реальный CI и merge;
 [release44601420726](https://github.com/alekseishmidko/warehouse-control/actions/runs/44601420726)
 опубликовал проверенные backend/web images. Новый kind скачал оба digest из GHCR,
@@ -666,8 +666,8 @@ Production deployment/GitOps не выполнялись. Readiness текуще
 - [x] **WMS-602.1** — Подтвердить Git hosting, доступы и целевые окружения; выбрать Actions/GHCR только при соответствующем размещении.
 - [x] **WMS-602.2** — Разделить PR validation и разрешённую публикацию release images, задать минимальные permissions.
 - [x] **WMS-602.3** — Настроить image scan и политику обработки найденных уязвимостей с документированными исключениями.
-- [x] **WMS-602.4** — Публиковать immutable image и фиксировать digest, commit и результаты проверок; не передавать secrets в build layers.
-- [x] **WMS-602.5** — Проверить pull образа целевым окружением и трассируемость digest к проверенному commit.
+- [ ] **WMS-602.4** — Публиковать immutable image и фиксировать digest, commit и результаты проверок; не передавать secrets в build layers.
+- [ ] **WMS-602.5** — Проверить pull образа целевым окружением и трассируемость digest к проверенному commit.
 
 ### WMS-603. GitOps и секреты
 

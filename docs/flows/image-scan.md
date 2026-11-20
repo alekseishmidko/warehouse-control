@@ -102,3 +102,9 @@ SHA256; kubeconfig временный и не входит в artifacts. Тол�
 commit/run/reference/CRI identity и runtime facts. Ошибка pull/identity/smoke/cleanup
 делает release workflow failed; успешно опубликованный image при таком отказе не
 считается прошедшим target validation. Повтор получает новый run attempt/tag.
+
+После review identity порядок исправлен: backend/web image checks → Docker gate →
+final imageScan → checked export. Экспорт не полагается на tag: проверяет inspect ID,
+raw report hash и config bytes архива, сохраняет checked config IDs в artifact.
+Target verifier сравнивает CRI id с этими IDs. Старый release44601420726 имел backend
+scan/export mismatch и не является accepted final evidence; новый release обязателен.

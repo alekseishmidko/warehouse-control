@@ -79,3 +79,19 @@ capabilities drop ALL; Node smoke сверяет version/arch/uid. CRI repoDiges
 requested digest с фактическим Pod imageID/config. Finally удаляет только свой cluster
 и kubeconfig; cleanup failure запрещает passed. Evidence не содержит auth data.
 Это не установка WMS/БД и не проверка production target.
+
+## Привязка export к финальному scan
+
+Docker gate строит warehouse-backend:local, поэтому он выполняется **до** imageScan.
+`export.cjs` повторно вызывает ready, читает successful imageScan log с проверкой hash,
+raw summary/report hashes и policy, проверяет commit и текущий inspect ID. После Docker
+save ещё раз считает config digest из tar: это ловит смену tag между inspect/save.
+Metadata/commit marker создаются только после успешного экспорта обоих apps; при отказе
+собственные partial files удаляются. Existing export directory не переиспользуется.
+
+Checked-images artifact включает export-evidence.json с commit/scan hash/config IDs/tar
+hashes; SHA256SUMS покрывает его. Publisher извлекает только expected config IDs через
+jq и передаёт их outputs в packages:read verifier. Target CRI id обязан совпасть с
+checked configId; одно совпадение Pod registry reference больше не считается достаточным.
+Regression проверяет old gate order (red до fix), changed tag, save race, изменённый
+raw scan report, отсутствие accepted metadata при отказе и successful bytes export.

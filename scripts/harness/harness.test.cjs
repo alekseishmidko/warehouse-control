@@ -263,3 +263,15 @@ test('dependency probes are transient but source writes still invalidate install
     ordinary.close();
   }
 });
+
+test('final image scan runs after Docker rebuild gates', () => {
+  const f = fixture();
+  try {
+    fs.writeFileSync(path.join(f.root, 'Dockerfile'), '# image fixture');
+    f.task.criteria[0].gates = ['pr', 'imageScan'];
+    const ids = plan(f.root, f.task, snapshot(f.root)).map((g) => g.id);
+    a.deepEqual(ids, ['install', 'pr', 'image', 'webImage', 'docker', 'imageScan']);
+  } finally {
+    f.close();
+  }
+});

@@ -22,6 +22,8 @@ jobs:
     outputs:
       backend: ${{ steps.publish.outputs.backend }}
       web: ${{ steps.publish.outputs.web }}
+      backend-config: ${{ steps.publish.outputs.backend-config }}
+      web-config: ${{ steps.publish.outputs.web-config }}
     permissions:
       contents: read
       packages: write
@@ -52,12 +54,15 @@ jobs:
             image="ghcr.io/${GITHUB_REPOSITORY,,}/$app"
             tag="sha-$GITHUB_SHA-run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
             docker tag "$source_id" "$image:$tag"
+            checked_config="$(jq -r --arg app "$app" '.images[] | select(.app == $app) | .configId' export-evidence.json)"
+            [[ "$checked_config" =~ ^sha256:[a-f0-9]{64}$ ]]
             docker push "$image:$tag"
             canonical="$(docker image inspect "$image:$tag" --format '{{index .RepoDigests 0}}')"
             test "${canonical%@*}" = "$image"
             [[ "${canonical#*@}" =~ ^sha256:[a-f0-9]{64}$ ]]
             docker pull "$canonical"
             printf '%s=%s\n' "$app" "$canonical" >> "$GITHUB_OUTPUT"
+            printf '%s-config=%s\n' "$app" "$checked_config" >> "$GITHUB_OUTPUT"
             printf '%s\t%s\t%s\n' "$GITHUB_SHA" "$image" "${canonical#*@}" >> digests.tsv
           done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -99,6 +104,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_BACKEND_REF: ${{ needs.publish.outputs.backend }}
           RELEASE_WEB_REF: ${{ needs.publish.outputs.web }}
+          RELEASE_BACKEND_CONFIG: ${{ needs.publish.outputs.backend-config }}
+          RELEASE_WEB_CONFIG: ${{ needs.publish.outputs.web-config }}
         run: node scripts/image-release/pull-kind.cjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()

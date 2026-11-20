@@ -7,11 +7,12 @@ const gates = {
   pr: ['check:pr'],
   image: ['docker:image-check'],
   webImage: ['docker:image-check', '--web'],
-  imageScan: ['images:scan'],
   docker: ['docker:gate'],
   kubernetes: ['kubernetes:gate'],
   kafka: ['kafka:gate'],
   registry: ['registry:gate'],
+  // Любой build gate может изменить local tag: scan проверяет окончательные bytes.
+  imageScan: ['images:scan'],
 };
 /** Paths разрешены только внутри checkout, symlink наружу не превращается в config input. */
 function localFile(root, name) {

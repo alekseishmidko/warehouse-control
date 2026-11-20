@@ -241,6 +241,6 @@ WMS-601: [полный локальный PR pipeline](flows/pr-pipeline.md),
 реальный baseline upgrade, docs/catalog/JSDoc и Helm/image gates включены в проверку.
 WMS-602 выполнила GitHub Actions/GHCR ARM64 delivery; следующая задача — WMS-603 (GitOps/secrets).
 
-WMS-602 выполнена: [image delivery/target pull](flows/image-scan.md),
+WMS-602 завершает исправление scan/export identity: [image delivery/target pull](flows/image-scan.md),
 [AC/review/evidence](reports/wms-602.md). Проверенные ARM64 backend/web images опубликованы
 в GHCR; свежий kind скачал их по digest и удалён. Полный production rollout не выполнялся.
