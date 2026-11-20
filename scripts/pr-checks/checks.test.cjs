@@ -362,6 +362,9 @@ test('release workflows isolate publication from untrusted validation', () => {
   assert.deepEqual(validation.permissions, { contents: 'read' });
   assert.equal(validation.jobs.validate.permissions, undefined);
   const commands = validation.jobs.validate.steps.map((s) => s.run || '').join('\n');
+  assert.ok(commands.includes('node scripts/image-release/export.cjs'));
+  assert.ok(!commands.includes('docker save -o artifacts/release'));
+  assert.ok(release.jobs.publish.outputs['backend-config']);
   for (const phase of ['harness:plan', 'harness:run', 'harness:ready'])
     assert.ok(commands.includes(phase));
   assert.deepEqual(Object.keys(release.on), ['workflow_dispatch']);
@@ -428,7 +431,26 @@ test('runtime policy rejects unrelated expired and altered advisory exceptions',
     ],
   });
   const options = { exceptions, proof, now };
-  assert.equal(validateReport(report(), imageId, options).waived.length, 5);
+  assert.equal(validateReport(report(), imageId, options).waived.length, exceptions.length);
+  // Новая glob advisory допускается только в точной reviewed области; FixedVersion/HIGH её отменяют.
+  const globReport = report();
+  globReport.Results[0].Vulnerabilities = [
+    {
+      VulnerabilityID: 'CVE-2026-126765',
+      PkgName: 'libc6',
+      InstalledVersion: '2.41-12+deb13u4',
+      Severity: 'UNKNOWN',
+      Status: 'affected',
+    },
+  ];
+  assert.deepEqual(validateReport(globReport, imageId, options).waived, [
+    { id: 'CVE-2026-126765', package: 'libc6', expires: '2026-12-20' },
+  ]);
+  for (const change of [{ FixedVersion: 'next' }, { Severity: 'HIGH' }]) {
+    const candidate = structuredClone(globReport);
+    Object.assign(candidate.Results[0].Vulnerabilities[0], change);
+    assert.throws(() => validateReport(candidate, imageId, options));
+  }
   for (const mutate of [
     (r) => {
       r.Results[0].Vulnerabilities[0].PkgName += '-other';
@@ -507,4 +529,89 @@ test('target pull rejects tags foreign repositories and malformed digests', () =
     undefined,
   ])
     assert.throws(() => parseReleaseRef(candidate, repository, 'backend'));
+});
+
+// Реальные tar/config bytes и filesystem; Docker boundary подменяет только inspect/save для детерминированной гонки.
+test('checked image export rejects changed tags and archive contents', async () => {
+  const { exportCheckedImages } = require('../image-release/export.cjs');
+  const { createHash } = require('node:crypto');
+  const hash = (value) => createHash('sha256').update(value).digest('hex');
+  const commit = 'a'.repeat(40);
+  for (const mode of ['tag-changed', 'save-race', 'report-changed', 'success']) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wms-export-'));
+    try {
+      const dir = path.join(root, 'artifacts/image-scan/example');
+      fs.mkdirSync(dir, { recursive: true });
+      const makeArchive = (label) => {
+        const config = JSON.stringify({ architecture: 'arm64', label });
+        const digest = hash(config);
+        fs.writeFileSync(path.join(dir, digest + '.json'), config);
+        fs.writeFileSync(
+          path.join(dir, 'manifest.json'),
+          JSON.stringify([{ Config: digest + '.json' }]),
+        );
+        const archive = path.join(dir, label + '.tar');
+        execFileSync('tar', ['-cf', archive, '-C', dir, 'manifest.json', digest + '.json']);
+        return { archive, configId: 'sha256:' + digest };
+      };
+      const original = makeArchive('original'),
+        different = makeArchive('changed');
+      const images = ['backend', 'web'].map((app) => {
+        const report = JSON.stringify({
+          SchemaVersion: 2,
+          ArtifactType: 'container_image',
+          Metadata: { ImageID: original.configId },
+          Results: [{ Target: 'Debian', Class: 'os-pkgs', Type: 'debian' }],
+        });
+        fs.writeFileSync(path.join(dir, app + '.json'), report);
+        return {
+          app,
+          imageId: original.configId,
+          configId: original.configId,
+          reportSha256: hash(report),
+        };
+      });
+      fs.writeFileSync(
+        path.join(dir, 'summary.json'),
+        JSON.stringify({ status: 'passed', commit, images }),
+      );
+      const run = '00000000-0000-4000-8000-000000000000';
+      const harness = path.join(root, 'artifacts/harness/wms-602');
+      fs.mkdirSync(path.join(harness, run), { recursive: true });
+      const log = 'Image scan evidence: ' + path.join(dir, 'summary.json') + '\n';
+      fs.writeFileSync(path.join(harness, run, 'imageScan.log'), log);
+      fs.writeFileSync(
+        path.join(harness, 'latest.json'),
+        JSON.stringify({
+          status: 'passed',
+          run,
+          results: [{ id: 'imageScan', code: 0, logHash: hash(log) }],
+        }),
+      );
+      if (mode === 'report-changed') fs.appendFileSync(path.join(dir, 'backend.json'), ' ');
+      let saves = 0;
+      const docker = (args) => {
+        if (args[1] === 'inspect')
+          return (mode === 'tag-changed' ? different.configId : original.configId) + '\n';
+        assert.equal(args[1], 'save');
+        saves++;
+        fs.copyFileSync(mode === 'save-race' ? different.archive : original.archive, args[3]);
+        return '';
+      };
+      const file = path.join(root, 'artifacts/release/export-evidence.json');
+      if (mode === 'success') {
+        const result = await exportCheckedImages(root, commit, docker);
+        assert.equal(saves, 2);
+        assert.equal(result.images.length, 2);
+        assert.equal(result.images[0].configId, original.configId);
+        assert.equal(JSON.parse(fs.readFileSync(file)).commit, commit);
+      } else {
+        await assert.rejects(exportCheckedImages(root, commit, docker), /changed|differs/);
+        assert.equal(fs.existsSync(file), false);
+        assert.equal(fs.existsSync(path.join(root, 'artifacts/release/backend.tar')), false);
+      }
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
 });

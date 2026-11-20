@@ -23,7 +23,7 @@
 | Внешний HTTP     | NGINX Gateway Fabric + Gateway API                           | Проверено на local kind WMS-303                                                              |
 | Телеметрия       | Pino, OpenTelemetry, Prometheus, Grafana, Loki, Tempo        | Pino/OTel WMS-401; local collection WMS-402 реализована                                      |
 | Проверки         | Jest, Supertest, Testcontainers, k6                          | Jest/Supertest/Testcontainers; k6 baseline WMS-403 реализован                                |
-| Поставка         | GitHub Actions, GHCR, Argo CD                                | После проверки репозитория и окружения                                                       |
+| Поставка         | GitHub Actions, GHCR; далее Argo CD                          | WMS-602: ARM64 release и isolated kind pull проверены; GitOps — WMS-603                      |
 
 Frontend выбран по [ADR-0026](adr/0026-solid-frontend.md): Solid SPA в apps/web,
 Solid Router и `@tanstack/solid-query`. Реализован WMS-208: [web](../apps/web/README.md),

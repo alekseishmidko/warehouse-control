@@ -654,12 +654,16 @@ Frozen install, docs/catalog/JSDoc, pinned contracts/migrations, Helm и image g
 
 ### WMS-602. Образы и registry
 
-В работе: независимый [локальный scan](flows/image-scan.md) и
-[policy/review](reports/wms-602.md). Пользователь подтвердил GitHub Actions + GHCR и новым поручением разрешил реальную публикацию и проверку pull.
-Workflows добавлены; внешние runs, permissions/целевой cluster не проверены.
-Runtime обновлён: [ADR-0039](adr/0039-minimal-node-runtime.md), scan использует адресные исключения с runtime probes. Этап не завершён.
+В работе: повторный linux/arm64 release после исправления scan/export identity. Предыдущий release/pull сохранён как история: [flow](flows/image-scan.md), [AC/review/evidence](reports/wms-602.md).
+[PR36](https://github.com/alekseishmidko/warehouse-control/pull/36) прошёл реальный CI и merge;
+[release44601420726](https://github.com/alekseishmidko/warehouse-control/actions/runs/44601420726)
+опубликовал проверенные backend/web images. Новый kind скачал оба digest из GHCR,
+проверил CRI identity/Node/uid и удалён. [Raw pull proof](reports/wms-602-pull-evidence.json).
+Runtime — [ADR-0039](adr/0039-minimal-node-runtime.md); адресные UNKNOWN exceptions до2026-12-20.
+Production deployment/GitOps не выполнялись. Readiness текущего snapshot —
+`pnpm harness:ready docs/tasks/wms-602.json`.
 
-- [ ] **WMS-602.1** — Подтвердить Git hosting, доступы и целевые окружения; выбрать Actions/GHCR только при соответствующем размещении.
+- [x] **WMS-602.1** — Подтвердить Git hosting, доступы и целевые окружения; выбрать Actions/GHCR только при соответствующем размещении.
 - [x] **WMS-602.2** — Разделить PR validation и разрешённую публикацию release images, задать минимальные permissions.
 - [x] **WMS-602.3** — Настроить image scan и политику обработки найденных уязвимостей с документированными исключениями.
 - [ ] **WMS-602.4** — Публиковать immutable image и фиксировать digest, commit и результаты проверок; не передавать secrets в build layers.
@@ -699,9 +703,9 @@ WMS-501–505 добавили dev Kafka/Registry, opt-in publisher/consumer и 
 WMS-506 добавляет isolated cutover/reverse rehearsal: [flow](flows/transport-cutover.md),
 [проверки и ограничения](reports/wms-506.md). Рабочий стенд автоматически не переключён.
 WMS-601 добавляет полный локальный pipeline, docs/compatibility/migration/image gates.
-Следующая задача — **WMS-602**, поставка образов при подтверждённом Git hosting. Внешний
-CI/CD ещё не настроен; размещение Git/registry и внешние deployment требуют отдельного
-подтверждённого окружения. Перед запуском API/operator bootstrap явно заполнить
+WMS-602 завершила GitHub Actions/GHCR ARM64 delivery с реальным isolated target pull.
+Следующая задача — **WMS-603**, Argo CD и secrets в отдельно согласованном окружении;
+production deployment ещё не выполнялся. Перед запуском API/operator bootstrap явно заполнить
 AUTH_ORIGIN и оба срока сессии, числовых defaults нет. Applied migrations не переписывать;
 dev actor не возвращать как fallback. Readiness этапа определяется текущим harness evidence.
 

@@ -2,12 +2,12 @@
 
 Независимая подготовка поставки: скрипт не обращается к целевому registry и не публикует
 images. Владелец подробного процесса — [image scan flow](../../docs/flows/image-scan.md).
-Пользователь подтвердил подготовку GitHub Actions/GHCR без публикации. Доступы и целевой cluster ещё не проверены.
+Пользователь разрешил PR/CI/merge/release и isolated ARM64 target pull; реальные jobs прошли. [Evidence](../../docs/reports/wms-602.md).
 
 `scan.cjs` использует Docker CLI и Trivy 0.76.2, создаёт private UUID-каталог
 artifacts/image-scan и удаляет экспортированный tar в finally. Общий atomic-json
 writer принадлежит scripts/evidence; второй writer здесь не создаётся.
-Source task JSON docs/tasks/wms-602.json описывает подготовку без внешнего запуска,
+Source task JSON docs/tasks/wms-602.json описывает согласованный PR/release/pull,
 стабильный AC WMS-602.3, accepted base и harness gates. Он не является release evidence.
 
 ```sh
@@ -47,7 +47,7 @@ JSON без фильтрации, summary — все counts, waived entries, run
 
 `exceptions.json` — source policy, не Trivy ignorefile. Каждая запись содержит точный
 id/package/version/severity/status, Debian release, base digest, Node version, expires,
-reason и ссылку на первичный источник. Все пять записей истекают2026-12-20 UTC.
+reason и ссылку на первичный источник. Все шесть записей истекают2026-12-20 UTC.
 Нет wildcard, исключений HIGH/CRITICAL или общего ignore-unfixed. Найденная FixedVersion,
 новая severity/status/package version/OS или отсутствие runtime proof запрещают waiver.
 Просрочка/дубликаты/невалидная source policy блокируют весь gate даже при чистом scan.
@@ -57,8 +57,14 @@ reason и ссылку на первичный источник. Все пять
 | [CVE-2026-121757](https://security-tracker.debian.org/tracker/CVE-2026-121757) | libc6 2.41-12+deb13u4      | CP949 через glibc iconv с контролируемыми input/encoding и //IGNORE; Node ICU не вызывает этот путь. |
 | [CVE-2026-121758](https://security-tracker.debian.org/tracker/CVE-2026-121758) | тот же libc6               | ISO-2022-CN-EXT decoder glibc iconv; та же недостижимость.                                           |
 | [CVE-2026-124024](https://security-tracker.debian.org/tracker/CVE-2026-124024) | тот же libc6               | UCS-4 → IBM1390/1399 glibc iconv с контролируемым memory layout; та же недостижимость.               |
+| [CVE-2026-126765](https://security-tracker.debian.org/tracker/CVE-2026-126765) | тот же libc6               | glibc glob/globfree при allocation failure; Node fs.glob использует JS/minimatch, не libc glob.      |
 | [CVE-2026-84786](https://security-tracker.debian.org/tracker/CVE-2026-84786)   | libssl3t64 3.5.7-1~deb13u3 | DANE системного OpenSSL; Node статически использует собственный OpenSSL3.5.9.                        |
 | [CVE-2026-95690](https://security-tracker.debian.org/tracker/CVE-2026-95690)   | тот же libssl3t64          | DTLS системного OpenSSL; та же недостижимость.                                                       |
+
+Review CVE-2026-126765: Debian указывает affected/unfixed для trixie.
+[Node24.22.3 fs.glob source](https://github.com/nodejs/node/blob/v24.22.3/lib/internal/fs/glob.js)
+использует JS/minimatch и readdir/stat. Вместе с отсутствием native addons/CLI/FFI это
+основание адресного исключения. Уязвимость затрагивает все архитектуры; ARM64 не является защитой.
 
 Gconv/libssl остаются в filesystem и полном JSON. Это не утверждение об исправлении
 библиотек. Review production source не выявило FFI/iconv/child_process. Runtime probe
@@ -79,3 +85,19 @@ capabilities drop ALL; Node smoke сверяет version/arch/uid. CRI repoDiges
 requested digest с фактическим Pod imageID/config. Finally удаляет только свой cluster
 и kubeconfig; cleanup failure запрещает passed. Evidence не содержит auth data.
 Это не установка WMS/БД и не проверка production target.
+
+## Привязка export к финальному scan
+
+Docker gate строит warehouse-backend:local, поэтому он выполняется **до** imageScan.
+`export.cjs` повторно вызывает ready, читает successful imageScan log с проверкой hash,
+raw summary/report hashes и policy, проверяет commit и текущий inspect ID. После Docker
+save ещё раз считает config digest из tar: это ловит смену tag между inspect/save.
+Metadata/commit marker создаются только после успешного экспорта обоих apps; при отказе
+собственные partial files удаляются. Existing export directory не переиспользуется.
+
+Checked-images artifact включает export-evidence.json с commit/scan hash/config IDs/tar
+hashes; SHA256SUMS покрывает его. Publisher извлекает только expected config IDs через
+jq и передаёт их outputs в packages:read verifier. Target CRI id обязан совпасть с
+checked configId; одно совпадение Pod registry reference больше не считается достаточным.
+Regression проверяет old gate order (red до fix), changed tag, save race, изменённый
+raw scan report, отсутствие accepted metadata при отказе и successful bytes export.

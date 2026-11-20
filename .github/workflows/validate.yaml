@@ -53,12 +53,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/release
-          docker save -o artifacts/release/backend.tar warehouse-backend:local
-          docker save -o artifacts/release/web.tar warehouse-web:local
-          printf '%s\n' "$GITHUB_SHA" > artifacts/release/commit.txt
+          node scripts/image-release/export.cjs
           cd artifacts/release
-          sha256sum backend.tar web.tar commit.txt > SHA256SUMS
+          sha256sum backend.tar web.tar commit.txt export-evidence.json > SHA256SUMS
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: inputs.export-images
         with:

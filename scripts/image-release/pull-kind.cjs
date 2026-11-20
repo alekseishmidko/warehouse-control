@@ -48,6 +48,13 @@ async function main() {
       parseReleaseRef(process.env[`RELEASE_${app.toUpperCase()}_REF`], repository, app),
     ]),
   );
+  const configs = Object.fromEntries(
+    ['backend', 'web'].map((app) => {
+      const value = process.env[`RELEASE_${app.toUpperCase()}_CONFIG`];
+      if (!/^sha256:[a-f0-9]{64}$/.test(value || '')) throw Error('Checked config ID required');
+      return [app, value];
+    }),
+  );
   const token = process.env.GITHUB_TOKEN;
   const actor = process.env.GITHUB_ACTOR;
   if (!token || !actor || !/^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA || ''))
@@ -182,6 +189,11 @@ async function main() {
         ]),
       ).status;
       assert.ok(image.repoDigests.includes(reference), 'CRI must retain requested registry digest');
+      assert.equal(
+        image.id,
+        configs[app],
+        'Pulled config must equal final scanned/exported config',
+      );
       assert.ok(
         [reference, image.id, ...image.repoDigests].some(
           (id) => state.imageID === id || state.imageID.endsWith('//' + id),
@@ -194,6 +206,7 @@ async function main() {
         reference,
         imageID: state.imageID,
         criImageID: image.id,
+        checkedConfigId: configs[app],
         runtime,
       });
     }

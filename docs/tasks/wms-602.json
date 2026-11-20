@@ -2,7 +2,7 @@
   "version": 1,
   "id": "wms-602",
   "issuedBy": "Пользователь: выполнить следующий этап, описать код, документацию, ревью и рефакторинг",
-  "request": "Пользователь поручил выполнить согласованный план WMS-602: linux/arm64 native GitHub runner; source в отдельную ветку и PR в main; review и успешный CI перед разрешённым merge; ручной release с approval ghcr-release; публикация backend/web в GHCR и сохранение digests/commit/run evidence; pull по digest в новом отдельном kind ARM64 в свежем GitHub Actions job с packages:read без загрузки local images, с временным registry credential, smoke Pods и удалением cluster. Явно разрешены source push ветки, создание PR, merge после зелёных gates, workflow dispatch и публикация. Полный deployment приложения/БД и рабочие данные не затрагиваются.",
+  "request": "Пользователь поручил выполнить согласованный план WMS-602: linux/arm64 native GitHub runner; source в отдельную ветку и PR в main; review и успешный CI перед разрешённым merge; ручной release с approval ghcr-release; публикация backend/web в GHCR и сохранение digests/commit/run evidence; pull по digest в новом отдельном kind ARM64 в свежем GitHub Actions job с packages:read без загрузки local images, с временным registry credential, smoke Pods и удалением cluster. Явно разрешены source push ветки, создание PR, merge после зелёных gates, workflow dispatch и публикация. Полный deployment приложения/БД и рабочие данные не затрагиваются. Final review выявил расхождение scan configId и опубликованного backend: docker gate после scan пересобирает local tag. Исправить порядок docker→scan, экспортировать только доказанно scanned bytes, сверить checked configId в fresh kind и повторить PR/CI/release/pull; предыдущую попытку не выдавать за accepted final release.",
   "base": "110929386f9900bf51ae096f74dda7abc07d427d",
   "criteria": [
     {
@@ -45,6 +45,15 @@
         "scripts/pr-checks/checks.test.cjs#release workflows isolate publication from untrusted validation"
       ],
       "gates": ["pr"]
+    },
+    {
+      "id": "WMS-602.IDENTITY",
+      "statement": "Docker rebuild gates предшествуют финальному scan; export отказывает при изменённом tag/config archive и связывает checked configId/commit/scan hash с artifact. Target CRI id совпадает с checked configId. Предыдущий несвязанный backend release не является accepted evidence.",
+      "tests": [
+        "scripts/harness/harness.test.cjs#final image scan runs after Docker rebuild gates",
+        "scripts/pr-checks/checks.test.cjs#checked image export rejects changed tags and archive contents"
+      ],
+      "gates": ["pr", "image", "webImage", "imageScan", "docker"]
     }
   ]
 }

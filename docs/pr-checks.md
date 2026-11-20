@@ -42,10 +42,10 @@ forceExit не включены. Без успешного integration прог�
 Не запускать два test:prepare/check:pr одновременно в одном checkout.
 Перед check:pr остановить dev:all и отдельные backend watchers: они пишут тот же dist.
 
-Это локальная команда и обязательное правило review. Автоматического запуска при
-создании PR, Git hook или обязательного CI status check пока нет. Эта задача не
-настраивает внешний хостинг и не публикует проект. Команду можно использовать
-будущим CI без изменения состава проверок.
+Это локальная команда и обязательное правило review. WMS-602 запускает тот же harness
+в GitHub Actions на PR и перед ручной публикацией: [flow](flows/image-scan.md).
+Git hook и branch protection с required status checks отдельно не настраивались.
+Успешный check:pr сам не публикует images: публикация — отдельный approved job.
 
 ## Что выполняется
 

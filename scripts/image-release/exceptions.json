@@ -42,6 +42,20 @@
     "source": "https://security-tracker.debian.org/tracker/CVE-2026-124024"
   },
   {
+    "id": "CVE-2026-126765",
+    "package": "libc6",
+    "version": "2.41-12+deb13u4",
+    "severity": "UNKNOWN",
+    "status": "affected",
+    "os": "debian",
+    "osVersion": "13.7",
+    "base": "sha256:cb87acc574abe719b6e5c547384defa2f7b1f24af9605d3f618cf852495d8be2",
+    "nodeVersion": "v24.22.3",
+    "expires": "2026-12-20",
+    "reason": "Ошибка glibc glob/globfree требует вызова libc glob и отказа allocation при обработке большого набора имён. Node24.22.3 реализует fs.glob на JavaScript через readdir/stat и minimatch, не glibc glob; runtime не содержит shell/CLI/native addons, production source не вызывает FFI/child_process. Это исключение по недостижимости текущему приложению, не исправление glibc; 64-bit сам по себе не защищает.",
+    "source": "https://security-tracker.debian.org/tracker/CVE-2026-126765"
+  },
+  {
     "id": "CVE-2026-84786",
     "package": "libssl3t64",
     "version": "3.5.7-1~deb13u3",
