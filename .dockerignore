@@ -34,3 +34,8 @@
 !patches/deepmerge@4.3.1.patch
 # WMS-503: KafkaJS timer compatibility patch также обязателен для frozen production install.
 !patches/kafkajs@2.2.4.patch
+
+# Общий reviewed C++ assembly helper; остальные scripts не входят в build context.
+!scripts/
+!scripts/image-release/
+!scripts/image-release/cpp-runtime.cjs

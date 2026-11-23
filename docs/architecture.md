@@ -23,7 +23,7 @@
 | Внешний HTTP     | NGINX Gateway Fabric + Gateway API                           | Проверено на local kind WMS-303                                                              |
 | Телеметрия       | Pino, OpenTelemetry, Prometheus, Grafana, Loki, Tempo        | Pino/OTel WMS-401; local collection WMS-402 реализована                                      |
 | Проверки         | Jest, Supertest, Testcontainers, k6                          | Jest/Supertest/Testcontainers; k6 baseline WMS-403 реализован                                |
-| Поставка         | GitHub Actions, GHCR; далее Argo CD                          | WMS-602: ARM64 release и isolated kind pull проверены; GitOps — WMS-603                      |
+| Поставка         | GitHub Actions, GHCR; local Argo Core                        | WMS-602: delivery/pull; WMS-603/604: isolated GitOps/release/recovery                        |
 
 Frontend выбран по [ADR-0026](adr/0026-solid-frontend.md): Solid SPA в apps/web,
 Solid Router и `@tanstack/solid-query`. Реализован WMS-208: [web](../apps/web/README.md),
@@ -237,3 +237,7 @@ Operational logging WMS-401: shared хранит контракт, infrastructur
 и OTel SDK процесса. Deferred handler использует root trace с producer link, business
 success буферизуется до COMMIT. [ADR-0030](adr/0030-operational-observability.md),
 [flow](flows/logging.md). Local collector/metrics storage реализованы WMS-402: [ADR-0031](adr/0031-local-observability.md).
+
+Локальный GitOps/recovery профиль и границы production: [ADR-0040](adr/0040-local-gitops-release-recovery.md), [flow](flows/gitops-release-recovery.md).
+
+Актуальный минимальный runtime без системного SSL и local checked baseline: [ADR-0041](adr/0041-runtime-without-system-openssl.md).

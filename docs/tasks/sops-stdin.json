@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "id": "sops-stdin",
+  "issuedBy": "Пользователь: исправить следующий отказ WMS-602, run dbe08bcf-cbbd-4e95-9295-653626ce4556",
+  "request": "Исправить gitops:gate: SOPS encrypt не может открыть /dev/stdin из Node child_process на Linux ARM64. Использовать штатный stdin API SOPS для bootstrap и restore. Сохранить шифрование stringData, wrong-key/recovery проверки, отсутствие plaintext в Git/logs и cleanup; не отключать gates и не менять base WMS-602.",
+  "base": "9473b1f2b0eb4548b6c54d4c94b3d58269ed628d",
+  "criteria": [
+    {
+      "id": "SOPS-STDIN-01",
+      "statement": "Bootstrap и восстановление шифруют JSON через исходный stdin без повторного открытия /dev/stdin; filename override и config заданы явно. Linux ARM64 Node/SOPS roundtrip, wrong-key refusal и восстановление ключа сохраняются; секреты не выводятся и не сохраняются в source.",
+      "tests": [
+        "scripts/pr-checks/checks.test.cjs#SOPS encryption uses stdin without reopening the child descriptor"
+      ],
+      "gates": ["pr", "gitops", "release"]
+    }
+  ]
+}

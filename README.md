@@ -295,3 +295,7 @@ Lockfile не содержит шагов запуска приложения. �
 `pnpm lifecycle:gate` выполняет чистый kind/Helm/NGF стенд, HTTPS UI-сценарий,
 DB outage, Pod kills до/после commit и compatible migration/rolling update.
 Используются только disposable ресурсы; версии/tools и ограничения — в [runbook](docs/flows/lifecycle.md).
+
+GitOps/release/recovery на отдельном synthetic kind ARM64: `pnpm gitops:gate`,
+`pnpm release:drill`. [Flow и ограничения](docs/flows/gitops-release-recovery.md),
+[результаты WMS-603/604](docs/reports/wms-604.md). Ключи вне Git, production не затрагивается.

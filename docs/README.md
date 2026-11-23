@@ -135,7 +135,7 @@ gates и финальный check:pr прошли после снятия бло
 - WMS-302: API/worker в Kubernetes, pre-release migrations, Secret refs и local persistence проверены; [flow](flows/kubernetes-app.md).
 - WMS-303: static web image, NGF/Gateway/TLS и полный HTTPS UI gate проверены; [flow](flows/gateway-tls.md).
 - WMS-304: startup/ready/live API/worker, bounded drain, Pod kills и совместимый rolling release проверены.
-- Kafka dev platform, schema release, opt-in publisher/consumer и recovery реализованы; WMS-506 добавляет isolated cutover/reverse drill. Рабочий стенд не переключён; GitHub Actions/GHCR реализованы WMS-602, GitOps — следующая WMS-603. Production deployment не выполнялся.
+- Kafka dev platform, schema release, opt-in publisher/consumer и recovery реализованы; WMS-506 добавляет isolated cutover/reverse drill. Рабочий стенд не переключён; GitHub Actions/GHCR реализованы WMS-602, локальная GitOps/release/recovery репетиция — WMS-603/604. Production deployment не выполнялся.
 - `ReceivingPosted v1` используется outbox/local worker; Kafka publisher не изменяет eventId/envelope и не заменяет local consumer.
 - Локальные schema/fixtures/generation проверки выполняются в unit suite;
   OpenAPI generation/diff готов локально; Actions workflow и pinned contracts/migrations comparison реализованы WMS-601/602.
@@ -239,8 +239,18 @@ duplicate и возврат после новых Kafka effects. Рабочий 
 WMS-601: [полный локальный PR pipeline](flows/pr-pipeline.md),
 [review/исправления/evidence](reports/wms-601.md). Frozen install, pinned compatibility,
 реальный baseline upgrade, docs/catalog/JSDoc и Helm/image gates включены в проверку.
-WMS-602 выполнила GitHub Actions/GHCR ARM64 delivery; следующая задача — WMS-603 (GitOps/secrets).
+WMS-602 выполнила GitHub Actions/GHCR ARM64 delivery; WMS-603/604 добавили локальный GitOps/recovery.
 
 WMS-602 выполнена с подтверждённой scan/export/target identity: [image delivery/target pull](flows/image-scan.md),
 [AC/review/evidence](reports/wms-602.md). Проверенные ARM64 backend/web images опубликованы
 в GHCR; свежий kind скачал их по digest и удалён. Полный production rollout не выполнялся.
+
+WMS-603/604 реализованы и функционально проверены в отдельно согласованном local kind
+ARM64: Argo Core, SOPS/age, Git sync/drift, release под нагрузкой, image rollback,
+forward repair и encrypted restore в новую DB. [Flow](flows/gitops-release-recovery.md),
+[WMS-603](reports/wms-603.md), [WMS-604 и времена](reports/wms-604.md).
+Итоговый source-bound harness/ready для обоих этапов — docs/tasks/wms-604.json.
+После fresh HIGH finding системная libssl удалена из runtime по
+[ADR-0041](adr/0041-runtime-without-system-openssl.md). Новый runtime проверяется локально;
+исторический GHCR release не переписывается и обновлённые images наружу не публиковались.
+Production target, HA и постоянное хранение ключей этим drill не устанавливаются.

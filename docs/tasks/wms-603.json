@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "id": "wms-603",
+  "issuedBy": "Пользователь: выполнить оставшиеся этапы development-plan.md",
+  "request": "Пользователь поручил выполнить все оставшиеся WMS-603 и WMS-604. Затем явно выбрал отдельный local kind ARM64 + SOPS/age и разрешил установить Argo CD, WMS/БД и выполнить оба этапа на синтетических данных. Рабочие .env, volumes и внешние production окружения не менять. Ключи вне Git. WMS-603 выполняется первой; WMS-604 после её проверки отдельным source task. Допустимы отдельные disposable cluster, private kubeconfig и local read-only Git source для реального Argo sync. Публикация новых images/изменений на внешний hosting этим выбором не требуется.",
+  "base": "cf1e2c2b6ad54fbfd71a93550653fbc8582d87ec",
+  "criteria": [
+    {
+      "id": "WMS-603.4",
+      "statement": "Chart имеет явный Helm/Argo CD mode. Для Argo migration Sync hook wave-1 следует за SA wave-2 и блокирует wave0 при отказе; повтор sync повторяет Job, без обещания rollback schema. Default Helm install/upgrade contract сохранён.",
+      "tests": [
+        "scripts/pr-checks/checks.test.cjs#GitOps migration ordering preserves the default Helm contract"
+      ],
+      "gates": ["pr", "kubernetes", "gitops"]
+    },
+    {
+      "id": "WMS-603.1",
+      "statement": "Реальный Argo CD установлен в отдельном kind ARM64; источник Git и GHCR image digests согласованы и проверены.",
+      "tests": ["scripts/gitops/rehearsal.cjs#runRehearsal"],
+      "gates": ["pr", "kubernetes", "gitops"]
+    },
+    {
+      "id": "WMS-603.2",
+      "statement": "GitOps environment values и immutable digests находятся в Git; real diff/sync/drift связываются с Git revision.",
+      "tests": ["scripts/gitops/rehearsal.cjs#runRehearsal"],
+      "gates": ["pr", "kubernetes", "gitops"]
+    },
+    {
+      "id": "WMS-603.3",
+      "statement": "SOPS/age шифрует Secrets; operator keys вне Git, проверены roundtrip, отказ с неверным ключом и восстановление ключа.",
+      "tests": ["scripts/gitops/rehearsal.cjs#runRehearsal"],
+      "gates": ["pr", "kubernetes", "gitops"]
+    },
+    {
+      "id": "WMS-603.5",
+      "statement": "Реальные sync/drift и отказ миграции проверены; namespace/project и доступ к UI/kubeconfig ограничены, ресурсы очищены.",
+      "tests": ["scripts/gitops/rehearsal.cjs#runRehearsal"],
+      "gates": ["pr", "kubernetes", "gitops"]
+    }
+  ]
+}

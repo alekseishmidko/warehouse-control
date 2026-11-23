@@ -70,5 +70,7 @@ jobs:
           path: |
             artifacts/harness/
             artifacts/image-scan/**/*.json
+            artifacts/gitops-gate/evidence.json
+            artifacts/release-drill/evidence.json
           if-no-files-found: warn
           retention-days: 7

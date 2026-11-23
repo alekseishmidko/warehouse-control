@@ -51,6 +51,9 @@ backend/web image checks. WMS-601 добавляет alias `pnpm pr:pipeline <ta
 и web image-check + Docker gate; Helm/Kubernetes → kubernetes:gate; Kafka resources,
 topology и gate script → kafka:gate; Registry tools/resources/event schemas → registry:gate.
 WMS-602 добавляет opt-in `imageScan` после всех Docker rebuild gates: он требует Trivy и не публикует images.
+WMS-603/604 добавляют gitops и release для infra/gitops/scripts/gitops; общий fixture
+image builder также требует release. Shared adapters проверяются до restore/promotion.
+Оба выполняют настоящий owned kind; release дополнительно запускает real Kafka proof.
 AC могут расширять этот набор только известными IDs. Произвольный executable, argv,
 shell script или внешний deployment через task не задаётся. Семантическое покрытие
 AC остаётся обязанностью автора/reviewer: ссылка file#test — трассировка, не oracle.

@@ -22,8 +22,16 @@ RUN pnpm --filter @warehouse/backend build
 
 # Новая базовая стадия: установленные в tooling pnpm и dev dependencies не наследуются.
 # Сохраняем оба node_modules: symlinks backend ведут в корневой pnpm store этого же workspace.
-FROM gcr.io/distroless/cc-debian13:nonroot@sha256:cb87acc574abe719b6e5c547384defa2f7b1f24af9605d3f618cf852495d8be2 AS runtime
-LABEL org.warehouse.runtime.base="sha256:cb87acc574abe719b6e5c547384defa2f7b1f24af9605d3f618cf852495d8be2"
+# Из pinned cc извлекаются только C++ packages с metadata; SSL bytes этого stage не наследуются runtime.
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:cb87acc574abe719b6e5c547384defa2f7b1f24af9605d3f618cf852495d8be2 AS cpp-source
+FROM tooling AS cpp-runtime
+COPY --from=cpp-source / /pinned-cc/
+COPY scripts/image-release/cpp-runtime.cjs /tmp/cpp-runtime.cjs
+RUN node /tmp/cpp-runtime.cjs /pinned-cc /runtime-cpp
+# Официальный base-nossl содержит glibc/CA, но не системные libssl/libcrypto.
+FROM gcr.io/distroless/base-nossl-debian13:nonroot@sha256:4006ac92504be607b70de01d1f64f38288c69fcd8faa820f6d3aed266ea32ac5 AS runtime
+LABEL org.warehouse.runtime.base="sha256:4006ac92504be607b70de01d1f64f38288c69fcd8faa820f6d3aed266ea32ac5"
+COPY --from=cpp-runtime /runtime-cpp/ /
 # Только Node binary и прежний uid1000; npm/Corepack/Yarn/shell/package manager не наследуются.
 COPY --from=tooling /usr/local/bin/node /usr/local/bin/node
 COPY --from=tooling /etc/passwd /etc/passwd

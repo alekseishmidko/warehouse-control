@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "id": "wms-604",
+  "issuedBy": "Пользователь: выполнить оставшиеся этапы; отдельный локальный kind + SOPS/age; выполнить оба этапа",
+  "request": "После WMS-603 выполнить WMS-604 на синтетических данных в отдельном local kind ARM64. Реальные GitOps install/business demo, additive release под нагрузкой, image rollback без down migration, failed migration/forward fix, encrypted backup в отдельную БД и решение для уже опубликованных Kafka events через существующий isolated cutover drill. Ключи/backup вне Git. Рабочая .env, dev volumes, production и внешняя публикация не затрагиваются. Fixtures migrations существуют только в временных images, applied SQL не меняется. Итоговый source-bound run также повторяет все dependency AC WMS-603 на том же завершённом snapshot; отдельные ранние failed WMS-603 harness runs не считаются readiness.",
+  "base": "cf1e2c2b6ad54fbfd71a93550653fbc8582d87ec",
+  "criteria": [
+    {
+      "id": "WMS-603.4",
+      "statement": "Chart имеет явный Helm/Argo CD mode. Для Argo migration Sync hook wave-1 следует за SA wave-2 и блокирует wave0 при отказе; повтор sync повторяет Job, без обещания rollback schema. Default Helm install/upgrade contract сохранён.",
+      "tests": [
+        "scripts/pr-checks/checks.test.cjs#GitOps migration ordering preserves the default Helm contract"
+      ],
+      "gates": ["pr", "kubernetes", "gitops"]
+    },
+    {
+      "id": "WMS-603.1",
+      "statement": "Реальный Argo CD установлен в отдельном kind ARM64; источник Git и GHCR image digests согласованы и проверены.",
+      "tests": ["scripts/gitops/rehearsal.cjs#runRehearsal"],
+      "gates": ["pr", "kubernetes", "gitops"]
+    },
+    {
+      "id": "WMS-603.2",
+      "statement": "GitOps environment values и immutable digests находятся в Git; real diff/sync/drift связываются с Git revision.",
+      "tests": ["scripts/gitops/rehearsal.cjs#runRehearsal"],
+      "gates": ["pr", "kubernetes", "gitops"]
+    },
+    {
+      "id": "WMS-603.3",
+      "statement": "SOPS/age шифрует Secrets; operator keys вне Git, проверены roundtrip, отказ с неверным ключом и восстановление ключа.",
+      "tests": ["scripts/gitops/rehearsal.cjs#runRehearsal"],
+      "gates": ["pr", "kubernetes", "gitops"]
+    },
+    {
+      "id": "WMS-603.5",
+      "statement": "Реальные sync/drift и отказ миграции проверены; namespace/project и доступ к UI/kubeconfig ограничены, ресурсы очищены.",
+      "tests": ["scripts/gitops/rehearsal.cjs#runRehearsal"],
+      "gates": ["pr", "kubernetes", "gitops"]
+    },
+    {
+      "id": "WMS-604.1",
+      "statement": "Подготовить release checklist: schema/events compatibility, backup, image digest, конфигурация и ответственный оператор.",
+      "tests": ["scripts/gitops/release.cjs#checkRelease"],
+      "gates": ["pr", "gitops", "kubernetes", "release", "imageScan"]
+    },
+    {
+      "id": "WMS-604.2",
+      "statement": "Развернуть чистое окружение из Git и повторить бизнес-демонстрацию.",
+      "tests": ["scripts/gitops/release.cjs#checkRelease"],
+      "gates": ["pr", "gitops", "kubernetes", "release"]
+    },
+    {
+      "id": "WMS-604.3",
+      "statement": "Выпустить совместимое изменение под нагрузкой и проверить rollout/телеметрию.",
+      "tests": ["scripts/gitops/release.cjs#checkRelease"],
+      "gates": ["pr", "gitops", "kubernetes", "release"]
+    },
+    {
+      "id": "WMS-604.4",
+      "statement": "Выполнить допустимый rollback image без отката данных; отдельно отрепетировать forward fix несовместимой миграции.",
+      "tests": ["scripts/gitops/release.cjs#checkRelease"],
+      "gates": ["pr", "gitops", "kubernetes", "release"]
+    },
+    {
+      "id": "WMS-604.5",
+      "statement": "Восстановить backup в отдельную БД, сверить данные и определить судьбу уже опубликованных событий до возобновления consumers.",
+      "tests": [
+        "scripts/gitops/backup.cjs#checkBackupRecovery",
+        "scripts/gitops/transport-proof.cjs#verifyTransportRecovery"
+      ],
+      "gates": ["pr", "gitops", "kubernetes", "release"]
+    },
+    {
+      "id": "WMS-604.6",
+      "statement": "Сохранить release/recovery report, фактические времена и нерешённые риски; обновить статус этапа только по evidence.",
+      "tests": ["scripts/gitops/release.cjs#checkRelease"],
+      "gates": ["pr", "gitops", "kubernetes", "release"]
+    },
+    {
+      "id": "WMS-604-R1",
+      "statement": "Сохранить production transaction timeout и объём EXPLAIN fixtures; исправить итоговый PR regression без ослабления dataset/assertions. Source guard отклоняет новые untracked/ignored runtime inputs и допускает test-only изменения.",
+      "tests": [
+        "apps/backend/test/integration/warehouse-read-plans.spec.ts#representative production data: all eight real queries have bounded plans; inspect indexes and continuation pages",
+        "scripts/pr-checks/checks.test.cjs#accepted runtime guard rejects untracked build inputs but permits test-only changes"
+      ],
+      "gates": ["pr", "release"]
+    },
+    {
+      "id": "WMS-604-R2",
+      "statement": "Устранить выявленную fresh scan HIGH CVE-2026-124709 без HIGH waiver: официальный pinned base-nossl, нужные C++ libraries вместе с package metadata. GitOps/recovery используют заново собранные и просканированные local images с привязкой runtime inputs/config/digest; historical GHCR pull проверяет только доступ. Внешней публикации нет. Полный pipeline повторён.",
+      "tests": [
+        "scripts/pr-checks/checks.test.cjs#minimal runtime assembly preserves package metadata and rejects unsafe inventory",
+        "scripts/gitops/release.cjs#checkRelease"
+      ],
+      "gates": ["pr", "image", "webImage", "docker", "kubernetes", "gitops", "release", "imageScan"]
+    }
+  ]
+}

@@ -67,3 +67,8 @@ publisher:
   # Имена существующих Secrets в namespace приложения; PEM/private keys не передаются через values.
   caSecret: warehouse-kafka-ca
   clientSecret: outbox-publisher
+
+# Helm hooks и Argo CD Sync hooks имеют разный lifecycle. Явный mode исключает неявное преобразование hooks.
+deployment:
+  # helm сохраняет install/upgrade; argocd задаёт SA wave-2 → migration Sync wave-1 → runtime wave0.
+  controller: helm

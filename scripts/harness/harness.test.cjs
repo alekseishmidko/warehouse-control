@@ -106,6 +106,19 @@ test('task cannot disable mandatory gates or omit AC references', () => {
     f.close();
   }
 });
+test('GitOps release changes require live gates even when the task only asks for PR checks', () => {
+  const f = fixture();
+  try {
+    fs.mkdirSync(path.join(f.root, 'scripts/gitops'), { recursive: true });
+    fs.writeFileSync(path.join(f.root, 'scripts/gitops/secrets.cjs'), '/** @file fixture */');
+    a.deepEqual(
+      plan(f.root, f.task, snapshot(f.root)).map((g) => g.id),
+      ['install', 'pr', 'image', 'webImage', 'gitops', 'release'],
+    );
+  } finally {
+    f.close();
+  }
+});
 test('CLI run/ready bind success to content and exact logs; stale/failed rerun cannot reuse pass', () => {
   const f = fixture();
   try {

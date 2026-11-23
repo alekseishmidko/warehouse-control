@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "id": "kubernetes-local-image",
+  "issuedBy": "Пользователь: исправить отказ WMS-602 по validation-evidence.zip из GitHub Actions",
+  "request": "Исправить kubernetes:gate: локальный Docker build в CI имеет пустой RepoDigests, чтение первого элемента падает до chart validation. Не менять identity, бизнес-правила, базу WMS-602 или обязательные gates. Сохранить проверку реальной image identity перед установкой. Проверить исходный harness entry point и явно указать ограничения окружения.",
+  "base": "f6ca82de2ecd885d3e9247d4157f5d20f151a659",
+  "criteria": [
+    {
+      "id": "KLI-01",
+      "statement": "Локальный image с пустым RepoDigests проходит предварительную проверку Helm и доходит до создания kind. Синтетический digest используется только для offline render; установка требует canonicalImage после import с проверкой Docker archive config против CRI.",
+      "tests": [
+        "scripts/pr-checks/checks.test.cjs#local image without RepoDigests reaches kind after real Helm validation"
+      ],
+      "gates": ["pr", "kubernetes"]
+    }
+  ]
+}

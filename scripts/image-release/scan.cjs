@@ -111,6 +111,7 @@ async function main() {
       .digest('hex'),
     startedAt: new Date().toISOString(),
     commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
+    sourceSnapshot: require('../harness/snapshot.cjs').snapshot(root).digest,
     images: [],
   };
   const file = path.join(directory, 'summary.json');
@@ -126,10 +127,11 @@ async function main() {
     await writeAtomicJson(file, summary);
     console.log(`Image scan evidence: ${file}`);
   }
+  return { summary, file };
 }
 if (require.main === module)
   main().catch((error) => {
     console.error(error.message);
     process.exitCode = 1;
   });
-module.exports = { validateReport, scannerEnvironment, archiveConfigId };
+module.exports = { validateReport, scannerEnvironment, archiveConfigId, scanLocalImages: main };

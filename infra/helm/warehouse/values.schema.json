@@ -195,6 +195,18 @@
           "minLength": 1
         }
       }
+    },
+    "deployment": {
+      "description": "Выбор владельца lifecycle chart; default находится в values.yaml, не в schema.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controller"],
+      "properties": {
+        "controller": {
+          "description": "helm — прежние pre-install/pre-upgrade hooks; argocd — явные Sync waves.",
+          "enum": ["helm", "argocd"]
+        }
+      }
     }
   }
 }

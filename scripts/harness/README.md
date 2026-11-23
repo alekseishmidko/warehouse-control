@@ -28,3 +28,5 @@ check:pr и не засчитываются как проверки прилож
 WMS-601: frozen install запускается первым; pr и backend/web image checks обязательны
 для каждого task. Root alias pr:pipeline вызывает этот же runner. Дополнительные gates
 по-прежнему выбираются по diff/AC. [Полный flow](../../docs/flows/pr-pipeline.md).
+
+GitOps/release изменения включают live gates автоматически: [policy/границы](../../docs/flows/engineering-harness.md), [команды](../gitops/README.md). Regression запрещает task с одним pr обходить эти gates.

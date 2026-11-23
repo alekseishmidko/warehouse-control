@@ -40,8 +40,9 @@ test('representative production data: all eight real queries have bounded plans;
     receiving = app.get(ReceivingService);
   // Сначала освобождаем исходный план через владельца. Следующие планы используют один и тот же физический stock, а не прямой SQL.
   await warehouseCommand(app, `orders/${x.order.id}/cancel`, x.manager).expect(200);
-  await runner.run(async (c) => {
-    for (let i = 0; i < 100; i++) {
+  // Независимые документы не образуют одну бизнес-транзакцию. Объём plan dataset не должен зависеть от production transaction_timeout10s.
+  for (let i = 0; i < 100; i++) {
+    await runner.run(async (c) => {
       const o = await orders.create(
         c,
         { warehouseId: id, lines: [{ productId: x.fixture.product.id, quantity: 1 }] },
@@ -57,19 +58,23 @@ test('representative production data: all eight real queries have bounded plans;
       );
       await picking.createTaskFromOrder(c, o.id, x.fixture.metadata);
       await orders.change(c, o.id, 'cancel', undefined, x.fixture.metadata);
-    }
-    // Данные документов нужны для оценки сортировки и фильтров. Состав создаётся настоящим receiving owner.
-    for (let i = 0; i < 500; i++)
-      await receiving.create(
-        c,
-        {
-          warehouseId: id,
-          receivingLocationId: x.fixture.receiving.id,
-          lines: [{ productId: x.fixture.product.id, quantity: 1 }],
-        },
-        x.fixture.metadata,
-      );
-  });
+    });
+  }
+  // Данные документов нужны для оценки сортировки и фильтров. Состав создаётся настоящим receiving owner.
+  for (let i = 0; i < 500; i++) {
+    await runner.run(
+      async (c) =>
+        await receiving.create(
+          c,
+          {
+            warehouseId: id,
+            receivingLocationId: x.fixture.receiving.id,
+            lines: [{ productId: x.fixture.product.id, quantity: 1 }],
+          },
+          x.fixture.metadata,
+        ),
+    );
+  }
   // Два склада по 400 SKU: balances, movements, putaway и audit имеют и целевые, и чужие данные.
   const bulk = await postedReceiptFixture(app, 1, 400);
   await postedReceiptFixture(app, 1, 400);
@@ -93,15 +98,17 @@ test('representative production data: all eight real queries have bounded plans;
   const allocation = order.lines[0].allocations.find(
     (a: { locationKind: string }) => a.locationKind === 'shipping',
   );
-  await runner.run(async (c) => {
-    for (let i = 0; i < 500; i++)
-      await shipping.prepareShipment(
-        c,
-        y.order.id,
-        { reasonCode: 'plan-check', lines: [{ allocationId: allocation.id, quantity: 1 }] },
-        y.fixture.metadata,
-      );
-  });
+  for (let i = 0; i < 500; i++) {
+    await runner.run(
+      async (c) =>
+        await shipping.prepareShipment(
+          c,
+          y.order.id,
+          { reasonCode: 'plan-check', lines: [{ allocationId: allocation.id, quantity: 1 }] },
+          y.fixture.metadata,
+        ),
+    );
+  }
   await db().connection.pool.query('analyze');
   const inventoryRead = app.get(InventoryReadService),
     fulfillmentRead = app.get(FulfillmentReadService),

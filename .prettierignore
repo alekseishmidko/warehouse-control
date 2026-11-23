@@ -47,3 +47,6 @@ docs/contracts/asyncapi.json
 docs/reports/wms-602-scan-evidence.json
 docs/reports/wms-602-export-evidence.json
 docs/reports/wms-602-pull-evidence.json
+
+# Generated functional rehearsal proof; source/command/limits: docs/reports/wms-604.md.
+docs/reports/wms-604-rehearsal-evidence.json

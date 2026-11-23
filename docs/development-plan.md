@@ -673,20 +673,30 @@ Production deployment/GitOps не выполнялись. Текущая readine
 
 ### WMS-603. GitOps и секреты
 
-- [ ] **WMS-603.1** — Установить Argo CD в согласованном окружении, определить приложения и доступ к Git/registry.
-- [ ] **WMS-603.2** — Описать environment values и desired image digest в GitOps; исключить ручные неучтённые изменения.
-- [ ] **WMS-603.3** — Выбрать и настроить шифрование secrets, например SOPS/age; ключи и процедура восстановления вне Git.
-- [ ] **WMS-603.4** — Связать migration Job и sync ordering, failure handling и совместимость rolling update.
-- [ ] **WMS-603.5** — Проверить diff/sync/drift и отказ при ошибочной миграции; ограничить доступ к Argo UI и cluster credentials.
+Выполнено в согласованном отдельном local kind ARM64 + SOPS/age. Реальные Git sync,
+failed SQL ordering, drift и key recovery проверены. [AC/review/evidence](reports/wms-603.md).
+Fresh local build/scan/import baseline задаёт current workload; historical GHCR probe
+проверяет доступ. Runtime HIGH устранена по [ADR-0041](adr/0041-runtime-without-system-openssl.md)
+без новой внешней публикации. Итоговая freshness — общий harness WMS-604, не ранние prototypes.
+
+- [x] **WMS-603.1** — Установить Argo CD в согласованном окружении, определить приложения и доступ к Git/registry.
+- [x] **WMS-603.2** — Описать environment values и desired image digest в GitOps; исключить ручные неучтённые изменения.
+- [x] **WMS-603.3** — Выбрать и настроить шифрование secrets, например SOPS/age; ключи и процедура восстановления вне Git.
+- [x] **WMS-603.4** — Связать migration Job и sync ordering, failure handling и совместимость rolling update.
+- [x] **WMS-603.5** — Проверить diff/sync/drift и отказ при ошибочной миграции; ограничить доступ к Argo UI и cluster credentials.
 
 ### WMS-604. Выпуск и восстановление
 
-- [ ] **WMS-604.1** — Подготовить release checklist: schema/events compatibility, backup, image digest, конфигурация и ответственный оператор.
-- [ ] **WMS-604.2** — Развернуть чистое окружение из Git и повторить бизнес-демонстрацию.
-- [ ] **WMS-604.3** — Выпустить совместимое изменение под нагрузкой и проверить rollout/телеметрию.
-- [ ] **WMS-604.4** — Выполнить допустимый rollback image без отката данных; отдельно отрепетировать forward fix несовместимой миграции.
-- [ ] **WMS-604.5** — Восстановить backup в отдельную БД, сверить данные и определить судьбу уже опубликованных событий до возобновления consumers.
-- [ ] **WMS-604.6** — Сохранить release/recovery report, фактические времена и нерешённые риски; обновить статус этапа только по evidence.
+Функциональная репетиция пройдена: чистая Git установка, HTTP demo, compatible release
+под нагрузкой, image rollback, committed schema forward repair и encrypted separate-DB
+restore/promotion. [Отчёт и фактические времена](reports/wms-604.md).
+
+- [x] **WMS-604.1** — Подготовить release checklist: schema/events compatibility, backup, image digest, конфигурация и ответственный оператор.
+- [x] **WMS-604.2** — Развернуть чистое окружение из Git и повторить бизнес-демонстрацию.
+- [x] **WMS-604.3** — Выпустить совместимое изменение под нагрузкой и проверить rollout/телеметрию.
+- [x] **WMS-604.4** — Выполнить допустимый rollback image без отката данных; отдельно отрепетировать forward fix несовместимой миграции.
+- [x] **WMS-604.5** — Восстановить backup в отдельную БД, сверить данные и определить судьбу уже опубликованных событий до возобновления consumers.
+- [x] **WMS-604.6** — Сохранить release/recovery report, фактические времена и нерешённые риски; обновить статус этапа только по evidence.
 
 Gate 6: выпуск воспроизводится по документации, восстановление проверено,
 rollback приложения не выдаётся за rollback данных или уже доставленных событий.
@@ -706,8 +716,9 @@ WMS-506 добавляет isolated cutover/reverse rehearsal: [flow](flows/tran
 [проверки и ограничения](reports/wms-506.md). Рабочий стенд автоматически не переключён.
 WMS-601 добавляет полный локальный pipeline, docs/compatibility/migration/image gates.
 WMS-602 завершила GitHub Actions/GHCR ARM64 delivery с реальным isolated target pull.
-Следующая задача — **WMS-603**, Argo CD и secrets в отдельно согласованном окружении;
-production deployment ещё не выполнялся. Перед запуском API/operator bootstrap явно заполнить
+WMS-603/604 завершили согласованную локальную GitOps/release/recovery репетицию.
+Открытых WMS-этапов этого плана нет; production deployment не выполнялся.
+Итоговую freshness проверяет harness:ready docs/tasks/wms-604.json. Перед запуском API/operator bootstrap явно заполнить
 AUTH_ORIGIN и оба срока сессии, числовых defaults нет. Applied migrations не переписывать;
 dev actor не возвращать как fallback. Readiness этапа определяется текущим harness evidence.
 

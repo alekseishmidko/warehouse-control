@@ -11,6 +11,8 @@ const gates = {
   kubernetes: ['kubernetes:gate'],
   kafka: ['kafka:gate'],
   registry: ['registry:gate'],
+  gitops: ['gitops:gate'],
+  release: ['release:drill'],
   // Любой build gate может изменить local tag: scan проверяет окончательные bytes.
   imageScan: ['images:scan'],
 };
@@ -112,6 +114,10 @@ function plan(root, task, inputs) {
       )
     )
       ['image', 'webImage', 'docker'].forEach((g) => required.add(g));
+    // Общие adapters (Secrets/source/session) участвуют и в restore/promotion, а не только в bootstrap.
+    if (/^infra\/gitops\/|^scripts\/gitops\//.test(file))
+      ['gitops', 'release'].forEach((g) => required.add(g));
+    if (file === 'scripts/image-release/fixtures.cjs') required.add('release');
     if (/^infra\/(helm|kubernetes)\/|^scripts\/kubernetes/.test(file)) required.add('kubernetes');
     if (/^infra\/kafka\/|^docs\/contracts\/kafka-topology.json$|^scripts\/kafka-gate/.test(file))
       required.add('kafka');

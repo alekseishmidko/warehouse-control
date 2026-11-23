@@ -1,7 +1,7 @@
 # 0039. Минимальный Node runtime и адресные advisory exceptions
 
 - Дата: 2026-11-20
-- Статус: Accepted
+- Статус: Accepted; runtime base/waivers уточнены [ADR-0041](0041-runtime-without-system-openssl.md).
 - Уточняет: [ADR-0005](0005-platform.md), заменяет полный Node slim как runtime WMS-112/303.
 
 ## Контекст
@@ -19,7 +19,7 @@ passwd/group (прежний node uid1000) и application artifacts. Npm/Corepac
 package manager не входят в исходные runtime layers. API/worker/migrate и web сохраняют
 exec entrypoints, порты, uid1000, read-only rootfs и SIGTERM. Host dev не меняется.
 
-Policy блокирует все HIGH/CRITICAL и новые UNKNOWN, включая unfixed. Только адресные
+На момент принятия policy блокировала все HIGH/CRITICAL и новые UNKNOWN, включая unfixed. Только адресные
 UNKNOWN для libc6/libssl3t64 допускаются по review до2026-12-20. Область:
 CVE+package+version+severity+status+OS+base digest+Node. FixedVersion, новая severity,
 обновление пакета/base/Node или истечение срока требуют нового review.

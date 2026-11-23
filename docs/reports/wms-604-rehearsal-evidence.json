@@ -1,0 +1,348 @@
+{
+  "status": "passed",
+  "startedAt": "2026-11-23T06:09:53.658Z",
+  "sourceCommit": "cf1e2c2b6ad54fbfd71a93550653fbc8582d87ec",
+  "sourceSnapshot": "f9598430286df35abe7403e9e28a2799eb93ee84dfce4529b1893951c923eace",
+  "architecture": "arm64",
+  "cluster": "wms-gitops-15effbc1edeb41ebbba3aa9b3334a1cd",
+  "core": {
+    "version": "3.6.2",
+    "imageImports": [
+      {
+        "source": "public.ecr.aws/docker/library/redis@sha256:ef216d85ec44f4fdf7c0e6df2d1757a4734ed32fbb278cabd3181b5a27353b79",
+        "dockerImageId": "sha256:ef216d85ec44f4fdf7c0e6df2d1757a4734ed32fbb278cabd3181b5a27353b79",
+        "checkedConfigId": "sha256:335368721d328df9bf4779e9af816b0c8d3a87eddf1865fad80402b6b468f426",
+        "local": "warehouse-vendor@sha256:fcaa17a4b4d98184412878965f2186b54ceff5ef3a2f250dae29ed9cec648b0d"
+      },
+      {
+        "source": "quay.io/argoproj/argocd@sha256:bbcc3b6e79c5963439bdc5170f6e20a52365b41878133fac5ce8d6810d2641dc",
+        "dockerImageId": "sha256:bbcc3b6e79c5963439bdc5170f6e20a52365b41878133fac5ce8d6810d2641dc",
+        "checkedConfigId": "sha256:68df410caba6b07d148aa41b01065074d484bf015ea13bdd2c3d6d793a45f112",
+        "local": "warehouse-vendor@sha256:b3305319b3586083118cf5fab6cc20a573c609d22473ba0f00f0e573cdec5121"
+      }
+    ],
+    "publicServerAbsent": true,
+    "namespace": "warehouse-dev",
+    "sourceRepoRestricted": true
+  },
+  "secrets": {
+    "roundtrip": true,
+    "wrongKeyRejected": true,
+    "restoredKeyWorks": true,
+    "keyOutsideGit": true,
+    "plaintextOutsideManifestGeneration": true
+  },
+  "registryAccess": [
+    {
+      "app": "backend",
+      "reference": "ghcr.io/alekseishmidko/warehouse-control/backend@sha256:16620956a0998523cc311b3832b42ed1792ae3553fd308442fda34c6c0331fa8",
+      "configId": "sha256:88b17c1ea2f6b075341c59c3c2db71325536f2ccb4b5d9791ac3d5ef6f41dad0",
+      "runtimeVerified": true
+    },
+    {
+      "app": "web",
+      "reference": "ghcr.io/alekseishmidko/warehouse-control/web@sha256:bc6930a741f0e1599ab5f18c70b828b2699d0d086f076637a71d5f48f8302693",
+      "configId": "sha256:47acb7b16e9f0311c96d84d63f1636a381a598271616a789293ecc218d8f175b",
+      "runtimeVerified": true
+    }
+  ],
+  "initialSync": {
+    "revision": "536cf61de9e4a5e0ead117504c61151e1f66ac69",
+    "phase": "Succeeded",
+    "comparison": "OutOfSync"
+  },
+  "images": {
+    "backend": "ghcr.io/alekseishmidko/warehouse-control/backend@sha256:16620956a0998523cc311b3832b42ed1792ae3553fd308442fda34c6c0331fa8",
+    "web": "ghcr.io/alekseishmidko/warehouse-control/web@sha256:bc6930a741f0e1599ab5f18c70b828b2699d0d086f076637a71d5f48f8302693"
+  },
+  "migrationFailure": {
+    "failedRevision": "d5526661fdf5bdff7cf7ac409b1195b55ef625a1",
+    "correctedRevision": "55f80b2371b399096102d59a418af4a87200d532",
+    "sqlRollbackVerified": true,
+    "previousWorkloadPreserved": true
+  },
+  "drift": {
+    "outOfSyncObserved": true,
+    "desiredReplicasRestored": true,
+    "revision": "55f80b2371b399096102d59a418af4a87200d532"
+  },
+  "runtimeCrossNamespaceDenied": true,
+  "fullStartedAt": "2026-11-23T06:09:17.124Z",
+  "runtimeSourcesUnchangedSince": "70ee66e962735bf231eed15a6cf3924d4227494f",
+  "transportRecovery": {
+    "success": true,
+    "startedAt": "2026-11-23T06:09:17.128Z",
+    "finishedAt": "2026-11-23T06:09:53.657Z",
+    "command": "pnpm cutover:drill --json --outputFile PRIVATE_FILE",
+    "tests": [
+      {
+        "name": "506 backup and bidirectional cutover",
+        "durationMs": 17995
+      },
+      {
+        "name": "506 boundary rejects an active claim before transfer",
+        "durationMs": 168
+      }
+    ],
+    "rawReportSha256": "14c06591a01030521976eb60d609626aaf33920851af85fcc6dc0b1a35232c74",
+    "eventPolicy": "Frozen boundary, restored markers/cursors and retained source validation; no blind broker offset rewind or rollback of published facts"
+  },
+  "business": {
+    "received": 10,
+    "shipped": 3,
+    "onHand": 7,
+    "reserved": 0,
+    "productionAuth": true,
+    "warehouseAcl": true
+  },
+  "rollingRelease": {
+    "startedAt": "2026-11-23T06:14:18.700Z",
+    "finishedAt": "2026-11-23T06:14:41.355Z",
+    "posted": 170,
+    "failures": 0,
+    "duringRollout": 159,
+    "stopped": true,
+    "change": {
+      "revision": "721a28d43e802e314d50c8c52dbf680d4cf9d95f",
+      "oldPod": "8306061e-e39b-4243-a129-399d2a71c9a8",
+      "newPod": "2b49410b-011a-4796-aa1e-5359fb822818",
+      "image": "warehouse-backend@sha256:a10e60c4b80f48afae1b9633efbaedf0d17f636e8b2b3f5e26acc8a4895c3fbe"
+    }
+  },
+  "telemetry": {
+    "pod": "warehouse-api-7cbb74c697-spp24",
+    "completedRequests": 3,
+    "correlatedRequests": true,
+    "noFailedOrAbortedRequests": true,
+    "rawLogSha256": "accc8094580b9412fb4515ddd7802cac80495796cf61415fa58ffeed74e38803"
+  },
+  "rollback": {
+    "revision": "87f296893b63cebdf5a56c283ef286be601d6216",
+    "image": "ghcr.io/alekseishmidko/warehouse-control/backend@sha256:16620956a0998523cc311b3832b42ed1792ae3553fd308442fda34c6c0331fa8",
+    "schemaRetained": true,
+    "savedResultReplayed": true
+  },
+  "forwardFix": {
+    "failedRevision": "6e88208e2aa8b8a23122f64183cae04e4d65d9d2",
+    "fixedRevision": "394cdae6e0bb4966d6adbccaae72a8c0bd404354",
+    "oldWorkloadPreserved": true,
+    "failedSqlRolledBack": true,
+    "downMigrationNotUsed": true
+  },
+  "committedSchemaRepair": {
+    "incompatibleRevision": "cd9358418cf183a1ce316da7bb147ac655715503",
+    "rollbackRevision": "f957f9984a116ab264179d1abc387be689a43e53",
+    "fixedRevision": "3a250e5e0b381b9808dc5177310d9585efdaf3d0",
+    "committedIncompatibilityObserved": true,
+    "imageRollbackInsufficient": true,
+    "newForwardMigrationRetainedBothJournalFacts": true,
+    "failedCommandAtomic": true,
+    "explicitSameKeyRetrySucceeded": true
+  },
+  "backupRecovery": {
+    "maintenance": {
+      "startedAt": "2026-11-23T06:17:22.223Z",
+      "frozenAt": "2026-11-23T06:17:29.905Z",
+      "inputsStopped": true,
+      "deliveriesDrained": true,
+      "workerStopped": true
+    },
+    "restoredDatabase": "warehouse_restore_145601a2",
+    "encrypted": true,
+    "bytes": 368065,
+    "backupSha256": "0c002d49f3473128f89f1f07275620f8ab93eb9a67ac43304f03749e94b13085",
+    "restoredFacts": {
+      "tables": [
+        {
+          "name": "application_metadata",
+          "rows": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "name": "audit_entries",
+          "rows": 705,
+          "sha256": "3beb2f90c25f5f060d9a47f42c220d4839414f58d6e50cab6538d61998b18735"
+        },
+        {
+          "name": "auth_login_windows",
+          "rows": 2,
+          "sha256": "077929290f5dfa7bc0e939cd2281fd97ecfb8008aa2a0ce5d2ca3ba11ded24d8"
+        },
+        {
+          "name": "consumer_streams",
+          "rows": 171,
+          "sha256": "bb97d2c8a126a38c1f3a55212da2a438c3fd162770facff7ce1ac6c6e86eb80a"
+        },
+        {
+          "name": "delivery_streams",
+          "rows": 171,
+          "sha256": "d9de562ac43671720d91d96b15487aeea73473a08052b0a1dbb7a1d3c0a0090f"
+        },
+        {
+          "name": "http_idempotency",
+          "rows": 352,
+          "sha256": "1faad58926818ed0d7d26644ab6a86e40a0a18f21dbf518cb81039f9b153016b"
+        },
+        {
+          "name": "identity_bootstrap",
+          "rows": 1,
+          "sha256": "2a5782fdc9273ece677b2bc06f7a496230093bf62f7615cfb820fc12859ff063"
+        },
+        {
+          "name": "kafka_quarantine",
+          "rows": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "name": "locations",
+          "rows": 3,
+          "sha256": "c4b9e3b8fd3936bed38921bf6787fbf1eeba713ba6dd1da19ae5519b3455636c"
+        },
+        {
+          "name": "order_lines",
+          "rows": 1,
+          "sha256": "c51a07a14b703023ffea5819249f28e3ae3732afc9264e551c38ed6d9693b92f"
+        },
+        {
+          "name": "orders",
+          "rows": 1,
+          "sha256": "7b286f0b1dc1c97ebcaa7601702a84824428223625a206a1079b8e1854d97edf"
+        },
+        {
+          "name": "outbox_aggregate_sequences",
+          "rows": 174,
+          "sha256": "d7db2d46f633ef4e4a7d1eada630da3452c2ce657291decc7febeebf67ec427b"
+        },
+        {
+          "name": "outbox_deliveries",
+          "rows": 171,
+          "sha256": "e1eb2e909f2724a01a3e5a77538dfb4ef88e94612d351652740113ecf3fa0234"
+        },
+        {
+          "name": "outbox_events",
+          "rows": 180,
+          "sha256": "c56290392f59ab51fff96dc5dd44cb43fed183505afa6df4361ddd98ca96cfc9"
+        },
+        {
+          "name": "outbox_recovery_actions",
+          "rows": 0,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "name": "picking_lines",
+          "rows": 1,
+          "sha256": "4dd7252d14b866875dab6b4cc4bc85fb526809a8dabf96509809dbfa43238bb5"
+        },
+        {
+          "name": "picking_tasks",
+          "rows": 1,
+          "sha256": "4fad3cebb207fcedfc66dc775d2d198bc429e7d5d0b57e18cbb77fbb2ae07fc2"
+        },
+        {
+          "name": "picking_transfers",
+          "rows": 1,
+          "sha256": "91259df8d445baea66c5d88342fe5f3ed12a5b6be54676f3dce392134c4d99ee"
+        },
+        {
+          "name": "processed_events",
+          "rows": 171,
+          "sha256": "55118cf01220d737b01dda0e8ce3c89683ec4bdc8eded3efdc02d82f53630b7e"
+        },
+        {
+          "name": "products",
+          "rows": 1,
+          "sha256": "36682b5e684144633c3fcfd55df496db8ae7e5d911609a804ed0464032cbc22e"
+        },
+        {
+          "name": "putaway_tasks",
+          "rows": 171,
+          "sha256": "afebcad39d5bef61dee1b9a29ed563288df412e4fc16a3febdf3d8584f5bfbc7"
+        },
+        {
+          "name": "receipt_lines",
+          "rows": 172,
+          "sha256": "aaba6c00e5b28d7795df17bc1bf9fdad8a5600617280b982185102d81db1b59b"
+        },
+        {
+          "name": "receipts",
+          "rows": 172,
+          "sha256": "bee6c34f03ff74d6a3393034f7ffad339ef474ab93f4987c6c389982c873f271"
+        },
+        {
+          "name": "sessions",
+          "rows": 1,
+          "sha256": "cafba89130f48ccffaa21cd0c96686ade3e0dc9ff6ab6ee715e9cd979e409f88"
+        },
+        {
+          "name": "shipment_lines",
+          "rows": 1,
+          "sha256": "bb1d94aace862d025c95f802262af283021288a3a356252beed8149163c1a123"
+        },
+        {
+          "name": "shipments",
+          "rows": 1,
+          "sha256": "734c3d6022c150b3d9ed791019aef3cf6f4154736cf37c22533141b7fe87bd17"
+        },
+        {
+          "name": "shipping_effects",
+          "rows": 1,
+          "sha256": "622b792ba6a6478081289e141f219b1e67482fedd0c89b7897a28adc87dad5c3"
+        },
+        {
+          "name": "stock_allocations",
+          "rows": 2,
+          "sha256": "d9ec2e2d9933c14c9d82616d630769e6efd8dacddb2bcddae94afaac2ed3d690"
+        },
+        {
+          "name": "stock_balances",
+          "rows": 3,
+          "sha256": "cadfeed4ec4ece3151b454b516c88d43aa294d0d0c5aeaec47d1293de6e26e10"
+        },
+        {
+          "name": "stock_movements",
+          "rows": 176,
+          "sha256": "fe29b35fb664899aed119d4b7c1b0611a1ea18fb539a06ff1a6323cb03980905"
+        },
+        {
+          "name": "users",
+          "rows": 1,
+          "sha256": "f6c647ef13bde0497caca67978f08f81914494e8142e60a5b65d5b74c78e7fb9"
+        },
+        {
+          "name": "warehouse_roles",
+          "rows": 1,
+          "sha256": "35916e6de9cf4cf5163f32bb8aa417a8a9e95e91f129dfc5039fa5d4987ac0c2"
+        },
+        {
+          "name": "warehouses",
+          "rows": 1,
+          "sha256": "578fb3086d9cd91e252768eca949a3b34769494e0e3318b723d58a95beeda342"
+        }
+      ],
+      "journalSha256": "bec4df16a5844c6da4a8416ec33eaa5fa0162defa986e6ff85416a09a429aa4b",
+      "schemaSha256": "07dc967f74474315af6fc891b409b9b44a238aa1dfd67f8e7c257fe100a7b0d9",
+      "sequencesSha256": "d26ba2cc984b25935480423a1a625a2f2e7709fc2fb1d902f55b708634557fc6"
+    },
+    "dataMatchesFrozenState": true,
+    "runtimeMutationRejected": true,
+    "corruptArchiveRejected": true,
+    "wrongBackupKeyRejected": true,
+    "restoredDatabaseSelectedByBothProcesses": true,
+    "promotedRevision": "fc56f39539f7b5e89b728a78ba76e60bc97158af",
+    "savedHttpResultReplayed": true,
+    "originalDatabaseRetained": true,
+    "consumersResumedAfterValidation": true,
+    "finishedAt": "2026-11-23T06:18:09.226Z"
+  },
+  "checklist": {
+    "operator": "synthetic operator of kind-wms-gitops-15effbc1edeb41ebbba3aa9b3334a1cd",
+    "immutableImage": true,
+    "configurationInGit": true,
+    "schemaCompatibilityExercised": true,
+    "eventsCompatibilityAndRecovery": true,
+    "backupRestoredAndPromoted": true,
+    "actualTimesRecorded": true
+  },
+  "cleanup": "passed",
+  "finishedAt": "2026-11-23T06:18:21.488Z"
+}

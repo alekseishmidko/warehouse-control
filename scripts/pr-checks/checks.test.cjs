@@ -7,6 +7,96 @@ const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 const { checkDocumentation, linkErrors, publicDocErrors, anchors } = require('./documentation.cjs');
 const { compareRelease, assertApiCompatible } = require('./compatibility.cjs');
+
+// Linux Node stdin является socket: его повторное открытие как /dev/stdin даёт ENXIO.
+test('SOPS encryption uses stdin without reopening the child descriptor', () => {
+  const { prepareSecrets } = require('../gitops/secrets.cjs');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wms-sops-stdin-'));
+  const encryptedInputObserved = new Error('Encryption input observed');
+  try {
+    const session = {
+      directory,
+      namespace: 'warehouse-dev',
+      run(binary, args, input) {
+        if (binary === 'fixture-age-keygen') {
+          if (args[0] === '-o') fs.writeFileSync(args[1], 'synthetic-key');
+          return 'synthetic-recipient';
+        }
+        assert.equal(binary, 'fixture-sops');
+        assert.ok(!args.includes('/dev/stdin'), 'Do not reopen the Node stdin socket');
+        assert.equal(
+          args[args.indexOf('--filename-override') + 1],
+          path.join(directory, 'secrets.json'),
+        );
+        assert.equal(args[args.indexOf('--config') + 1], path.join(directory, 'sops-config.json'));
+        assert.equal(args.at(-1), path.join(directory, 'secrets.json'));
+        assert.equal(args[args.indexOf('--encrypted-regex') + 1], '^(data|stringData)$');
+        const document = JSON.parse(input);
+        assert.equal(document.kind, 'List');
+        assert.equal(document.items.length, 3);
+        assert.ok(document.items.every((item) => item.kind === 'Secret' && item.stringData));
+        // Прерываем fixture до decrypt/apply: этот тест проверяет только контракт stdin adapter.
+        throw encryptedInputObserved;
+      },
+    };
+    assert.throws(
+      () => prepareSecrets(session, { ageKeygen: 'fixture-age-keygen', sops: 'fixture-sops' }),
+      (error) => error === encryptedInputObserved,
+    );
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+// Реальный Helm проверяет chart; внешние Docker/kind заменены до создания ресурсов.
+test('local image without RepoDigests reaches kind after real Helm validation', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wms-local-image-'));
+  try {
+    const calls = path.join(directory, 'calls.jsonl');
+    const executable = `#!${process.execPath}
+const fs = require('node:fs');
+const path = require('node:path');
+const command = path.basename(process.argv[1]);
+const args = process.argv.slice(2);
+fs.appendFileSync(${JSON.stringify(calls)}, JSON.stringify([command, ...args]) + '\\n');
+if (command === 'docker' && args[0] === 'image' && args[1] === 'inspect') {
+  console.log(JSON.stringify([{ RepoDigests: [] }]));
+} else if (command === 'docker' && ['build', 'pull', 'tag'].includes(args[0])) {
+} else if (command === 'kind' && args[0] === 'create') {
+  console.error('intentional fixture stop before cluster creation');
+  process.exitCode = 1;
+} else if (command === 'kind' && args[0] === 'delete') {
+} else if (command === 'kubectl') {
+  console.log(JSON.stringify({ items: [] }));
+} else {
+  process.exitCode = 3;
+}
+`;
+    for (const name of ['docker', 'kind', 'kubectl'])
+      fs.writeFileSync(path.join(directory, name), executable, { mode: 0o700 });
+    const result = spawnSync(process.execPath, ['scripts/kubernetes-gate.cjs'], {
+      cwd: path.resolve(__dirname, '../..'),
+      env: {
+        ...process.env,
+        PATH: directory + path.delimiter + process.env.PATH,
+        WMS_HELM: require('./helm.cjs').helmBinary(),
+        WMS_KIND: path.join(directory, 'kind'),
+        WMS_KUBECTL: path.join(directory, 'kubectl'),
+      },
+      encoding: 'utf8',
+      timeout: 30000,
+    });
+    assert.ifError(result.error);
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /PASS chart lint\/template: one digest, Secret references only/);
+    assert.match(result.stderr, /intentional fixture stop before cluster creation/);
+    const commands = fs.readFileSync(calls, 'utf8').trim().split('\n').map(JSON.parse);
+    assert.ok(commands.some(([command, action]) => command === 'kind' && action === 'create'));
+    assert.ok(commands.some(([command, action]) => command === 'kind' && action === 'delete'));
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
 /** Синтетические wire contracts не содержат складскую логику; типы проверяет production guard. */
 function contracts() {
   return {
@@ -410,11 +500,12 @@ test('runtime policy rejects unrelated expired and altered advisory exceptions',
     jsOnly: true,
     toolingAbsent: true,
     sharedOpenSSL: false,
+    systemOpenSSLAbsent: true,
   };
   const report = () => ({
     SchemaVersion: 2,
     ArtifactType: 'container_image',
-    Metadata: { ImageID: imageId, OS: { Family: 'debian', Name: '13.7' } },
+    Metadata: { ImageID: imageId, OS: { Family: 'debian', Name: exceptions[0].osVersion } },
     Results: [
       {
         Target: 'Debian',
@@ -432,22 +523,22 @@ test('runtime policy rejects unrelated expired and altered advisory exceptions',
   });
   const options = { exceptions, proof, now };
   assert.equal(validateReport(report(), imageId, options).waived.length, exceptions.length);
-  // Новая glob advisory допускается только в точной reviewed области; FixedVersion/HIGH её отменяют.
-  const globReport = report();
-  globReport.Results[0].Vulnerabilities = [
+  // Iconv advisory допускается только в точной reviewed области; FixedVersion/HIGH её отменяют.
+  const iconvReport = report();
+  iconvReport.Results[0].Vulnerabilities = [
     {
-      VulnerabilityID: 'CVE-2026-126765',
+      VulnerabilityID: 'CVE-2026-121757',
       PkgName: 'libc6',
-      InstalledVersion: '2.41-12+deb13u4',
+      InstalledVersion: exceptions[0].version,
       Severity: 'UNKNOWN',
       Status: 'affected',
     },
   ];
-  assert.deepEqual(validateReport(globReport, imageId, options).waived, [
-    { id: 'CVE-2026-126765', package: 'libc6', expires: '2026-12-20' },
+  assert.deepEqual(validateReport(iconvReport, imageId, options).waived, [
+    { id: 'CVE-2026-121757', package: 'libc6', expires: '2026-12-20' },
   ]);
   for (const change of [{ FixedVersion: 'next' }, { Severity: 'HIGH' }]) {
-    const candidate = structuredClone(globReport);
+    const candidate = structuredClone(iconvReport);
     Object.assign(candidate.Results[0].Vulnerabilities[0], change);
     assert.throws(() => validateReport(candidate, imageId, options));
   }
@@ -487,6 +578,7 @@ test('runtime policy rejects unrelated expired and altered advisory exceptions',
     { ...proof, jsOnly: false },
     { ...proof, toolingAbsent: false },
     { ...proof, sharedOpenSSL: true },
+    { ...proof, systemOpenSSLAbsent: false },
   ])
     assert.throws(() => validateReport(report(), imageId, { ...options, proof: badProof }));
   assert.throws(() =>
@@ -613,5 +705,274 @@ test('checked image export rejects changed tags and archive contents', async () 
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
+  }
+});
+
+// Реальный Helm render: default hooks сохранены, Argo migration не обгоняет SA и блокирует wave0.
+test('GitOps migration ordering preserves the default Helm contract', () => {
+  const { helmBinary } = require('./helm.cjs');
+  const yaml = require('node:module').createRequire(require.resolve('@asyncapi/parser'))('js-yaml');
+  const args = [
+    'template',
+    'gitops-check',
+    path.resolve(__dirname, '../../infra/helm/warehouse'),
+    '--set-string',
+    'image.digest=sha256:' + 'a'.repeat(64),
+    '--set-string',
+    'database.runtimeSecret=runtime',
+    '--set-string',
+    'database.migrationSecret=migration',
+    '--set-string',
+    'auth.origin=https://warehouse.local',
+    '--set-string',
+    'auth.absoluteSeconds=600',
+    '--set-string',
+    'auth.idleSeconds=300',
+  ];
+  const render = (extra = []) =>
+    yaml.loadAll(
+      execFileSync(helmBinary(), [...args, ...extra], { encoding: 'utf8', stdio: 'pipe' }),
+    );
+  const regular = render().find((r) => r?.kind === 'Job');
+  assert.equal(regular.metadata.annotations['helm.sh/hook'], 'pre-install,pre-upgrade');
+  assert.match(regular.metadata.name, /-migrate-1$/);
+  const argo = render(['--set', 'deployment.controller=argocd']);
+  const job = argo.find((r) => r?.kind === 'Job');
+  assert.equal(job.metadata.name, 'gitops-check-migrate');
+  assert.equal(job.metadata.annotations['argocd.argoproj.io/hook'], 'Sync');
+  assert.equal(job.metadata.annotations['argocd.argoproj.io/sync-wave'], '-1');
+  assert.equal(
+    job.metadata.annotations['argocd.argoproj.io/hook-delete-policy'],
+    'BeforeHookCreation',
+  );
+  assert.equal(job.metadata.annotations['helm.sh/hook'], undefined);
+  const account = argo.find(
+    (r) =>
+      r?.kind === 'ServiceAccount' && r.metadata.name === job.spec.template.spec.serviceAccountName,
+  );
+  assert.equal(account.metadata.annotations['argocd.argoproj.io/sync-wave'], '-2');
+  assert.equal(account.automountServiceAccountToken, false);
+  assert.equal(job.spec.backoffLimit, 0);
+  assert.equal(job.spec.activeDeadlineSeconds, 180);
+  for (const deployment of argo.filter((r) => r?.kind === 'Deployment'))
+    assert.equal(deployment.metadata.annotations?.['argocd.argoproj.io/sync-wave'] ?? '0', '0');
+  assert.throws(() => render(['--set', 'deployment.controller=unknown']), /Command failed/);
+});
+
+// Недоверенная revision/artifact policy не может выбрать mutable source или credential URL.
+test('GitOps policy rejects mutable revisions foreign imports and unsafe artifacts', async () => {
+  const { application } = require('../gitops/application.cjs');
+  const { pinnedCore } = require('../gitops/core.cjs');
+  const { importCheckedImage } = require('../gitops/import.cjs');
+  const { checkedDownload, hash } = require('../gitops/tools.cjs');
+  for (const value of ['main', 'latest', 'a'.repeat(39), 'a'.repeat(40) + ';bad'])
+    assert.throws(() => application(value), /Exact Git revision/);
+  assert.equal(application('a'.repeat(40)).spec.destination.namespace, 'warehouse-dev');
+  assert.throws(() => pinnedCore('tampered vendor manifest'), /checksum/);
+  assert.throws(
+    () => importCheckedImage({ cluster: 'owned' }, 'user-project:latest', 'probe'),
+    /owned/,
+  );
+  assert.throws(() =>
+    importCheckedImage({ cluster: 'owned' }, 'warehouse-vendor:owned-0', '../outside'),
+  );
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gitops-policy-'));
+  try {
+    const file = path.join(root, 'artifact');
+    fs.writeFileSync(file, 'verified bytes');
+    assert.equal(
+      await checkedDownload(
+        { url: 'https://invalid.example/artifact', sha256: hash(fs.readFileSync(file)) },
+        file,
+      ),
+      file,
+    );
+    for (const url of [
+      'http://invalid.example/file',
+      'https://user:password@invalid.example/file',
+      'https://invalid.example/file?token=credential',
+    ])
+      await assert.rejects(
+        checkedDownload({ url, sha256: hash(fs.readFileSync(file)) }, file),
+        /Invalid pinned artifact/,
+      );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// Ошибка ownership запрещает удаление чужого image, но не препятствует освобождению своего private directory.
+test('GitOps cleanup rejects foreign images and still removes private files', async () => {
+  const { createSession } = require('../gitops/session.cjs');
+  const before = process.listenerCount('SIGTERM');
+  const session = createSession({ kind: 'unavailable-kind', kubectl: 'unavailable-kubectl' });
+  fs.writeFileSync(path.join(session.directory, 'private-marker'), 'synthetic');
+  session.ownedImages.push('user-project:latest');
+  await assert.rejects(session.close(), /Foreign image cleanup rejected/);
+  assert.equal(fs.existsSync(session.directory), false);
+  assert.equal(process.listenerCount('SIGTERM'), before);
+});
+
+// Запускается фактический container program под ESM. HTTP adapter stub не реализует складскую логику; integration gate делает реальные команды.
+test('rolling load program starts as ESM and stops without leaking request credentials', () => {
+  const { loadProgram } = require('../gitops/load.cjs');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'load-module-'));
+  try {
+    const stop = path.join(root, 'wms-load-stop');
+    const stub = `globalThis.fetch=async(url)=>{if(url.endsWith('/post')){(await import('node:fs')).writeFileSync(${JSON.stringify(stop)},'stop');return {status:200,json:async()=>({})};}return {status:201,json:async()=>({id:'synthetic-receipt'})};};\n`;
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', stub + loadProgram], {
+      input: JSON.stringify({
+        auth: { Cookie: 'synthetic-private-cookie' },
+        fixture: {
+          warehouseId: 'synthetic',
+          receivingLocationId: 'synthetic',
+          productId: 'synthetic',
+        },
+        progressDirectory: root,
+      }),
+      encoding: 'utf8',
+      timeout: 5000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const summary = JSON.parse(result.stdout);
+    assert.equal(summary.posted, 1);
+    assert.equal(summary.failures, 0);
+    assert.equal(summary.stopped, true);
+    assert.ok(!result.stdout.includes('synthetic-private-cookie'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('registry pull config binding rejects changed or incomplete CRI metadata', () => {
+  const { assertPulledConfig } = require('../image-release/pull-kind.cjs');
+  const id = 'sha256:' + 'd'.repeat(64);
+  const ref = 'ghcr.io/alekseishmidko/warehouse-control/backend@sha256:' + 'e'.repeat(64);
+  assert.doesNotThrow(() => assertPulledConfig({ id, repoDigests: [ref] }, ref, id));
+  for (const image of [
+    {},
+    { id, repoDigests: [] },
+    { id: 'sha256:' + 'f'.repeat(64), repoDigests: [ref] },
+  ])
+    assert.throws(() => assertPulledConfig(image, ref, id));
+});
+
+test('release rehearsal preserves rollback profiles and rejects unsafe SQL identifiers', () => {
+  const { withImage } = require('../gitops/platform.cjs');
+  const { databaseFacts } = require('../gitops/backup.cjs');
+  const baseline = { image: { digest: 'before' }, auth: { origin: 'https://warehouse.local' } };
+  const candidate = withImage(baseline, {
+    repository: 'fixture',
+    digest: 'after',
+    pullPolicy: 'Never',
+  });
+  candidate.auth.origin = 'https://changed.local';
+  assert.equal(baseline.auth.origin, 'https://warehouse.local');
+  assert.equal(baseline.image.digest, 'before');
+  const session = {
+    sql: () => {
+      throw Error('SQL must not run');
+    },
+  };
+  assert.throws(() => databaseFacts(session, 'warehouse;drop database warehouse'), /match/);
+  assert.throws(
+    () => databaseFacts(session, 'warehouse', ['stock_movements;drop table users']),
+    /match/,
+  );
+});
+
+// Exact old git diff guard игнорировал новый runtime source без git add. Проверяем actual Git, не mock output.
+test('accepted runtime guard rejects untracked build inputs but permits test-only changes', () => {
+  const { verifyRuntimeSource, runtimeSourceSnapshot } = require('../gitops/runtime-source.cjs');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'runtime-source-'));
+  const git = (args) =>
+    execFileSync(
+      'git',
+      [
+        '-c',
+        'user.name=Synthetic',
+        '-c',
+        'user.email=test@example.invalid',
+        '-c',
+        'commit.gpgsign=false',
+        ...args,
+      ],
+      { cwd: root, encoding: 'utf8', stdio: 'pipe' },
+    ).trim();
+  try {
+    fs.mkdirSync(path.join(root, 'apps/backend/src'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'apps/backend/src/main.ts'), 'checked source');
+    git(['init']);
+    git(['add', '.']);
+    git(['commit', '-m', 'checked']);
+    const base = runtimeSourceSnapshot(root);
+    assert.doesNotThrow(() => verifyRuntimeSource(base, root));
+    const added = path.join(root, 'apps/backend/src/added.ts');
+    fs.writeFileSync(added, 'untracked build input');
+    assert.throws(() => verifyRuntimeSource(base, root), /Runtime source changed/);
+    fs.writeFileSync(path.join(root, '.gitignore'), 'apps/backend/src/added.ts\n');
+    assert.throws(() => verifyRuntimeSource(base, root), /Runtime source changed/);
+    fs.rmSync(added);
+    fs.mkdirSync(path.join(root, 'apps/backend/test'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'apps/backend/test/fixture.spec.ts'), 'test-only change');
+    assert.doesNotThrow(() => verifyRuntimeSource(base, root));
+    fs.writeFileSync(path.join(root, 'apps/backend/src/main.ts'), 'changed build input');
+    assert.throws(() => verifyRuntimeSource(base, root), /Runtime source changed/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// Фактический filesystem payload: сохраняем SONAME links/metadata, не переносим SSL package и не принимаем traversal.
+test('minimal runtime assembly preserves package metadata and rejects unsafe inventory', () => {
+  const { copyCppRuntime } = require('../image-release/cpp-runtime.cjs');
+  const { createHash } = require('node:crypto');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cpp-runtime-'));
+  const source = path.join(root, 'source'),
+    output = path.join(root, 'output');
+  const write = (name, bytes) => {
+    const p = path.join(source, name);
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, bytes);
+  };
+  try {
+    const inventory = {
+      'gcc-14-base': 'usr/share/doc/gcc-14-base/copyright',
+      'libgcc-s1': 'usr/lib/aarch64-linux-gnu/libgcc_s.so.1',
+      'libstdc++6': 'usr/lib/aarch64-linux-gnu/libstdc++.so.6.0.33',
+    };
+    for (const [name, file] of Object.entries(inventory)) {
+      const bytes = 'synthetic package ' + name;
+      write(file, bytes);
+      write('var/lib/dpkg/status.d/' + name, 'Package: ' + name + '\nVersion: checked\n');
+      write(
+        'var/lib/dpkg/status.d/' + name + '.md5sums',
+        createHash('md5').update(bytes).digest('hex') + '  ' + file + '\n',
+      );
+    }
+    fs.symlinkSync(
+      'libstdc++.so.6.0.33',
+      path.join(source, 'usr/lib/aarch64-linux-gnu/libstdc++.so.6'),
+    );
+    write('usr/lib/aarch64-linux-gnu/libssl.so.3', 'must not transfer');
+    copyCppRuntime(source, output, 'arm64');
+    assert.equal(
+      fs.readlinkSync(path.join(output, 'usr/lib/aarch64-linux-gnu/libstdc++.so.6')),
+      'libstdc++.so.6.0.33',
+    );
+    for (const name of Object.keys(inventory))
+      assert.ok(fs.existsSync(path.join(output, 'var/lib/dpkg/status.d/' + name)));
+    assert.equal(fs.existsSync(path.join(output, 'usr/lib/aarch64-linux-gnu/libssl.so.3')), false);
+    write('var/lib/dpkg/status.d/libgcc-s1.md5sums', 'a'.repeat(32) + '  ../outside\n');
+    assert.throws(
+      () => copyCppRuntime(source, path.join(root, 'unsafe'), 'arm64'),
+      /Unsafe package inventory/,
+    );
+    assert.throws(
+      () => copyCppRuntime(source, path.join(root, 'wrong-arch'), 's390x'),
+      /Unsupported/,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });

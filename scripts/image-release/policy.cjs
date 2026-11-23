@@ -1,5 +1,5 @@
 /** @file WMS-602: строгая проверка недоверенного scan JSON и адресных advisory exceptions; внешнего I/O нет. */
-const { runtimeBase, nodeVersion } = require('./runtime.cjs');
+const { runtimeBase, nodeVersion, osVersion } = require('./runtime.cjs');
 /** Исключения являются source policy: дубликаты, неверная область и просрочка блокируют весь gate.
  * Matching требует точного CVE/package/version/severity/status/OS/base/Node и runtime proof.
  * Никакое исключение не разрешает найденное исправление или новую severity автоматически. */
@@ -17,7 +17,7 @@ function validateExceptions(exceptions, now) {
       e.severity !== 'UNKNOWN' ||
       e.status !== 'affected' ||
       e.os !== 'debian' ||
-      e.osVersion !== '13.7' ||
+      e.osVersion !== osVersion ||
       e.base !== runtimeBase ||
       e.nodeVersion !== nodeVersion ||
       typeof e.reason !== 'string' ||
@@ -82,7 +82,8 @@ function validateReport(report, imageId, { exceptions = [], proof, now = Date.no
             proof?.nodeVersion === e.nodeVersion &&
             proof?.jsOnly === true &&
             proof?.toolingAbsent === true &&
-            proof?.sharedOpenSSL === false,
+            proof?.sharedOpenSSL === false &&
+            proof?.systemOpenSSLAbsent === true,
         );
         if (exception)
           waived.push({ id: exception.id, package: exception.package, expires: exception.expires });
