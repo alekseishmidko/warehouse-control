@@ -29,7 +29,8 @@ Dockerfile.** Не добавлять общий COPY . . ради удобст�
 Node 24.22.3 trixie-slim закреплён digest, pnpm 10.18.3 — явно в tooling stage.
 Frozen install не изменяет lockfile. Production-dependencies делает отдельный prod
 install (132 packages на проверенном lockfile); build stage ставит dev dependencies
-и выполняет Nest build. Runtime начинается с pinned distroless cc-debian13, получает только Node binary, passwd/group (node uid1000),
+и выполняет Nest build. Runtime начинается с pinned distroless base-nossl-debian13, получает C++ libraries/metadata
+через общий cpp-runtime helper из отдельного pinned cc build stage, Node binary и passwd/group (node uid1000),
 production node_modules, dist и drizzle с journal/snapshots/SQL. Host artifacts не нужны.
 Обновление base digest/lockfile — отдельное осознанное изменение с повтором проверок.
 
@@ -334,3 +335,5 @@ Regression R-02: [postgres-readiness.test.cjs](../../scripts/postgres-readiness.
 проверяет base Compose health на новом volume до основного Docker gate. Initdb barrier
 доказывает отказ преждевременного healthy, затем проверяется успешный --wait при TCP.
 `pnpm docker:gate` и `pnpm check:pr` включают этот test. [Evidence](../reports/project-review-2026-11-07.md#исправление-r-02r-03-требования-до-изменения).
+
+Уточнение runtime и сохранения package metadata без системных SSL bytes: [ADR-0041](../adr/0041-runtime-without-system-openssl.md).

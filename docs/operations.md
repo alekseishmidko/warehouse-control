@@ -6,7 +6,8 @@
 API/worker/web и NGINX Gateway Fabric/TLS реализованы WMS-301–303. Это локальные стенды;
 локальная observability WMS-402 реализована отдельным profile; внешний production
 deployment/GitOps не настроены. Dev Kafka готова WMS-501–506; GitHub Actions/GHCR
-pipeline и isolated target pull выполнены WMS-602. [Delivery evidence](reports/wms-602.md).
+pipeline и isolated target pull выполнены WMS-602. WMS-603/604 проверили отдельный
+local Argo Core/SOPS и release/recovery: [flow](flows/gitops-release-recovery.md). [Delivery evidence](reports/wms-602.md).
 Фактический статус — [карта](README.md), открытые findings — [отчёт ревью](reports/project-review-2026-11-07.md).
 
 | Режим                | Запуск и владелец инструкции                                                                                 | Данные и границы                                                              |
@@ -92,15 +93,14 @@ Gates создают свои случайные projects/clusters/credentials/v
 После изменения env/scripts/config повторяется исходный пользовательский entry point.
 Код ошибки и ограничения проверки фиксируются в отчёте.
 
-## Ещё не реализовано
+## Ограничения production
 
-- Kafka/Strimzi и broker failure tests; текущий transport — PostgreSQL outbox.
-- Численные production SLO и baseline WMS-403/404. Локальные Prometheus/Grafana/Loki/Tempo,
-  Alloy и проверяемые local alerts WMS-402 реализованы: [flow/ограничения](flows/observability.md).
-- Внешние CI/CD, image publishing/GitOps/Argo CD, автоматический compatibility comparison
-  с основной веткой и vulnerability remediation pipeline.
-- Проверенные HA/storage backups/restore, внешний DNS/load balancer, production Secrets
-  и rollout на активных операциях. Single-node kind не доказывает эти свойства.
+- Численные production SLO/RPO/RTO не утверждены. Локальные observability/load/recovery
+  проверки не являются production SLA.
+- Постоянный внешний GitOps target, HA/storage failure, внешний DNS/load balancer,
+  production Secrets/key escrow и production backup retention не проверены.
+- Dev Kafka/broker fault/cutover реализованы WMS-501–506; рабочий transport не переключён
+  автоматически. Внешняя поставка в GHCR проверена WMS-602; production rollout не выполнен.
 
 Эти работы выполняются отдельными этапами [плана](development-plan.md). Разрешение
 изменить repository не является разрешением публиковать или разворачивать внешний стенд.
@@ -121,11 +121,12 @@ Exporter endpoint опционален; без collector spans не сохран
 Внешняя PR pipeline должна выполнять frozen install, quality/contract compatibility,
 image checks и Helm lint/render. Main delivery через registry/GitOps/Argo CD требует
 отдельно выбранного окружения и разрешения. До GitOps требуется защищённое хранение
-Secrets, например SOPS/age с ключом вне Git; сейчас такой механизм не установлен.
+Secrets. WMS-603 настроила SOPS/age с ключами вне Git для отдельного local kind;
+production key escrow и постоянное окружение требуют отдельного решения.
 
-Нагрузочные k6 и будущие Kafka fault tests должны проверять конкуренцию за stock,
-рост outbox, потерю broker ack, отказ broker, старые события и rollout. Существующие
-PostgreSQL crash/rollback tests не доказывают поведение ещё не подключённого транспорта.
+Нагрузочные k6 и Kafka fault tests проверяют конкуренцию за stock,
+рост outbox, потерю broker ack, отказ broker, старые события и rollout. Границы отдельных
+PostgreSQL/Kafka proof описаны в [cutover flow](flows/transport-cutover.md).
 
 Наблюдаемость: [локальный запуск и cleanup](../infra/observability/README.md),
 [реальный fault drill и evidence](reports/wms-402.md). Внешний observability deployment

@@ -108,13 +108,15 @@ async function main() {
       undefined,
       240000,
     );
-    let digest = JSON.parse(
-      run('docker', ['image', 'inspect', 'warehouse-backend:wms302']),
-    )[0].RepoDigests[0].split('@')[1];
-    assert.match(digest, /^sha256:[a-f0-9]{64}$/);
     const values = join(temp, 'values.json');
     const config = {
-      image: { repository: 'warehouse-backend', digest, pullPolicy: 'Never' },
+      // Локальный build может не иметь RepoDigests. Этот digest проверяет только форму chart;
+      // перед install он обязательно заменяется проверенным CRI digest после kind import.
+      image: {
+        repository: 'warehouse-backend',
+        digest: 'sha256:' + '0'.repeat(64),
+        pullPolicy: 'Never',
+      },
       database: { runtimeSecret: 'warehouse-runtime', migrationSecret: 'warehouse-migration' },
       auth: { origin: 'https://warehouse.local', absoluteSeconds: '600', idleSeconds: '300' },
     };
@@ -178,7 +180,7 @@ async function main() {
     run(kind, ['load', 'image-archive', postgresArchive, '--name', cluster]);
     // Docker save/import может нормализовать manifest: сравниваем config identity и используем CRI digest.
     const node = cluster + '-control-plane';
-    digest = require('./kind-image.cjs').canonicalImage(
+    const digest = require('./kind-image.cjs').canonicalImage(
       run,
       cluster,
       'warehouse-backend:wms302',

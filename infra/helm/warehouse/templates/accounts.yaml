@@ -17,8 +17,12 @@ metadata:
   {{/* Hook SA создаётся до Job, чтобы pre-install не зависел от ещё не созданных обычных resources. */}}
   name: {{ .Release.Name }}-migration
   annotations:
+    {{- if eq .Values.deployment.controller "argocd" }}
+    argocd.argoproj.io/sync-wave: '-2'
+    {{- else }}
     helm.sh/hook: pre-install,pre-upgrade
     {{/* Отрицательный weight обеспечивает SA до Job. before-hook-creation заменяет предыдущий hook SA. */}}
     helm.sh/hook-weight: '-10'
     helm.sh/hook-delete-policy: before-hook-creation
+    {{- end }}
 automountServiceAccountToken: false

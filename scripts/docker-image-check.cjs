@@ -35,6 +35,7 @@ async function main() {
   try {
     const inputs = [
       '.dockerignore',
+      'scripts/image-release/cpp-runtime.cjs',
       'package.json',
       'pnpm-lock.yaml',
       'pnpm-workspace.yaml',

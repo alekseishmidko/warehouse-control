@@ -29,8 +29,9 @@ LOW/MEDIUM остаются в полном JSON для разбора. Новы
 `WMS_TRIVY` выбирает executable, которому оператор доверяет. Все TRIVY_* overrides
 удаляются из scanner environment; отдельный пустой config исключает настройки checkout.
 Это защита от случайной конфигурации, а не от привилегированного оператора.
-JSON содержит findings OS и библиотек, summary — image ID/hash отчёта/commit/version.
+JSON содержит findings OS и библиотек, summary — image ID/hash отчёта/commit/version/sourceSnapshot.
 HEAD не доказывает clean checkout; доказательство свежести принадлежит harness.
+`scanLocalImages` экспортирует тот же фактический scanner для GitOps baseline, без второго policy.
 Inspect ID может быть OCI index; Trivy ImageID сравнивается с config digest archive bytes.
 Повтор создаёт новый каталог, прежний failed не переписывается в passed.
 
@@ -40,38 +41,37 @@ Policy и недоверенные JSON проверяет `pnpm test:pr-checks`
 
 ## Runtime и review исключений
 
-[ADR-0039](../../docs/adr/0039-minimal-node-runtime.md): Node24.22.3 из официального
-trixie-slim в pinned distroless cc-debian13. `runtime.cjs` используется scanner и
-image-check; `policy.cjs` содержит pure JSON/policy проверки. Scan сохраняет исходный
-JSON без фильтрации, summary — все counts, waived entries, runtime proof и policy hash.
+[ADR-0041](../../docs/adr/0041-runtime-without-system-openssl.md) уточняет ADR-0039:
+Node24.22.3 из pinned tooling, официальный base-nossl-debian13 и только нужные C++
+packages из pinned cc stage. `cpp-runtime.cjs` копирует фактические package files,
+SONAME links/licenses/metadata; системная libssl не входит в lower runtime layers.
+Package inventory checksum проверяется, unsafe paths/SSL payload запрещены. Исходный
+cc source доверен по SHA256; package MD5 используется для сверки, не как подпись.
+`runtime.cjs` проверяет Node/uid1000, отсутствие tooling/native addons, физическое
+отсутствие shared SSL files/package и sharedObjects. Bundled static OpenSSL в Node остаётся.
 
-`exceptions.json` — source policy, не Trivy ignorefile. Каждая запись содержит точный
-id/package/version/severity/status, Debian release, base digest, Node version, expires,
-reason и ссылку на первичный источник. Все шесть записей истекают2026-12-20 UTC.
-Нет wildcard, исключений HIGH/CRITICAL или общего ignore-unfixed. Найденная FixedVersion,
-новая severity/status/package version/OS или отсутствие runtime proof запрещают waiver.
-Просрочка/дубликаты/невалидная source policy блокируют весь gate даже при чистом scan.
+Fresh scan2026-11-23 отверг старый cc runtime по HIGH CVE-2026-124709. HIGH waiver
+не добавлен. Старые опубликованные WMS-602 digests/evidence остаются историческим фактом;
+внешняя публикация нового runtime не выполнялась. GitOps/recovery строят и сканируют
+текущие local images перед import: [flow](../../docs/flows/gitops-release-recovery.md).
 
-| Advisory                                                                       | Область                    | Причина применимости исключения                                                                      |
-| ------------------------------------------------------------------------------ | -------------------------- | ---------------------------------------------------------------------------------------------------- |
-| [CVE-2026-121757](https://security-tracker.debian.org/tracker/CVE-2026-121757) | libc6 2.41-12+deb13u4      | CP949 через glibc iconv с контролируемыми input/encoding и //IGNORE; Node ICU не вызывает этот путь. |
-| [CVE-2026-121758](https://security-tracker.debian.org/tracker/CVE-2026-121758) | тот же libc6               | ISO-2022-CN-EXT decoder glibc iconv; та же недостижимость.                                           |
-| [CVE-2026-124024](https://security-tracker.debian.org/tracker/CVE-2026-124024) | тот же libc6               | UCS-4 → IBM1390/1399 glibc iconv с контролируемым memory layout; та же недостижимость.               |
-| [CVE-2026-126765](https://security-tracker.debian.org/tracker/CVE-2026-126765) | тот же libc6               | glibc glob/globfree при allocation failure; Node fs.glob использует JS/minimatch, не libc glob.      |
-| [CVE-2026-84786](https://security-tracker.debian.org/tracker/CVE-2026-84786)   | libssl3t64 3.5.7-1~deb13u3 | DANE системного OpenSSL; Node статически использует собственный OpenSSL3.5.9.                        |
-| [CVE-2026-95690](https://security-tracker.debian.org/tracker/CVE-2026-95690)   | тот же libssl3t64          | DTLS системного OpenSSL; та же недостижимость.                                                       |
+`exceptions.json` — source policy, не ignorefile. Три exact UNKNOWN libc6
+2.41-12+deb13u5, Debian13.8, pinned base4006ac92504b и Node24.22.3 истекают2026-12-20 UTC.
+Каждая запись: id/package/version/severity/status, OS/base/Node, expires/reason/source.
+Wildcard/HIGH/CRITICAL/ignore-unfixed запрещены. FixedVersion, новая severity/version/OS,
+просрочка или отсутствие runtime proof (включая systemOpenSSLAbsent) блокируют gate.
 
-Review CVE-2026-126765: Debian указывает affected/unfixed для trixie.
-[Node24.22.3 fs.glob source](https://github.com/nodejs/node/blob/v24.22.3/lib/internal/fs/glob.js)
-использует JS/minimatch и readdir/stat. Вместе с отсутствием native addons/CLI/FFI это
-основание адресного исключения. Уязвимость затрагивает все архитектуры; ARM64 не является защитой.
+| Advisory                                                                       | Область               | Причина                                                                        |
+| ------------------------------------------------------------------------------ | --------------------- | ------------------------------------------------------------------------------ |
+| [CVE-2026-121757](https://security-tracker.debian.org/tracker/CVE-2026-121757) | libc6 2.41-12+deb13u5 | CP949 glibc iconv с controlled encoding; Node TextDecoder/Intl использует ICU. |
+| [CVE-2026-121758](https://security-tracker.debian.org/tracker/CVE-2026-121758) | тот же libc6          | ISO-2022-CN-EXT decoder glibc iconv; та же недостижимость.                     |
+| [CVE-2026-124024](https://security-tracker.debian.org/tracker/CVE-2026-124024) | тот же libc6          | UCS-4 → IBM1390/1399 glibc iconv; та же недостижимость.                        |
 
-Gconv/libssl остаются в filesystem и полном JSON. Это не утверждение об исправлении
-библиотек. Review production source не выявило FFI/iconv/child_process. Runtime probe
-подтверждает отсутствие iconv/openssl CLI, .node addons и shared libssl/libcrypto.
-Остаточный риск: новый JS/native consumer или внешние mounts могут изменить применимость;
-такие изменения требуют review policy до release, source-bound harness не заменяет его.
-Regression: `runtime policy rejects unrelated expired and altered advisory exceptions`.
+Gconv остаётся в filesystem и полном scan JSON; это не исправление glibc. Production
+source не вызывает FFI/iconv/child_process, native addons/CLI отсутствуют. Новый native
+consumer или внешние mounts требуют нового review. Старые glob/SSL waiver удалены:
+они не описывают новый runtime. Regression — `runtime policy rejects unrelated expired
+and altered advisory exceptions`, assembly filesystem test и реальные image-check/scan.
 
 ## Проверка целевого pull
 
@@ -101,3 +101,13 @@ jq и передаёт их outputs в packages:read verifier. Target CRI id о�
 checked configId; одно совпадение Pod registry reference больше не считается достаточным.
 Regression проверяет old gate order (red до fix), changed tag, save race, изменённый
 raw scan report, отсутствие accepted metadata при отказе и successful bytes export.
+
+## Локальные release fixtures
+
+`fixtures.cjs` добавляет следующий test-only SQL/journal в thin image поверх checked
+base, вычисляя idx/when из фактического base journal. Он используется GitOps failure
+и release/recovery gate. Source applied SQL не меняется; secret/build args отсутствуют.
+Только owned tags импортируются с selected-platform config verification; наружу эти
+images не публикуются. [Владелец сценария](../../docs/flows/gitops-release-recovery.md).
+`assertPulledConfig` общий для WMS-602 pull и GitOps registry prerequisite;
+regression отвергает чужой config и отсутствие requested repoDigest.

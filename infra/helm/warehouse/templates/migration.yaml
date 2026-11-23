@@ -8,15 +8,22 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   {{/* Helper ограничивает длину имени Job и сохраняет различимость длинных release names. */}}
-  name: {{ include "warehouse.jobPrefix" . }}-migrate-{{ .Release.Revision }}
+  {{/* Argo render всегда имеет revision1: постоянное имя и BeforeHookCreation обеспечивают новый запуск при sync. */}}
+  name: {{ include "warehouse.jobPrefix" . }}-migrate{{ if eq .Values.deployment.controller "helm" }}-{{ .Release.Revision }}{{ end }}
   labels:
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: migration
   annotations:
+    {{- if eq .Values.deployment.controller "argocd" }}
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: '-1'
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    {{- else }}
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: '0'
     {{/* Перед созданием hook с тем же именем Helm удаляет прежний. У разных revisions разные Job names; история остаётся для диагностики. */}}
     helm.sh/hook-delete-policy: before-hook-creation
+    {{- end }}
 spec:
   {{/* Ноль запрещает автоматический Kubernetes retry неуспешной миграции; повтор запуска выбирает оператор. */}}
   backoffLimit: 0

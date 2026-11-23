@@ -206,6 +206,18 @@ initial/repeat Job, runtime DDL refusal, неуспешный hook/auth upgrade,
 journal/PVC после DB restart и uninstall. finally удаляет только свой cluster.
 Ненулевой exit — failure; skip/fallback не предусмотрены.
 
+Предварительные `helm lint/template` используют синтетический digest только для
+проверки формы values. Локально собранный image может иметь пустой `RepoDigests`;
+registry digest для этого шага не требуется. После загрузки image в kind gate
+сверяет config identity Docker archive с CRI через `canonicalImage`, заменяет digest
+в values на фактический CRI digest и только затем устанавливает release.
+Ошибка сверки запрещает установку. Regression KLI-01 использует настоящий Helm и
+Docker fixture с пустым `RepoDigests`: gate должен дойти до создания kind.
+Fixture останавливает создание до появления ресурсов; он не доказывает работу
+реального кластера. [Source task](../tasks/kubernetes-local-image.json), test
+`local image without RepoDigests reaches kind after real Helm validation` в
+[checks.test.cjs](../../scripts/pr-checks/checks.test.cjs).
+
 SQL race tests в serialized-migrations.spec.ts используют два наблюдаемых lock waits,
 новый синтетический SQL, повтор journal и rollback DDL при ошибке. Это не mocks.
 Код chart не даёт доказательства API/worker active rollout, external TLS или gate 3.

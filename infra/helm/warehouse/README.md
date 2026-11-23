@@ -31,3 +31,16 @@ Service и API token. mTLS Secrets существуют отдельно; values
 Registry release preflight выполняется до Helm. [Шаги и recovery](../../../docs/flows/publisher.md).
 `kubernetes:gate` проверяет optional manifest через server dry-run; actual transport
 проверяется отдельно реальными PostgreSQL/Kafka integration и `kafka:gate` ACL.
+
+## Режим Argo CD (WMS-603)
+
+`deployment.controller` принимает `helm` (default) либо `argocd`. Default сохраняет
+прежние pre-install/pre-upgrade hooks. Режим Argo CD не выполняет Helm install:
+обычный migration ServiceAccount wave-2 → migration Sync hook wave-1 → runtime wave0.
+BeforeHookCreation пересоздаёт фиксированный Job при следующем sync. Нулевой backoff
+и deadline180s сохранены. Failed Job блокирует переход к Deployments, но не откатывает SQL.
+Secrets и PostgreSQL должны быть подготовлены до sync; это не bootstrap этих зависимостей.
+
+Source render regression проверяет оба режима и отвергает неизвестный controller.
+Окружение согласовано: отдельный local kind ARM64 + SOPS/age. Live sync/drift/failed SQL migration проверены новым gitops:gate и release:drill.
+[Статус, вход и проверки](../../../docs/reports/wms-603.md).

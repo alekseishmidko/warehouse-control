@@ -75,3 +75,7 @@ stable Kafka epoch, read_committed и ack → SQL completion без обещан
 retained replay и возврат с новым boundary без удаления local deliveries/markers.
 
 [0039. Минимальный Node runtime](0039-minimal-node-runtime.md) — pinned Node/Debian13, отсутствие tooling и адресные advisory exceptions.
+
+- [ADR-0040: локальный GitOps и release/recovery](0040-local-gitops-release-recovery.md).
+
+[0041. Runtime без системного OpenSSL](0041-runtime-without-system-openssl.md) — официальный base-nossl, C++ packages/metadata и fresh local build/scan baseline.

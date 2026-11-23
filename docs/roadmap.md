@@ -109,11 +109,12 @@ WMS-601 реализует полный локальный source-bound pipeline
 migration compatibility, docs/JSDoc/catalog, Helm и Docker checks.
 [Flow](flows/pr-pipeline.md), [review и evidence](reports/wms-601.md).
 WMS-602 реализовала реальный GitHub Actions/GHCR release и isolated ARM64 kind pull:
-[AC/evidence](reports/wms-602.md). GitOps/release-recovery остаются WMS-603–604.
-
-GitHub Actions/GHCR подтверждены и проверены; далее Argo CD,
-автоматические gates, image scan, секреты и rollback drill.
-Готово, когда выпуск воспроизводим и восстановление проверено.
+[AC/evidence](reports/wms-602.md). WMS-603/604 проверили GitOps/SOPS и release/recovery
+в отдельном local kind ARM64: [flow](flows/gitops-release-recovery.md),
+[AC/review/времена](reports/wms-604.md). Совместимый rollout, image rollback,
+committed несовместимость и forward fix, encrypted restore/promotion выполнены.
+Production target/HA/key escrow не входят в локальный drill. Итоговая freshness —
+harness:ready docs/tasks/wms-604.json.
 
 ## Стиль реализации
 
@@ -189,8 +190,8 @@ generated API-контракты, Query cache и журнал команд. Gate
 WMS-301–303: локальный kind, API/worker/web Helm chart, migrations и NGF/TLS проверены.
 [Gateway flow и ограничения](flows/gateway-tls.md), [evidence](reports/wms-303.md).
 WMS-304 lifecycle/rollout и Gate3 выполнены, см. [отчёт](reports/wms-304.md).
-Следующая задача — WMS-401.
+Текущий итоговый статус — [карта документации](README.md).
 
 Dev workflow: добавлена `pnpm dev:all` для PostgreSQL/migrations и host API/worker/web,
 с одним compiler и общим shutdown. [Flow и evidence](flows/dev-environment.md).
-WMS-304 выполнена; следующая задача — WMS-401. Static frontend image проверен отдельно от host dev workflow.
+WMS-304 выполнена; текущий итоговый статус — [карта](README.md). Static frontend image проверен отдельно от host dev workflow.

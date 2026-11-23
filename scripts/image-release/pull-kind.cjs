@@ -21,6 +21,15 @@ function parseReleaseRef(value, repository, app) {
     throw Error('Expected immutable GHCR release reference');
   return value;
 }
+/** Связывает registry reference с ожидаемым checked config; неполная CRI metadata не считается pull proof. */
+function assertPulledConfig(image, reference, configId) {
+  assert.match(configId, /^sha256:[a-f0-9]{64}$/);
+  assert.ok(
+    Array.isArray(image?.repoDigests) && image.repoDigests.includes(reference),
+    'CRI must retain requested registry digest',
+  );
+  assert.equal(image.id, configId, 'Pulled config must equal final scanned/exported config');
+}
 /** Запускает fixed CLI argv без shell. Secret input никогда не включается в diagnostic error. */
 function run(binary, args, input, secret = false, timeout = 150000) {
   try {
@@ -188,12 +197,7 @@ async function main() {
           reference,
         ]),
       ).status;
-      assert.ok(image.repoDigests.includes(reference), 'CRI must retain requested registry digest');
-      assert.equal(
-        image.id,
-        configs[app],
-        'Pulled config must equal final scanned/exported config',
-      );
+      assertPulledConfig(image, reference, configs[app]);
       assert.ok(
         [reference, image.id, ...image.repoDigests].some(
           (id) => state.imageID === id || state.imageID.endsWith('//' + id),
@@ -241,4 +245,4 @@ if (require.main === module)
     console.error(error.message);
     process.exitCode = 1;
   });
-module.exports = { parseReleaseRef };
+module.exports = { parseReleaseRef, assertPulledConfig };
